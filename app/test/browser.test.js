@@ -173,3 +173,42 @@ test('lista de dispositivos preenche microfone e áudio do jogo', async () => {
   await host.page.waitForFunction(() => document.querySelector('#mic-device').options.length > 1);
   assert.ok((await host.page.locator('#audio-device option').count()) > 1);
 });
+
+test('seletor de emojis insere no cursor, troca de categoria e guarda recentes', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  assert.ok(await host.page.isHidden('#emoji-picker'));
+
+  await host.page.fill('#chat-input', 'boa partida');
+  await host.page.click('#emoji-btn');
+  assert.ok(await host.page.isVisible('#emoji-picker'));
+
+  await host.page.click('#emoji-picker [data-category="jogos"]');
+  await host.page.click('#emoji-picker .emoji-grid button[data-emoji="🎮"]');
+  assert.equal(await host.page.inputValue('#chat-input'), 'boa partida🎮');
+  assert.ok(await host.page.isVisible('#emoji-picker'), 'continua aberto para escolher mais');
+
+  await host.page.keyboard.press('Escape');
+  assert.ok(await host.page.isHidden('#emoji-picker'));
+
+  await host.page.press('#chat-input', 'Enter');
+  await host.page.locator('#messages li.msg', { hasText: 'boa partida🎮' }).waitFor();
+
+  await host.page.click('#emoji-btn');
+  await host.page.click('#emoji-picker [data-category="recentes"]');
+  assert.ok(await host.page.isVisible('#emoji-picker .emoji-grid button[data-emoji="🎮"]'));
+  assert.deepEqual(host.errors, []);
+});
+
+test('mensagem só com emojis aparece grande', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  for (const text of ['🎮🔥', 'gg 🔥']) {
+    await host.page.fill('#chat-input', text);
+    await host.page.press('#chat-input', 'Enter');
+  }
+  const texts = host.page.locator('#messages li.msg .text');
+  await texts.nth(1).waitFor();
+  assert.match(await texts.nth(0).getAttribute('class'), /jumbo/);
+  assert.doesNotMatch(await texts.nth(1).getAttribute('class'), /jumbo/);
+});

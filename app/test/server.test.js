@@ -43,6 +43,7 @@ describe('arquivos', () => {
       ['icon-180.png', 'image/png'],
       ['style.css', 'text/css'],
       ['room.js', 'text/javascript'],
+      ['emoji.js', 'text/javascript'],
     ]) {
       const res = await fetch(`${base}/static/${file}`);
       assert.equal(res.status, 200, file);

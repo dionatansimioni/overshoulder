@@ -122,7 +122,15 @@
       </header>
       <ul id="messages"></ul>
       <form id="chat-form">
-        <input id="chat-input" maxlength="500" placeholder="Conversar na sala" autocomplete="off">
+        <div id="emoji-picker" class="emoji-picker" hidden>
+          <div class="emoji-tabs" role="tablist" aria-label="Categorias de emoji"></div>
+          <p class="emoji-title"></p>
+          <div class="emoji-grid"></div>
+        </div>
+        <div class="composer">
+          <input id="chat-input" maxlength="500" placeholder="Conversar na sala" autocomplete="off">
+          <button id="emoji-btn" type="button" class="emoji-btn" title="Emojis" aria-label="Emojis" aria-expanded="false">😊</button>
+        </div>
       </form>
     </aside>
   </div>

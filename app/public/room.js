@@ -9,6 +9,7 @@ import {
   createLocalAudioTrack,
   isE2EESupported,
 } from '/vendor/livekit-client.esm.mjs';
+import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -79,7 +80,7 @@ const addMessage = (text, author) => {
     const meta = el('div', 'meta');
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     meta.append(el('span', 'author', author), el('span', 'time', time));
-    li.append(avatar, meta, el('p', 'text', text));
+    li.append(avatar, meta, el('p', isOnlyEmoji(text) ? 'text jumbo' : 'text', text));
   } else {
     li.className = 'system';
     li.textContent = text;
@@ -138,7 +139,7 @@ const participantName = (identity) => {
     const timer = setTimeout(() => {
       room.off(RoomEvent.ParticipantConnected, onJoin);
       resolve('?');
-    }, 3000);
+    }, 10_000);
     room.on(RoomEvent.ParticipantConnected, onJoin);
   });
 };
@@ -453,8 +454,90 @@ const setupViewer = () => {
 
 // --- chat ------------------------------------------------------------------
 
+// --- emojis ----------------------------------------------------------------
+
+const picker = $('emoji-picker');
+const emojiBtn = $('emoji-btn');
+
+const recentEmojis = () => {
+  try {
+    const list = JSON.parse(storage.get(localStorage, 'emoji-recent') ?? '[]');
+    return Array.isArray(list) ? list.filter((e) => typeof e === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const rememberEmoji = (emoji) => {
+  const list = [emoji, ...recentEmojis().filter((e) => e !== emoji)].slice(0, RECENT_MAX);
+  storage.set(localStorage, 'emoji-recent', JSON.stringify(list));
+};
+
+const showCategory = (id) => {
+  const recent = { id: RECENT_ID, label: 'Usados recentemente', emojis: recentEmojis() };
+  const category = id === RECENT_ID ? recent : CATEGORIES.find((c) => c.id === id);
+  for (const tab of picker.querySelectorAll('.emoji-tabs button')) {
+    tab.setAttribute('aria-selected', String(tab.dataset.category === category.id));
+  }
+  picker.querySelector('.emoji-title').textContent = category.label;
+  const grid = picker.querySelector('.emoji-grid');
+  grid.replaceChildren(
+    ...category.emojis.map((emoji) => {
+      const b = el('button', null, emoji);
+      b.type = 'button';
+      b.dataset.emoji = emoji;
+      return b;
+    }),
+  );
+  if (!category.emojis.length) grid.append(el('p', 'empty', 'Os emojis que você usar aparecem aqui.'));
+};
+
+const toggleEmojiPicker = (open) => {
+  picker.hidden = !open;
+  emojiBtn.setAttribute('aria-expanded', String(open));
+  if (open) showCategory(recentEmojis().length ? RECENT_ID : CATEGORIES[0].id);
+};
+
+const insertEmoji = (emoji) => {
+  const input = $('chat-input');
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  if (input.value.length - (end - start) + emoji.length > input.maxLength) return;
+  input.setRangeText(emoji, start, end, 'end');
+  input.focus();
+  rememberEmoji(emoji);
+};
+
+picker.querySelector('.emoji-tabs').append(
+  ...[{ id: RECENT_ID, label: 'Usados recentemente', icon: '🕘' }, ...CATEGORIES].map((c) => {
+    const b = el('button', null, c.icon ?? c.emojis[0]);
+    b.type = 'button';
+    b.title = c.label;
+    b.setAttribute('role', 'tab');
+    b.dataset.category = c.id;
+    return b;
+  }),
+);
+
+// Clicar no seletor não tira o foco (nem a posição do cursor) do campo de mensagem
+picker.addEventListener('mousedown', (e) => e.preventDefault());
+picker.addEventListener('click', (e) => {
+  const button = e.target.closest('button');
+  if (!button) return;
+  if (button.dataset.category) showCategory(button.dataset.category);
+  else if (button.dataset.emoji) insertEmoji(button.dataset.emoji);
+});
+emojiBtn.addEventListener('click', () => toggleEmojiPicker(picker.hidden));
+document.addEventListener('click', (e) => {
+  if (!picker.hidden && !picker.contains(e.target) && !emojiBtn.contains(e.target)) toggleEmojiPicker(false);
+});
+document.addEventListener('keydown', (e) => e.key === 'Escape' && !picker.hidden && toggleEmojiPicker(false));
+
+// --- envio -----------------------------------------------------------------
+
 $('chat-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  toggleEmojiPicker(false);
   const input = $('chat-input');
   const text = input.value.trim();
   if (!text || !room) return;
