@@ -3,33 +3,51 @@
 Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem transmite e quem assiste só precisam abrir um link.
 
 - **Baixa latência:** WebRTC via [LiveKit](https://livekit.io) (SFU self-hosted).
-- **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. A VPS repassa vídeo cifrado que ela mesma não consegue abrir.
-- **Até ~15 pessoas por sala:** quem transmite envia uma única cópia e a VPS distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
+- **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. O servidor repassa vídeo cifrado que ele mesmo não consegue abrir.
+- **Salas de até 16 pessoas por padrão** (configurável): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
 - **Microfone de quem transmite:** o anfitrião liga a voz com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
 - **Chat de texto** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
 
 ## Como funciona
 
 ```
-Navegador (anfitrião) ──1 cópia cifrada──▶ VPS: LiveKit ──▶ navegadores dos amigos
+Navegador (anfitrião) ──1 cópia cifrada──▶ servidor: LiveKit ──▶ navegadores dos amigos
                                               ▲
                      app (Node): cria salas, emite tokens
                      Caddy: HTTPS automático
 ```
 
-- **Criar sala:** exige a *senha do servidor*, para que ninguém de fora use a sua VPS.
+Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveKit, o app e o Caddy, reinicia quem cair ou travar e guarda os segredos internos no volume `/data`.
+
+- **Criar sala:** exige a *senha do servidor*, para que ninguém de fora use o seu servidor.
 - **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele pode transmitir e encerrar a sala.
 - **Link dos amigos:** `/r/<sala>#k=<chave>`. Só assistem e usam o chat.
 - A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
 
-## Subindo na VPS
+## Subindo no servidor
 
-Requisitos: Docker com Compose e um domínio (ou subdomínio) apontando para o IP da VPS.
+Requisitos: Docker e um domínio (ou subdomínio) apontando para o IP do servidor.
 
 ```bash
-./setup.sh                    # informe o domínio e a senha; gera o .env
-docker compose up -d --build
+docker build -t overshoulder .
+docker run -d --name overshoulder --restart unless-stopped \
+  -p 80:80 -p 443:443 -p 7881:7881 -p 7882:7882/udp \
+  -v overshoulder-data:/data \
+  -e DOMAIN=live.seudominio.com \
+  -e CREATE_PASSWORD='uma senha forte' \
+  overshoulder
 ```
+
+Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` sobe.
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
+| `CREATE_PASSWORD` | (obrigatória) | Senha para criar salas |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local) |
+| `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
+| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
+| `MAX_PARTICIPANTS` | `16` | Limite de pessoas por sala (2 a 500) |
 
 Libere no firewall:
 
@@ -37,27 +55,24 @@ Libere no firewall:
 |---|---|---|
 | 80, 443 | TCP | site + HTTPS (Caddy) |
 | 7881 | TCP | WebRTC por TCP (redes que bloqueiam UDP) |
-| 50000–60000 | UDP | mídia WebRTC |
+| 7882 | UDP | mídia WebRTC |
 
-**Banda:** a VPS envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 amigos, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
+**Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 amigos, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
+
+**Saúde e logs:** `GET /healthz` responde `{"status":"ok"}` e alimenta o healthcheck do Docker. `docker logs overshoulder` mostra os logs em JSON, um por linha, sem senhas, nomes nem IDs de sala.
 
 ## Rede local (LAN)
 
-```bash
-./setup.sh                    # opção 2: detecta o IP da máquina
-docker compose up -d --build
-```
+`./setup.sh`, opção 2 (detecta o IP da máquina), e `docker compose up -d --build`.
 
-Acesse `https://<seu-ip>`. Precisa ser HTTPS: os navegadores bloqueiam compartilhamento de tela e criptografia em `http://` fora do `localhost`. O Caddy gera um certificado próprio, então na primeira vez cada navegador mostra um aviso ("Avançado" > "Continuar").
+Acesse `https://<seu-ip>`. Precisa ser HTTPS: os navegadores bloqueiam compartilhamento de tela e criptografia em `http://` fora do `localhost`. Com `TLS=local`, o Caddy gera um certificado próprio, então na primeira vez cada navegador mostra um aviso ("Avançado" > "Continuar").
 
 Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
-`docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt overshoulder-ca.crt`
+`docker compose cp overshoulder:/data/caddy/pki/authorities/local/root.crt overshoulder-ca.crt`
 
-Se a máquina tiver firewall ativo, libere 80/443 TCP, 7881 TCP e 50000–60000 UDP.
+## Desenvolvimento
 
-## Testando só nesta máquina
-
-`./setup.sh`, opção 3. Abra http://localhost:3000 e o link de convite em outra janela.
+`./scripts/test.sh` roda todos os testes: gitleaks, servidor, segurança, navegador e a imagem Docker.
 
 ## Áudio do jogo
 

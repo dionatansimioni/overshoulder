@@ -6,7 +6,7 @@ Converse com o usuário em português (pt-BR).
 
 ## Testes
 
-`./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): primeiro o gitleaks (histórico do git e arquivos; exceções em `.gitleaks.toml`), depois os testes do servidor em `app/test/server.test.js`, de segurança de todos os endpoints em `app/test/security.test.js` e do navegador em `app/test/browser.test.js`. Endpoint ou recurso novo ganha também os casos de segurança correspondentes (entrada malformada, permissões, vazamento). A suíte está verde só quando o script sai com código 0 e o resumo mostra `fail 0`: confira o código de saída, porque um filtro da saída (`grep`, `tail`) esconde falhas de rede do `npm ci`.
+`./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): primeiro o gitleaks (histórico do git e arquivos; exceções em `.gitleaks.toml`), depois os testes do servidor em `app/test/server.test.js`, de segurança de todos os endpoints em `app/test/security.test.js` do navegador em `app/test/browser.test.js` e, por fim, a imagem Docker única rodando de verdade (`scripts/test-image.sh`). Endpoint ou recurso novo ganha também os casos de segurança correspondentes (entrada malformada, permissões, vazamento). A suíte está verde só quando o script sai com código 0 e o resumo mostra `fail 0`: confira o código de saída, porque um filtro da saída (`grep`, `tail`) esconde falhas de rede do `npm ci`.
 
 ## Como trabalhar
 

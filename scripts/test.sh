@@ -38,3 +38,10 @@ docker run --rm --network host --ipc host --init \
       npm ci --no-audit --no-fund --loglevel=error && cp package-lock.json node_modules/.overshoulder-lock || exit 1
     fi
     node --test --test-concurrency=1 "$@"' sh "${@:-test/}"
+
+# --- imagem Docker única ---------------------------------------------------
+# Só na suíte completa (sem argumentos): rodar um arquivo de teste não precisa recompilar a imagem
+if [ $# -eq 0 ]; then
+  docker rm -f overshoulder-test-livekit >/dev/null 2>&1 || true
+  ./scripts/test-image.sh
+fi
