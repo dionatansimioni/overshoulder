@@ -66,9 +66,22 @@ Estas decisões têm prioridade sobre as da tabela acima quando conflitarem.
 | Operação | **`/healthz`** com healthcheck do Docker, **logs em JSON** sem dados pessoais e o painel de uso já decidido |
 | Idioma | **pt-BR e inglês**: interface traduzível (pelo idioma do navegador) e README em inglês com versão em português |
 
-### Pedidos de 14/11/2026 (desenho a decidir na etapa de onboarding)
-- **2FA** para aumentar a segurança. Hoje não há contas: existe só a senha do servidor. Então o 2FA depende de criar pelo menos uma conta de administrador. Proposta a discutir: TOTP (Google Authenticator, Aegis, 1Password) com códigos de recuperação, obrigatório para quem administra e para quem transmite.
-- **Transmissores autorizados**: o dono do servidor autoriza certas pessoas a transmitir quando ele não está presente, de forma segura. Proposta a discutir: o administrador cria contas de "transmissor" (ou convites de uso único para cadastrá-las), cada uma com a própria senha e 2FA. Elas podem criar salas e transmitir, mas não mexem na configuração do servidor. Podem ser revogadas a qualquer momento, e com SSO ligado podem vir de um grupo do provedor. Isso substitui a senha única compartilhada, que não dá para revogar de uma pessoa só.
+### Contas, 2FA e transmissores (decidido em 14/11/2026)
+
+| Tema | Decisão |
+|---|---|
+| Contas | **Admin** (criado no onboarding) e **transmissores** (convidados pelo admin). Espectadores continuam sem conta: link, ou SSO se ligado. A senha única do servidor (`CREATE_PASSWORD`) deixa de existir |
+| Permissões | Transmissor cria salas e transmite, mas não mexe na configuração. Admin faz tudo |
+| 2FA | **TOTP opcional**, com o sistema recomendando ativar. O admin pode ligar **"Exigir 2FA"**: quem não tem precisa configurar no próximo login |
+| Códigos de recuperação | 10 códigos de uso único gerados ao ativar o 2FA. **Só o admin gera um conjunto novo** (para si e para transmissores) |
+| Admin perdeu tudo | Comando no servidor: `docker exec overshoulder overshoulder reset-admin` gera um link de redefinição de uso único, válido por 15 min |
+| Cadastro de transmissor | **Convite de uso único** (vale 48 h). A pessoa cria o próprio usuário e senha; o admin nunca vê a senha |
+| Revogação | **Imediata**: desativa a conta, encerra as sessões dela e as salas que ela estiver transmitindo |
+| Senhas | Padrão NIST: no mínimo 12 caracteres, sem regras de símbolo, bloqueando as senhas mais vazadas (lista embutida). Hash com scrypt |
+| Sessões | 12 h no máximo, expiram após 2 h sem uso. Trocar a senha encerra as outras sessões. Limite de tentativas por conta e por IP |
+| Logs de segurança | Login, falha de 2FA, convite, revogação e mudança de configuração registram **usuário e ação** (sem IP, senhas, códigos ou tokens). Espectadores ficam fora. Documentar no README (interesse legítimo, LGPD) |
+| Onboarding | Liberado por um código de uso único que aparece em `docker logs`. Cria o admin e define o domínio e o limite de plateia |
+| Armazenamento | Arquivo JSON no volume `/data`, com escrita atômica (sem banco de dados) |
 
 ### Ordem sugerida para implementar
 1. Imagem única + `/healthz` + logs JSON (a base de tudo o que vem depois).
