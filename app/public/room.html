@@ -44,6 +44,7 @@
           <svg class="icon"><use href="#i-link"/></svg>
           <input id="invite-link" readonly aria-label="Link para os amigos">
           <button id="copy" type="button" class="secondary">Copiar convite</button>
+          <button id="new-link" type="button" class="secondary" title="Gera um link novo; o atual deixa de funcionar para quem ainda não entrou">Novo link</button>
         </div>
       </header>
 
@@ -54,6 +55,7 @@
           <svg class="icon"><use href="#i-mic"/></svg>
           Microfone ligado
         </div>
+        <div id="presenter-badge" class="badge presenter" hidden></div>
       </div>
 
       <div class="dock">
@@ -117,9 +119,16 @@
 
     <aside class="chat">
       <header class="chat-header">
-        <h2>Chat</h2>
+        <div class="tabs" role="tablist">
+          <button id="tab-chat" type="button" class="tab" role="tab" aria-selected="true">Chat</button>
+          <button id="tab-people" type="button" class="tab" role="tab" aria-selected="false">Pessoas</button>
+        </div>
         <span id="count" class="muted small"></span>
       </header>
+      <div id="chat-tools" class="chat-tools" hidden>
+        <button id="chat-toggle" type="button" class="secondary">Desligar chat</button>
+      </div>
+      <ul id="people" class="people" hidden></ul>
       <ul id="messages"></ul>
       <form id="chat-form">
         <div id="emoji-picker" class="emoji-picker" hidden>

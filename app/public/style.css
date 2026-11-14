@@ -312,12 +312,26 @@ code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size
 
 .chat-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   padding: 16px;
   border-bottom: 1px solid var(--border);
 }
-.chat-header h2 { margin: 0; font-size: 16px; }
+.tabs { display: flex; gap: 4px; }
+.tab { padding: 6px 12px; background: transparent; color: var(--muted); font-size: 15px; }
+.tab:hover { background: var(--panel-2); color: var(--text); }
+.tab[aria-selected="true"] { background: var(--panel-2); color: var(--text); }
+.chat-tools { padding: 8px 12px 0; }
+.chat-tools button { width: 100%; padding: 6px 10px; font-size: 13px; }
+.people { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 12px 8px; }
+.person { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
+.person:hover { background: var(--panel-2); }
+.person .avatar { grid-row: auto; flex: none; }
+.person-info { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.3; }
+.person-actions { display: flex; gap: 6px; width: 100%; padding-left: 46px; }
+.person-actions button { padding: 4px 10px; font-size: 12px; }
+.badge.presenter { left: auto; right: 12px; background: var(--accent); padding-left: 12px; }
+.chat input:disabled { opacity: .6; cursor: not-allowed; }
 
 .chat ul {
   flex: 1;

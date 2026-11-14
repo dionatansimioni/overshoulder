@@ -226,7 +226,8 @@ describe('tokens do LiveKit', () => {
     const { body } = await api(base, '/api/token', { roomId, name: 'Beto' });
     assert.ok(verifySignature(body.token));
     const claims = jwtPayload(body.token);
-    assert.equal(claims.video.room, roomId);
+    assert.match(claims.video.room, /^[A-Za-z0-9_-]{22}$/);
+    assert.notEqual(claims.video.room, roomId, 'o nome interno da sala não é o código do link');
     assert.equal(claims.video.roomJoin, true);
     assert.equal(claims.video.canPublish, false);
     assert.deepEqual(claims.video.canPublishSources ?? [], []);

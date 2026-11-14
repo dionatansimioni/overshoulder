@@ -34,7 +34,8 @@ const storage = {
 
 // --- link: /r/<sala>#k=<chave E2EE>&h=<chave de anfitrião> -----------------
 
-const roomId = location.pathname.split('/').pop();
+// O código da sala muda quando o anfitrião troca o link (ou remove alguém)
+let roomId = location.pathname.split('/').pop();
 const hash = new URLSearchParams(location.hash.slice(1));
 const e2eeKey = hash.get('k');
 let hostKey = hash.get('h') ?? storage.get(sessionStorage, `host:${roomId}`);
@@ -44,7 +45,7 @@ if (hash.get('h') && storage.set(sessionStorage, `host:${roomId}`, hostKey)) {
   history.replaceState(null, '', `${location.pathname}#k=${e2eeKey}`);
 }
 
-const inviteLink = `${location.origin}/r/${roomId}#k=${e2eeKey}`;
+const inviteLink = () => `${location.origin}/r/${roomId}#k=${e2eeKey}`;
 
 // --- UI helpers ------------------------------------------------------------
 
@@ -100,6 +101,9 @@ const joinError = (msg) => {
 
 let room;
 let isHost = false;
+let isPresenter = false;
+// Estado da sala que o anfitrião controla, recebido pelos metadados da sala
+let meta = { chat: true, presenter: null };
 let videoTrack = null;
 let extraAudio = null;
 let voiceTrack = null;
@@ -120,7 +124,9 @@ const setVideoTrack = (track) => {
     track.attach(video);
     overlay.hidden = true;
   } else {
-    showOverlay(isHost ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…');
+    showOverlay(
+      isHost || isPresenter ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…',
+    );
   }
 };
 
@@ -179,10 +185,19 @@ const wireRoomEvents = () => {
     .on(RoomEvent.ParticipantConnected, (p) => {
       addMessage(`${p.name} entrou.`);
       updateCount();
+      renderPeople();
     })
     .on(RoomEvent.ParticipantDisconnected, (p) => {
       addMessage(`${p.name} saiu.`);
       updateCount();
+      renderPeople();
+    })
+    .on(RoomEvent.RoomMetadataChanged, applyMetadata)
+    .on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
+      // Só importa a própria permissão: o anfitrião passou ou pegou de volta a vez de apresentar
+      if (!isHost && (!participant || participant === room.localParticipant)) {
+        setPresenterMode(!!room.localParticipant.permissions?.canPublish);
+      }
     })
     .on(RoomEvent.EncryptionError, () => {
       showOverlay('Não foi possível descriptografar a transmissão. O link está completo?');
@@ -190,8 +205,13 @@ const wireRoomEvents = () => {
     .on(RoomEvent.Disconnected, (reason) => {
       setVideoTrack(null);
       showOverlay(
-        reason === DisconnectReason.ROOM_DELETED ? 'A sala foi encerrada.' : 'Você foi desconectado. Recarregue a página para voltar.',
+        reason === DisconnectReason.ROOM_DELETED
+          ? 'A sala foi encerrada.'
+          : reason === DisconnectReason.PARTICIPANT_REMOVED
+            ? 'Você foi removido da sala pelo anfitrião.'
+            : 'Você foi desconectado. Recarregue a página para voltar.',
       );
+      $('chat-input').disabled = true;
       $('host-controls').hidden = true;
       $('mic-badge').hidden = true;
       voiceTrack?.stop();
@@ -229,6 +249,113 @@ const connect = async (name) => {
   await room.setE2EEEnabled(true);
   await room.connect(data.url, data.token);
 };
+
+// --- estado da sala: chat, apresentador e lista de pessoas -------------------
+
+const nameOf = (identity) =>
+  identity === room.localParticipant.identity
+    ? room.localParticipant.name
+    : (room.remoteParticipants.get(identity)?.name ?? 'alguém');
+
+function applyMetadata() {
+  try {
+    meta = { chat: true, presenter: null, ...JSON.parse(room.metadata || '{}') };
+  } catch {}
+  const input = $('chat-input');
+  const blocked = !meta.chat && !isHost;
+  input.disabled = blocked;
+  input.placeholder = blocked ? 'O anfitrião desligou o chat' : 'Conversar na sala';
+  $('emoji-btn').disabled = blocked;
+  $('chat-toggle').textContent = meta.chat ? 'Desligar chat' : 'Ligar chat';
+  const badge = $('presenter-badge');
+  badge.hidden = !meta.presenter;
+  if (meta.presenter) badge.textContent = `${nameOf(meta.presenter)} está apresentando`;
+  renderPeople();
+}
+
+// Ação do anfitrião sobre a sala; devolve a resposta ou mostra o erro no chat
+const hostAction = async (path, extra = {}) => {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId, hostKey, ...extra }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    addMessage(data.error ?? 'Não foi possível concluir a ação.');
+    return null;
+  }
+  return data;
+};
+
+// O link mudou: atualiza a barra de endereço, o convite e onde a chave de anfitrião fica guardada
+const switchRoomCode = (code, why) => {
+  roomId = code;
+  storage.set(sessionStorage, `host:${roomId}`, hostKey);
+  history.replaceState(null, '', `/r/${roomId}#k=${e2eeKey}`);
+  $('invite-link').value = inviteLink();
+  addMessage(`${why} O link antigo não serve mais: envie o novo a quem ainda vai entrar.`);
+};
+
+const renderPeople = () => {
+  if (!room) return;
+  const everyone = [room.localParticipant, ...room.remoteParticipants.values()];
+  $('people').replaceChildren(
+    ...everyone.map((p) => {
+      const li = el('li', 'person');
+      li.dataset.identity = p.identity;
+      const avatar = el('span', 'avatar', [...(p.name || '?')][0].toUpperCase());
+      avatar.style.background = avatarColor(p.name || '?');
+      const tags = [
+        p.identity.startsWith('h-') ? 'anfitrião' : null,
+        meta.presenter === p.identity ? 'apresentando' : null,
+        p === room.localParticipant ? 'você' : null,
+      ].filter(Boolean);
+      const info = el('div', 'person-info');
+      info.append(el('span', 'author', p.name || '?'), el('span', 'muted small', tags.join(' · ')));
+      li.append(avatar, info);
+      if (isHost && p.identity.startsWith('v-')) {
+        const actions = el('div', 'person-actions');
+        const presenting = meta.presenter === p.identity;
+        const pass = el('button', 'secondary', presenting ? 'Retomar a vez' : 'Passar a vez');
+        pass.type = 'button';
+        pass.dataset.action = 'presenter';
+        pass.addEventListener('click', () => passPresenter(presenting ? null : p.identity));
+        const kick = el('button', 'danger', 'Remover');
+        kick.type = 'button';
+        kick.dataset.action = 'kick';
+        kick.addEventListener('click', async () => {
+          if (!confirm(`Remover ${p.name} da sala? O link da sala será trocado para que essa pessoa não volte.`)) return;
+          const data = await hostAction('/api/rooms/kick', { identity: p.identity });
+          if (data) switchRoomCode(data.roomId, `${p.name} foi removido.`);
+        });
+        actions.append(pass, kick);
+        li.append(actions);
+      }
+      return li;
+    }),
+  );
+};
+
+const passPresenter = async (identity) => {
+  // Um apresentador por vez: o anfitrião para a própria tela e o microfone antes de passar a vez
+  if (identity) await stopPublishing();
+  const data = await hostAction('/api/rooms/presenter', { identity });
+  if (data) addMessage(identity ? `${nameOf(identity)} agora pode apresentar.` : 'Você retomou a vez de apresentar.');
+};
+
+const showTab = (tab) => {
+  const people = tab === 'people';
+  $('tab-chat').setAttribute('aria-selected', String(!people));
+  $('tab-people').setAttribute('aria-selected', String(people));
+  $('people').hidden = !people;
+  $('messages').hidden = people;
+  $('chat-form').hidden = people;
+  $('chat-tools').hidden = people || !isHost;
+  if (people) renderPeople();
+};
+$('tab-chat').addEventListener('click', () => showTab('chat'));
+$('tab-people').addEventListener('click', () => showTab('people'));
 
 // --- anfitrião -------------------------------------------------------------
 
@@ -346,12 +473,73 @@ const startShare = async () => {
   }
 };
 
+// Para tela, voz e áudio do jogo que esta pessoa estiver transmitindo
+const stopPublishing = async () => {
+  if (room.localParticipant.isScreenShareEnabled) await room.localParticipant.setScreenShareEnabled(false).catch(() => {});
+  await stopExtraAudio();
+  if (voiceTrack) await toggleMic().catch(() => {});
+};
+
+// Quem recebe a vez do anfitrião ganha os controles de tela e microfone (sem encerrar a sala)
+const setPresenterMode = async (on) => {
+  if (on === isPresenter) return;
+  isPresenter = on;
+  if (on) {
+    setupPublishControls();
+    $('host-controls').hidden = false;
+    $('end').hidden = true;
+    addMessage('O anfitrião passou a vez para você: compartilhe a tela ou ligue o microfone.');
+  } else {
+    $('host-controls').hidden = true;
+    await stopPublishing();
+    setShareButton(false);
+    setMicButton(false);
+    addMessage('A vez de apresentar voltou para o anfitrião.');
+  }
+  if (!videoTrack) setVideoTrack(null);
+};
+
 const setupHost = () => {
+  setupPublishControls();
   $('host-controls').hidden = false;
   $('invite').hidden = false;
-  $('invite-link').value = inviteLink;
-  setupSettings();
+  $('invite-link').value = inviteLink();
+  $('chat-tools').hidden = false;
   showOverlay('Clique no botão de tela, embaixo, para começar a transmitir.');
+
+  $('copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink());
+      $('copy').textContent = 'Copiado!';
+    } catch {
+      $('invite-link').select();
+    }
+    setTimeout(() => ($('copy').textContent = 'Copiar convite'), 1500);
+  });
+
+  $('new-link').addEventListener('click', async () => {
+    if (!confirm('Gerar um link novo? O link atual deixa de funcionar para quem ainda não entrou.')) return;
+    const data = await hostAction('/api/rooms/link');
+    if (data) switchRoomCode(data.roomId, 'Link da sala trocado.');
+  });
+
+  $('chat-toggle').addEventListener('click', async () => {
+    const data = await hostAction('/api/rooms/chat', { enabled: !meta.chat });
+    if (data) addMessage(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.');
+  });
+
+  $('end').addEventListener('click', async () => {
+    if (!confirm('Encerrar a sala para todos?')) return;
+    if (!(await hostAction('/api/rooms/end'))) addMessage('Não foi possível encerrar a sala.');
+  });
+};
+
+// Tela, microfone e ajustes: usados pelo anfitrião e por quem recebe a vez de apresentar
+let publishControlsReady = false;
+const setupPublishControls = () => {
+  if (publishControlsReady) return;
+  publishControlsReady = true;
+  setupSettings();
 
   if (!navigator.mediaDevices?.getDisplayMedia) {
     $('share').disabled = true;
@@ -408,26 +596,6 @@ const setupHost = () => {
       for (const select of selects) select.add(new Option(d.label || d.deviceId, d.deviceId));
     }
     addMessage('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.');
-  });
-
-  $('copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      $('copy').textContent = 'Copiado!';
-    } catch {
-      $('invite-link').select();
-    }
-    setTimeout(() => ($('copy').textContent = 'Copiar convite'), 1500);
-  });
-
-  $('end').addEventListener('click', async () => {
-    if (!confirm('Encerrar a sala para todos?')) return;
-    const res = await fetch('/api/rooms/end', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId, hostKey }),
-    });
-    if (!res.ok) addMessage('Não foi possível encerrar a sala.');
   });
 };
 
@@ -540,7 +708,7 @@ $('chat-form').addEventListener('submit', async (e) => {
   toggleEmojiPicker(false);
   const input = $('chat-input');
   const text = input.value.trim();
-  if (!text || !room) return;
+  if (!text || !room || input.disabled) return;
   input.value = '';
   addMessage(text, room.localParticipant.name);
   try {
@@ -581,6 +749,7 @@ $('join-form').addEventListener('submit', async (e) => {
   $('room').hidden = false;
   if (isHost) setupHost();
   else setupViewer();
+  applyMetadata();
   setVideoTrack(videoTrack);
   updateCount();
   addMessage(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.');

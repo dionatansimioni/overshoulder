@@ -6,6 +6,7 @@ Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem tra
 - **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. O servidor repassa vídeo cifrado que ele mesmo não consegue abrir.
 - **Salas de até 16 pessoas por padrão** (configurável): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
 - **Microfone de quem transmite:** o anfitrião liga a voz com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
+- **Moderação:** na aba *Pessoas*, o anfitrião remove alguém da sala ou **passa a vez de apresentar** (tela e microfone) para outra pessoa e pega de volta. Também desliga o chat de quem assiste e gera um link novo para a sala.
 - **Chat de texto** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
 
 ## Como funciona
@@ -23,6 +24,7 @@ Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveK
 - **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele pode transmitir e encerrar a sala.
 - **Link dos amigos:** `/r/<sala>#k=<chave>`. Só assistem e usam o chat.
 - A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
+- **Remover alguém** também troca o link da sala: quem já está assistindo continua, e quem ainda vai entrar precisa do link novo. Se a pessoa removida tentar voltar com a conexão antiga, o servidor a remove de novo em até 2 segundos.
 
 ## Subindo no servidor
 
