@@ -20,4 +20,9 @@ docker run --rm --network host --ipc host --init \
   -e TEST_API_KEY -e TEST_API_SECRET -e npm_config_update_notifier=false \
   -v "$PWD/app:/app" -w /app \
   "$PLAYWRIGHT_IMAGE" \
-  sh -c 'npm ci --no-audit --no-fund --loglevel=error && node --test --test-concurrency=1 "$@"' sh "${@:-test/}"
+  sh -c '
+    # Só reinstala quando o package-lock.json mudou: evita depender da rede a cada execução
+    if ! cmp -s package-lock.json node_modules/.overshoulder-lock 2>/dev/null; then
+      npm ci --no-audit --no-fund --loglevel=error && cp package-lock.json node_modules/.overshoulder-lock || exit 1
+    fi
+    node --test --test-concurrency=1 "$@"' sh "${@:-test/}"

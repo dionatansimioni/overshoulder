@@ -6,7 +6,7 @@ Converse com o usuário em português (pt-BR).
 
 ## Testes
 
-`./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): testes do servidor em `app/test/server.test.js` e do navegador em `app/test/browser.test.js`.
+`./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): testes do servidor em `app/test/server.test.js` e do navegador em `app/test/browser.test.js`. A suíte está verde só quando o script sai com código 0 e o resumo mostra `fail 0`: confira o código de saída, porque um filtro da saída (`grep`, `tail`) esconde falhas de rede do `npm ci`.
 
 ## Como trabalhar
 
