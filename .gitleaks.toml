@@ -1,0 +1,10 @@
+# Configuração do gitleaks (scripts/test.sh): regras padrão, mais exceções explícitas.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Segredos locais de cada instalação (fora do git) e dependências de terceiros"
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)node_modules/''',
+]

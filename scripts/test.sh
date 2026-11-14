@@ -5,10 +5,22 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 LIVEKIT_IMAGE=livekit/livekit-server:v1.13.10
+GITLEAKS_IMAGE=zricethezav/gitleaks:v8.30.1
 PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.65.0-noble
 export TEST_API_KEY=testkey
 export TEST_API_SECRET=test-secret-only-for-automated-tests-0123456789
 
+# --- segredos -------------------------------------------------------------
+echo "== gitleaks: histórico do git e arquivos do projeto"
+# O .env guarda os segredos reais de cada instalação: precisa continuar fora do git
+git check-ignore -q --no-index .env || { echo "ERRO: .env não está no .gitignore" >&2; exit 1; }
+if git ls-files --error-unmatch .env >/dev/null 2>&1 || [ -n "$(git log --all --format=%H -- .env)" ]; then
+  echo "ERRO: .env foi adicionado ao git" >&2; exit 1
+fi
+docker run --rm -v "$PWD:/repo:ro" "$GITLEAKS_IMAGE" git /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
+docker run --rm -v "$PWD:/repo:ro" "$GITLEAKS_IMAGE" dir /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
+
+# --- testes do servidor e do navegador --------------------------------------
 docker rm -f overshoulder-test-livekit >/dev/null 2>&1 || true
 docker run -d --name overshoulder-test-livekit --network host \
   -e LIVEKIT_KEYS="$TEST_API_KEY: $TEST_API_SECRET" \
