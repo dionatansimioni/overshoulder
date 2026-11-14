@@ -38,7 +38,14 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - **Comprovado:** a divisão da porta, o certificado do subdomínio e o STUN pelo TLS (teste da imagem). Numa sonda manual, o Chrome negociou TLS, autenticou e obteve uma alocação (candidato `relay`).
   - **Não comprovado:** a conexão completa só por TURN (`iceTransportPolicy: relay`) falhou no ambiente de teste (tudo no mesmo container, certificado local, IP interno do Docker); o TURN aloca, mas o vídeo não chega. Confirmar num servidor real com domínio e Let's Encrypt (por exemplo, a VPS da Hostinger) antes de tirar o "experimental".
   - Sondas usadas: a página do anfitrião conecta, e um `Room` à parte conecta com `rtcConfig: { iceTransportPolicy: 'relay' }`; o Chromium precisa confiar na CA do Caddy (NSS, via `certutil`) e resolver `turn.<domínio>` pelo `/etc/hosts`.
-  - Próximo da ordem: SSO via OIDC.
+- Etapa 6 (SSO via OIDC) feita em 14/11/2026:
+  - Authorization Code + PKCE (S256), `state` ligado ao navegador por cookie e `nonce`. O ID token é validado com `jose` 6.2.14 (assinatura pelo JWKS, emissor, audiência, validade, nonce); `email_verified: false` é recusado (ausente é aceito, porque o Entra ID não envia).
+  - Configuração em `/admin` (segredo só de escrita). Domínios de e-mail permitidos; grupo ou lista de e-mails para transmitir. O admin é sempre local.
+  - Espectador com login corporativo tem sessão própria (não é conta). Salas podem exigir o login para assistir, com o nome real no chat; o admin define o padrão ou torna obrigatório.
+  - Contas de transmissor do SSO não entram por senha e não são afetadas por "Exigir 2FA" (o provedor cuida do MFA).
+  - Testes com um provedor OIDC falso (`app/test/oidc-mock.js`), inclusive tokens adulterados, CSRF de login e redirecionamento aberto.
+  - **Falta testar com um provedor real** (Google Workspace, Entra ID ou Keycloak).
+  - Próximo da ordem: tradução pt-BR/en.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

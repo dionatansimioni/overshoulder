@@ -19,6 +19,7 @@ import {
 import { renderSVG } from 'uqr';
 import { log } from './log.js';
 import { createStore } from './store.js';
+import { authorizationUrl, discover, finishLogin, forgetDiscovery, newAttempt, validIssuer } from './oidc.js';
 import { newRecoveryCodes, newSecret, normalizeRecoveryCode, otpauthUri, verifyCode } from './totp.js';
 
 const env = (name, fallback) => {
@@ -40,10 +41,17 @@ const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
 const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
 const INVITE_TTL_MS = Number(env('INVITE_TTL_MS', String(48 * 3600_000)));
 const BAN_CHECK_MS = Number(env('BAN_CHECK_MS', '2000'));
+// Endereço público do site: usado no redirect_uri do login corporativo
+const PUBLIC_ORIGIN = env('PUBLIC_ORIGIN', `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
+const SSO_REDIRECT_URI = `${PUBLIC_ORIGIN}/api/sso/callback`;
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const TOKEN_TTL = '8h';
 const COOKIE = 'overshoulder_session';
+// Espectador que entrou com o login corporativo (não é uma conta)
+const VIEWER_COOKIE = 'overshoulder_viewer';
+// Liga a tentativa de login corporativo ao navegador que a começou
+const SSO_STATE_COOKIE = 'overshoulder_sso';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(here, 'public');
@@ -64,6 +72,8 @@ const PAGES = {
 const rooms = new RoomServiceClient(INTERNAL_URL, API_KEY, API_SECRET);
 const store = createStore(DATA_DIR);
 const sessions = createSessions({ maxMs: SESSION_MAX_MS, idleMs: SESSION_IDLE_MS });
+const viewerSessions = createSessions({ maxMs: SESSION_MAX_MS, idleMs: SESSION_IDLE_MS });
+const ssoAttempts = new Map(); // hash do state → { attempt, next, expires }
 
 // Tentativas erradas: por IP e por conta, 10 a cada 10 minutos
 const ipLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
@@ -72,7 +82,7 @@ const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
 // derrubar quem já está assistindo.
-const liveRooms = new Map(); // nome interno → { name, owner, code, chat, presenter, recording, banned }
+const liveRooms = new Map(); // nome interno → { name, owner, code, chat, presenter, recording, requireSso, banned }
 const roomCodes = new Map(); // código público → nome interno
 const PRESENTER_SOURCES = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO, TrackSource.MICROPHONE];
 const VIEWER_ID_RE = /^v-[0-9a-f]{12}$/;
@@ -183,7 +193,23 @@ const roomExists = async (roomId) => (await rooms.listRooms([roomId])).length > 
 
 // --- contas e sessões ----------------------------------------------------
 
+const SSO_DEFAULTS = {
+  enabled: false,
+  issuer: '',
+  clientId: '',
+  clientSecret: '',
+  domains: [],
+  broadcasterGroup: '',
+  broadcasterEmails: [],
+  roomsDefault: true,
+  forceRooms: false,
+};
 const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, require2fa: false, ...store.state.settings });
+const ssoSettings = () => ({ ...SSO_DEFAULTS, ...store.state.settings.sso });
+const ssoReady = () => {
+  const sso = ssoSettings();
+  return sso.enabled && !!sso.issuer && !!sso.clientId && !!sso.clientSecret && sso.domains.length > 0;
+};
 const findUser = (pred) => store.state.users.find(pred);
 const hasAdmin = () => store.state.users.some((u) => u.role === 'admin');
 
@@ -210,7 +236,8 @@ const currentSession = (req) => {
   return { id, session, user };
 };
 
-const needs2fa = (user) => settings().require2fa && !user.totp;
+// Contas que entram pelo login corporativo têm o 2FA do próprio provedor
+const needs2fa = (user) => settings().require2fa && !user.totp && !user.sso;
 
 // Exige sessão válida e, se pedido, um papel; devolve { id, session, user }.
 // Com "Exigir 2FA" ligado, quem ainda não tem 2FA só pode configurá-lo (setup2fa: true).
@@ -228,7 +255,10 @@ const publicUser = (user) => ({
   role: user.role,
   totp: !!user.totp,
   needs2fa: needs2fa(user),
+  ...(user.sso && { sso: true }),
 });
+
+const currentViewer = (req) => viewerSessions.get(parseCookies(req.headers.cookie)[VIEWER_COOKIE]);
 
 // Login com 2FA em duas etapas: a senha certa gera um tíquete de 5 minutos para o código
 const LOGIN_TICKET_MS = 5 * 60_000;
@@ -246,10 +276,14 @@ const newSetupCode = () => {
 
 const getState = async (req, res) => {
   const current = currentSession(req);
+  const viewer = currentViewer(req);
+  const sso = ssoSettings();
   json(res, 200, {
     setupDone: hasAdmin(),
     require2fa: settings().require2fa,
+    sso: ssoReady() ? { roomsDefault: sso.roomsDefault, forceRooms: sso.forceRooms } : null,
     user: current && publicUser(current.user),
+    viewer: viewer ? { name: viewer.name, email: viewer.email } : null,
   });
 };
 
@@ -490,6 +524,7 @@ const publicAccount = (u) => ({
   username: u.username,
   role: u.role,
   totp: !!u.totp,
+  ...(u.sso && { sso: true, email: u.email }),
   disabled: !!u.disabled,
   createdAt: u.createdAt,
   liveRooms: [...liveRooms.values()].filter((r) => r.owner === u.id).length,
@@ -624,6 +659,153 @@ const deleteUser = async (req, res) => {
   json(res, 200, { ok: true, endedRooms: ended });
 };
 
+// --- API: login corporativo (OIDC) -----------------------------------------
+
+const DOMAIN_RE = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+const listOf = (value) =>
+  (Array.isArray(value) ? value : String(value ?? '').split(/[\s,;]+/)).map((v) => String(v).trim().toLowerCase()).filter(Boolean);
+
+const getSso = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  const { clientSecret, ...rest } = ssoSettings();
+  json(res, 200, { ...rest, hasClientSecret: !!clientSecret, redirectUri: SSO_REDIRECT_URI });
+};
+
+// O segredo do cliente é só de escrita: nunca volta para a tela
+const updateSso = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const body = await readJson(req);
+  const next = ssoSettings();
+  for (const flag of ['enabled', 'roomsDefault', 'forceRooms']) {
+    if (body[flag] === undefined) continue;
+    if (typeof body[flag] !== 'boolean') return json(res, 400, { error: `${flag} deve ser verdadeiro ou falso.` });
+    next[flag] = body[flag];
+  }
+  for (const field of ['issuer', 'clientId', 'clientSecret', 'broadcasterGroup']) {
+    if (body[field] === undefined) continue;
+    if (typeof body[field] !== 'string' || body[field].length > 500) return json(res, 400, { error: `${field} inválido.` });
+    if (field === 'clientSecret' && !body[field]) continue;
+    next[field] = body[field].trim();
+  }
+  if (body.domains !== undefined) next.domains = listOf(body.domains);
+  if (body.broadcasterEmails !== undefined) next.broadcasterEmails = listOf(body.broadcasterEmails);
+
+  if (next.issuer && !validIssuer(next.issuer)) return json(res, 400, { error: 'Emissor (issuer) inválido: use uma URL https.' });
+  if (next.domains.some((d) => !DOMAIN_RE.test(d))) return json(res, 400, { error: 'Domínio de e-mail inválido na lista.' });
+  if (next.broadcasterEmails.some((e) => !/^[^\s@]+@[^\s@]+$/.test(e))) return json(res, 400, { error: 'E-mail inválido na lista de transmissores.' });
+  if (next.enabled) {
+    if (!next.issuer || !next.clientId || !next.clientSecret || !next.domains.length)
+      return json(res, 400, { error: 'Para ativar, preencha emissor, client ID, client secret e pelo menos um domínio de e-mail.' });
+    forgetDiscovery();
+    try {
+      await discover(next.issuer);
+    } catch (err) {
+      return json(res, 400, { error: `Não foi possível falar com o provedor: ${err.message}.` });
+    }
+  }
+  store.update((st) => (st.settings.sso = next));
+  log.info('login corporativo configurado', { user: user.username, ativo: next.enabled, emissor: next.issuer });
+  const { clientSecret, ...rest } = next;
+  json(res, 200, { ...rest, hasClientSecret: !!clientSecret, redirectUri: SSO_REDIRECT_URI });
+};
+
+// Depois do login, só volta para páginas do próprio site (nada de redirecionamento aberto)
+const safeNext = (next) => (typeof next === 'string' && /^\/(r\/[A-Za-z0-9_-]{22})?$/.test(next) ? next : '/');
+
+const redirect = (res, location, headers = {}) =>
+  send(res, 302, '', { Location: location, 'Cache-Control': 'no-store', ...headers });
+
+const ssoStart = async (req, res) => {
+  if (!ssoReady()) return send(res, 404, 'Não encontrado', { 'Content-Type': 'text/plain; charset=utf-8' });
+  const sso = ssoSettings();
+  const next = safeNext(new URL(req.url, 'http://x').searchParams.get('next'));
+  let meta;
+  try {
+    meta = await discover(sso.issuer);
+  } catch (err) {
+    log.warn('login corporativo: provedor indisponível', { error: err.message });
+    return redirect(res, `${next}?erro_sso=provedor`);
+  }
+  const attempt = newAttempt();
+  for (const [key, a] of ssoAttempts) if (a.expires < Date.now()) ssoAttempts.delete(key);
+  ssoAttempts.set(sha256(attempt.state), { attempt, next, expires: Date.now() + 10 * 60_000 });
+  const secure = TRUST_PROXY && req.headers['x-forwarded-proto'] === 'https';
+  // SameSite=Lax: o cookie precisa voltar na navegação que vem do provedor
+  const cookie = `${SSO_STATE_COOKIE}=${attempt.state}; Path=/api/sso; HttpOnly; SameSite=Lax; Max-Age=600${secure ? '; Secure' : ''}`;
+  redirect(res, authorizationUrl(meta, { clientId: sso.clientId, redirectUri: SSO_REDIRECT_URI, attempt }), { 'Set-Cookie': cookie });
+};
+
+// Transmissor pelo SSO: e-mail na lista ou grupo configurado. A conta é criada no primeiro acesso.
+const ssoAccount = (identity, sso) => {
+  const group = sso.broadcasterGroup.toLowerCase();
+  const allowed =
+    sso.broadcasterEmails.includes(identity.email) ||
+    (group && identity.groups.some((g) => g.toLowerCase().replace(/^\//, '') === group.replace(/^\//, '')));
+  const existing = findUser((u) => u.sso === identity.subject);
+  if (!allowed || existing?.disabled) return null;
+  if (existing) return existing;
+  const base = identity.email.split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 28).padEnd(3, '0');
+  let username = base;
+  for (let i = 2; findUser((u) => u.username === username); i++) username = `${base}-${i}`;
+  const user = { id: randomToken(12), username, role: 'broadcaster', sso: identity.subject, email: identity.email, createdAt: new Date().toISOString() };
+  store.update((st) => st.users.push(user));
+  log.info('transmissor cadastrado pelo login corporativo', { user: username });
+  return user;
+};
+
+const ssoCallback = async (req, res) => {
+  const params = new URL(req.url, 'http://x').searchParams;
+  const state = params.get('state') ?? '';
+  const pending = ssoAttempts.get(sha256(state));
+  ssoAttempts.delete(sha256(state));
+  const clearState = `${SSO_STATE_COOKIE}=; Path=/api/sso; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const fail = (reason, why, next = '/') => {
+    log.warn('login corporativo recusado', { motivo: why });
+    redirect(res, `${next}${next.includes('?') ? '&' : '?'}erro_sso=${reason}`, { 'Set-Cookie': clearState });
+  };
+  // O state precisa ser o mesmo do cookie deste navegador: impede que alguém "logue" outra pessoa
+  const cookieState = parseCookies(req.headers.cookie)[SSO_STATE_COOKIE];
+  if (!pending || pending.expires < Date.now() || typeof cookieState !== 'string' || !safeEqual(cookieState, state))
+    return fail('expirou', 'state inválido ou expirado');
+  if (!ssoReady()) return fail('desligado', 'login corporativo desligado');
+  if (params.get('error') || !params.get('code')) return fail('cancelado', params.get('error') ?? 'sem código', pending.next);
+
+  const sso = ssoSettings();
+  let identity;
+  try {
+    const meta = await discover(sso.issuer);
+    identity = await finishLogin(meta, {
+      clientId: sso.clientId,
+      clientSecret: sso.clientSecret,
+      redirectUri: SSO_REDIRECT_URI,
+      code: params.get('code'),
+      attempt: pending.attempt,
+    });
+  } catch (err) {
+    return fail('falhou', err.message, pending.next);
+  }
+  if (!sso.domains.includes(identity.email.split('@')[1])) return fail('dominio', 'domínio de e-mail não permitido', pending.next);
+
+  const cookies = [clearState];
+  const secure = TRUST_PROXY && req.headers['x-forwarded-proto'] === 'https';
+  const viewerId = viewerSessions.create(identity.subject, { name: identity.name, email: identity.email });
+  cookies.push(`${VIEWER_COOKIE}=${viewerId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(SESSION_MAX_MS / 1000)}${secure ? '; Secure' : ''}`);
+  const account = pending.next === '/' ? ssoAccount(identity, sso) : null;
+  if (account) {
+    const id = sessions.create(account.id);
+    cookies.push(sessionCookie(req, id, Math.floor(SESSION_MAX_MS / 1000)));
+    log.info('login', { user: account.username, metodo: 'login corporativo' });
+  } else {
+    log.info('espectador entrou com o login corporativo');
+  }
+  redirect(res, pending.next === '/' && !account ? '/?erro_sso=sem_permissao' : pending.next, { 'Set-Cookie': cookies });
+};
+
+const ssoLogout = async (req, res) => {
+  viewerSessions.destroy(parseCookies(req.headers.cookie)[VIEWER_COOKIE]);
+  json(res, 200, { ok: true }, { 'Set-Cookie': `${VIEWER_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` });
+};
+
 // --- API: redefinição do admin (link gerado pelo comando no servidor) -----
 
 const RESET_FILE = path.join(DATA_DIR, 'admin-reset.json');
@@ -743,15 +925,20 @@ setInterval(async () => {
 
 const createRoom = async (req, res) => {
   const { user } = requireUser(req);
-  await readJson(req);
+  const body = await readJson(req);
+  if (body.requireSso !== undefined && typeof body.requireSso !== 'boolean')
+    return json(res, 400, { error: 'requireSso deve ser verdadeiro ou falso.' });
+  const sso = ssoSettings();
+  // Sem SSO configurado, nenhuma sala exige; com "todas exigem", nenhuma fica aberta
+  const requireSso = ssoReady() && (sso.forceRooms || (body.requireSso ?? sso.roomsDefault));
   const name = newRoomId();
-  const room = { name, owner: user.id, code: newRoomId(), chat: true, presenter: null, recording: false, banned: new Set() };
+  const room = { name, owner: user.id, code: newRoomId(), chat: true, presenter: null, recording: false, requireSso, banned: new Set() };
   const { maxParticipants } = settings();
   await rooms.createRoom({ name, emptyTimeout: 300, departureTimeout: 60, maxParticipants, metadata: metadataOf(room) });
   liveRooms.set(name, room);
   roomCodes.set(room.code, name);
-  log.info('sala criada', { user: user.username, maxParticipants });
-  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name) });
+  log.info('sala criada', { user: user.username, maxParticipants, exigeLogin: requireSso });
+  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso });
 };
 
 const issueToken = async (req, res) => {
@@ -759,7 +946,15 @@ const issueToken = async (req, res) => {
   const found = await roomByCode(roomId);
   const isHost = typeof hostKey === 'string' && safeEqual(hostKey, hostKeyFor(found.name));
 
-  const displayName = (typeof name === 'string' ? name.trim().slice(0, 32) : '') || (isHost ? 'Anfitrião' : 'Espectador');
+  let displayName = (typeof name === 'string' ? name.trim().slice(0, 32) : '') || (isHost ? 'Anfitrião' : 'Espectador');
+  // Sala que exige login corporativo: só entra quem fez login, e com o nome real do provedor
+  if (found.room.requireSso && !isHost) {
+    const viewer = currentViewer(req);
+    const account = currentSession(req)?.user;
+    if (!viewer && !account)
+      throw new HttpError(401, 'Esta sala exige o login da empresa para assistir.', 'sso_required');
+    displayName = viewer ? viewer.name : account.username;
+  }
   const identity = `${isHost ? 'h' : 'v'}-${crypto.randomBytes(6).toString('hex')}`;
 
   const at = new AccessToken(API_KEY, API_SECRET, { identity, name: displayName, ttl: TOKEN_TTL });
@@ -884,6 +1079,11 @@ const routes = {
   'POST /api/admin/invites/cancel': cancelInvite,
   'POST /api/invites/accept': acceptInvite,
   'POST /api/admin-reset': adminReset,
+  'GET /api/admin/sso': getSso,
+  'POST /api/admin/sso': updateSso,
+  'GET /api/sso/start': ssoStart,
+  'GET /api/sso/callback': ssoCallback,
+  'POST /api/sso/logout': ssoLogout,
   'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
   'POST /api/token': issueToken,

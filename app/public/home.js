@@ -18,7 +18,26 @@ const showSignedIn = (user) => {
   $('admin-link').hidden = user.role !== 'admin';
 };
 
+// Mensagens de volta do login corporativo
+const SSO_ERRORS = {
+  sem_permissao: 'Login feito, mas sua conta da empresa não tem permissão para transmitir. Peça ao administrador.',
+  dominio: 'O e-mail da sua conta não pertence a um domínio permitido neste servidor.',
+  falhou: 'Não foi possível concluir o login da empresa. Tente de novo.',
+  expirou: 'O login da empresa expirou. Tente de novo.',
+  cancelado: 'O login da empresa foi cancelado.',
+  provedor: 'O provedor de login da empresa não respondeu. Tente mais tarde.',
+  desligado: 'O login da empresa está desligado neste servidor.',
+};
+const ssoError = new URLSearchParams(location.search).get('erro_sso');
+if (ssoError) history.replaceState(null, '', '/');
+
 const state = await api('/api/state');
+$('sso-login').hidden = !state.sso;
+if (state.sso) {
+  $('require-sso-row').hidden = false;
+  $('require-sso').checked = state.sso.forceRooms || state.sso.roomsDefault;
+  $('require-sso').disabled = state.sso.forceRooms;
+}
 if (!state.setupDone) {
   location.replace('/configurar');
 } else if (state.user) {
@@ -26,6 +45,7 @@ if (!state.setupDone) {
 } else {
   $('login-form').hidden = false;
 }
+if (ssoError) showError($('login-error'), SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou);
 
 $('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -74,7 +94,7 @@ $('create-form').addEventListener('submit', (e) => {
   $('create-error').hidden = true;
   busy(e.target, async () => {
     try {
-      const data = await api('/api/rooms', {});
+      const data = await api('/api/rooms', state.sso ? { requireSso: $('require-sso').checked } : {});
       // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
       const params = new URLSearchParams({ k: randomKey(), h: data.hostKey });
       location.href = `/r/${data.roomId}#${params}`;

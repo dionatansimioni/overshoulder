@@ -31,8 +31,10 @@
       <form id="join-form" class="form">
         <label for="name">Seu nome</label>
         <input id="name" maxlength="32" autocomplete="nickname" required>
+        <p id="sso-hint" class="muted small" hidden></p>
         <button type="submit">Entrar</button>
         <p id="join-error" class="error" hidden></p>
+        <button id="sso-join" type="button" class="secondary" hidden>Entrar com login da empresa</button>
       </form>
     </div>
   </main>

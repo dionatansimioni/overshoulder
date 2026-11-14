@@ -49,6 +49,49 @@ $('settings-form').addEventListener('submit', (e) => {
   });
 });
 
+// --- login da empresa (SSO) -------------------------------------------------
+
+const fillSso = (sso) => {
+  $('sso-redirect').textContent = sso.redirectUri;
+  $('sso-enabled').checked = sso.enabled;
+  $('sso-issuer').value = sso.issuer;
+  $('sso-client-id').value = sso.clientId;
+  $('sso-client-secret').value = '';
+  $('sso-client-secret').placeholder = sso.hasClientSecret ? 'Salvo (deixe vazio para manter)' : '';
+  $('sso-domains').value = sso.domains.join(', ');
+  $('sso-group').value = sso.broadcasterGroup;
+  $('sso-emails').value = sso.broadcasterEmails.join(', ');
+  $('sso-rooms-default').checked = sso.roomsDefault;
+  $('sso-force').checked = sso.forceRooms;
+};
+fillSso(await api('/api/admin/sso'));
+
+$('sso-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('sso-error').hidden = true;
+  $('sso-ok').hidden = true;
+  busy(e.target, async () => {
+    try {
+      fillSso(
+        await api('/api/admin/sso', {
+          enabled: $('sso-enabled').checked,
+          issuer: $('sso-issuer').value,
+          clientId: $('sso-client-id').value,
+          clientSecret: $('sso-client-secret').value,
+          domains: $('sso-domains').value,
+          broadcasterGroup: $('sso-group').value,
+          broadcasterEmails: $('sso-emails').value,
+          roomsDefault: $('sso-rooms-default').checked,
+          forceRooms: $('sso-force').checked,
+        }),
+      );
+      $('sso-ok').hidden = false;
+    } catch (err) {
+      showError($('sso-error'), err);
+    }
+  });
+});
+
 // --- transmissores ---------------------------------------------------------
 
 const showCodes = (username, codes) => {
@@ -63,6 +106,7 @@ const loadUsers = async () => {
     ...users.map((u) => {
       const status = [
         u.role === 'admin' ? 'administrador' : 'transmissor',
+        u.sso ? `login da empresa (${u.email})` : null,
         u.totp ? '2FA ativo' : 'sem 2FA',
         u.disabled ? 'revogado' : null,
         u.liveRooms ? `${u.liveRooms} sala(s) ao vivo` : null,

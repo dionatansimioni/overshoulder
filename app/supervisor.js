@@ -170,7 +170,8 @@ ${config.turnDomain} {
 }`,
 );
 
-const publicUrl = `wss://${config.domain}${config.httpsPort === 443 ? '' : `:${config.httpsPort}`}`;
+const publicHost = `${config.domain}${config.httpsPort === 443 ? '' : `:${config.httpsPort}`}`;
+const publicUrl = `wss://${publicHost}`;
 
 // --- processos -------------------------------------------------------------
 
@@ -198,6 +199,7 @@ const services = {
       LIVEKIT_API_SECRET: secrets.livekitApiSecret,
       LIVEKIT_INTERNAL_URL: `http://127.0.0.1:${LIVEKIT_PORT}`,
       LIVEKIT_PUBLIC_URL: publicUrl,
+      PUBLIC_ORIGIN: `https://${publicHost}`,
       DATA_DIR,
       HOST_KEY_SECRET: secrets.hostKeySecret,
       MAX_PARTICIPANTS: String(config.maxParticipants),

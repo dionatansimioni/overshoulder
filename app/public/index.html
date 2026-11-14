@@ -22,6 +22,7 @@
         <input id="password" type="password" autocomplete="current-password" required>
         <button type="submit">Entrar</button>
         <p id="login-error" class="error" hidden></p>
+        <a id="sso-login" class="button secondary" href="/api/sso/start?next=/" hidden>Entrar com login da empresa</a>
       </form>
 
       <form id="totp-form" class="form" hidden>
@@ -36,6 +37,7 @@
         <p class="muted">Conectado como <b id="me"></b>.</p>
         <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
         <form id="create-form" class="form">
+          <label class="check" id="require-sso-row" hidden><input id="require-sso" type="checkbox"> Exigir login da empresa para assistir</label>
           <button type="submit">Criar sala</button>
           <p id="create-error" class="error" hidden></p>
         </form>

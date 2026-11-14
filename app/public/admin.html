@@ -29,6 +29,34 @@
       </section>
 
       <section class="section">
+        <h2>Login da empresa (SSO)</h2>
+        <p class="muted small">OpenID Connect: Google Workspace, Microsoft Entra ID, Keycloak, Authentik e outros. Cadastre no provedor um aplicativo "web" com este endereço de retorno:</p>
+        <p class="small"><code id="sso-redirect"></code></p>
+        <form id="sso-form" class="form">
+          <label class="check"><input id="sso-enabled" type="checkbox"> Ativar login da empresa</label>
+          <label for="sso-issuer">Emissor (issuer)</label>
+          <input id="sso-issuer" placeholder="https://login.microsoftonline.com/…/v2.0" spellcheck="false">
+          <label for="sso-client-id">Client ID</label>
+          <input id="sso-client-id" spellcheck="false" autocomplete="off">
+          <label for="sso-client-secret">Client secret</label>
+          <input id="sso-client-secret" type="password" autocomplete="new-password">
+          <label for="sso-domains">Domínios de e-mail permitidos</label>
+          <input id="sso-domains" placeholder="empresa.com.br, filial.com" spellcheck="false">
+          <p class="muted small field-hint">Só quem tiver e-mail desses domínios entra pelo login da empresa.</p>
+          <label for="sso-group">Grupo que pode transmitir</label>
+          <input id="sso-group" placeholder="overshoulder-transmissores" spellcheck="false">
+          <label for="sso-emails">E-mails que podem transmitir</label>
+          <input id="sso-emails" placeholder="ana@empresa.com.br, beto@empresa.com.br" spellcheck="false">
+          <p class="muted small field-hint">Quem está no grupo (se o provedor enviar a lista de grupos) ou nesta lista vira transmissor no primeiro login. O administrador continua com usuário e senha.</p>
+          <label class="check"><input id="sso-rooms-default" type="checkbox"> Novas salas exigem login da empresa por padrão</label>
+          <label class="check"><input id="sso-force" type="checkbox"> Todas as salas exigem login da empresa (obrigatório)</label>
+          <button type="submit">Salvar</button>
+          <p id="sso-error" class="error" hidden></p>
+          <p id="sso-ok" class="ok" hidden>Login da empresa salvo.</p>
+        </form>
+      </section>
+
+      <section class="section">
         <h2>Transmissores</h2>
         <p class="muted small">Pessoas autorizadas a criar salas e transmitir por este servidor, mesmo sem você presente. Elas não mexem nas configurações.</p>
         <ul id="users" class="list"></ul>

@@ -38,7 +38,16 @@ const storage = {
 // O código da sala muda quando o anfitrião troca o link (ou remove alguém)
 let roomId = location.pathname.split('/').pop();
 const hash = new URLSearchParams(location.hash.slice(1));
-const e2eeKey = hash.get('k');
+// Na volta do login corporativo o fragmento (#k=...) se perde: a chave fica guardada na aba durante a ida
+let e2eeKey = hash.get('k');
+const ssoKeyName = `e2ee:${roomId}`;
+if (!e2eeKey && storage.get(sessionStorage, ssoKeyName)) {
+  e2eeKey = storage.get(sessionStorage, ssoKeyName);
+  history.replaceState(null, '', `${location.pathname}#k=${e2eeKey}`);
+}
+try {
+  sessionStorage.removeItem(ssoKeyName);
+} catch {}
 let hostKey = hash.get('h') ?? storage.get(sessionStorage, `host:${roomId}`);
 
 // Tira a chave de anfitrião da barra de endereço para ela não vazar num copiar/colar
@@ -249,7 +258,7 @@ const connect = async (name) => {
     body: JSON.stringify({ roomId, hostKey, name }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Não foi possível entrar na sala.');
+  if (!res.ok) throw Object.assign(new Error(data.error ?? 'Não foi possível entrar na sala.'), { code: data.code });
   isHost = data.role === 'host';
 
   const keyProvider = new ExternalE2EEKeyProvider();
@@ -797,6 +806,36 @@ $('chat-form').addEventListener('submit', async (e) => {
 
 $('name').value = storage.get(localStorage, 'name') ?? '';
 
+// Quem já fez o login corporativo entra com o nome real, que vem do provedor
+const SSO_ERRORS = {
+  dominio: 'O e-mail da sua conta não pertence a um domínio permitido nesta sala.',
+  falhou: 'Não foi possível concluir o login da empresa. Tente de novo.',
+  expirou: 'O login da empresa expirou. Tente de novo.',
+  cancelado: 'O login da empresa foi cancelado.',
+  provedor: 'O provedor de login da empresa não respondeu. Tente mais tarde.',
+};
+const ssoError = new URLSearchParams(location.search).get('erro_sso');
+if (ssoError) {
+  history.replaceState(null, '', `${location.pathname}${location.hash}`);
+  joinError(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou);
+  $('sso-join').hidden = false;
+}
+fetch('/api/state')
+  .then((r) => r.json())
+  .then(({ viewer }) => {
+    if (!viewer) return;
+    $('name').value = viewer.name;
+    $('name').readOnly = true;
+    $('sso-hint').textContent = `Você entrou como ${viewer.name} (${viewer.email}) pelo login da empresa.`;
+    $('sso-hint').hidden = false;
+  })
+  .catch(() => {});
+
+$('sso-join').addEventListener('click', () => {
+  storage.set(sessionStorage, ssoKeyName, e2eeKey);
+  location.href = `/api/sso/start?next=${encodeURIComponent(`/r/${roomId}`)}`;
+});
+
 if (!e2eeKey) {
   joinError('Link incompleto: falta a chave da sala. Peça o link de novo.');
   $('join-form').querySelector('button').disabled = true;
@@ -816,6 +855,7 @@ $('join-form').addEventListener('submit', async (e) => {
     await connect(name);
   } catch (err) {
     joinError(err.message);
+    if (err.code === 'sso_required') $('sso-join').hidden = false;
     btn.disabled = false;
     return;
   }
