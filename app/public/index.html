@@ -11,17 +11,19 @@
 </head>
 <body>
   <main class="home">
-    <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
-    <p class="muted">Compartilhe a tela do seu jogo com os amigos, direto no navegador e com criptografia de ponta a ponta.</p>
+    <div class="card">
+      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
+      <p class="muted">Compartilhe a tela do seu jogo com os amigos, direto no navegador e com criptografia de ponta a ponta.</p>
 
-    <form id="create" class="card">
-      <label for="password">Senha do servidor</label>
-      <input id="password" type="password" autocomplete="current-password" required>
-      <button type="submit">Criar sala</button>
-      <p id="error" class="error" hidden></p>
-    </form>
+      <form id="create" class="form">
+        <label for="password">Senha do servidor</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Criar sala</button>
+        <p id="error" class="error" hidden></p>
+      </form>
+    </div>
 
-    <p class="muted small">Recebeu um link de um amigo? É só abrir o link, não precisa de senha.</p>
+    <p class="muted small hint">Recebeu um link de um amigo? É só abrir o link, não precisa de senha.</p>
   </main>
 </body>
 </html>

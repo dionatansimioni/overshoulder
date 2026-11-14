@@ -55,12 +55,31 @@ const showOverlay = (text) => {
   overlay.hidden = false;
 };
 
+// Cor do avatar derivada do nome, para cada pessoa manter a mesma cor
+const AVATAR_COLORS = ['#5b8cff', '#2fb37a', '#e0a33a', '#d9568f', '#8f6cf0', '#3fb3c8', '#e5733f'];
+const avatarColor = (name) => {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+};
+
+const el = (tag, className, text) => {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
+
 const addMessage = (text, author) => {
-  const li = document.createElement('li');
+  const li = el('li');
   if (author) {
-    const b = document.createElement('b');
-    b.textContent = `${author}: `;
-    li.append(b, document.createTextNode(text));
+    li.className = 'msg';
+    const avatar = el('span', 'avatar', [...author][0]?.toUpperCase() ?? '?');
+    avatar.style.background = avatarColor(author);
+    const meta = el('div', 'meta');
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    meta.append(el('span', 'author', author), el('span', 'time', time));
+    li.append(avatar, meta, el('p', 'text', text));
   } else {
     li.className = 'system';
     li.textContent = text;
@@ -96,7 +115,7 @@ const setVideoTrack = (track) => {
     track.attach(video);
     overlay.hidden = true;
   } else {
-    showOverlay(isHost ? 'Clique em “Compartilhar tela” para começar.' : 'Aguardando a transmissão começar…');
+    showOverlay(isHost ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…');
   }
 };
 
@@ -119,14 +138,14 @@ const wireRoomEvents = () => {
     .on(RoomEvent.LocalTrackPublished, (pub) => {
       if (pub.source === Track.Source.ScreenShare) {
         setVideoTrack(pub.track);
-        $('share').textContent = 'Parar';
+        setShareButton(true);
       }
     })
     .on(RoomEvent.LocalTrackUnpublished, (pub) => {
       if (pub.source === Track.Source.ScreenShare) {
         // Também dispara quando se clica em "Parar de compartilhar" na barra do navegador
         setVideoTrack(null);
-        $('share').textContent = 'Compartilhar tela';
+        setShareButton(false);
         stopExtraAudio();
       }
     })
@@ -183,6 +202,30 @@ const connect = async (name) => {
 };
 
 // --- anfitrião -------------------------------------------------------------
+
+const setShareButton = (on) => {
+  const btn = $('share');
+  const label = on ? 'Parar de compartilhar' : 'Compartilhar tela';
+  btn.classList.toggle('on', on);
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.querySelector('use').setAttribute('href', on ? '#i-screen-off' : '#i-screen');
+};
+
+const setupSettings = () => {
+  const btn = $('settings-btn');
+  const panel = $('settings');
+  const toggle = (open) => {
+    panel.hidden = !open;
+    btn.classList.toggle('on', open);
+    btn.setAttribute('aria-expanded', String(open));
+  };
+  btn.addEventListener('click', () => toggle(panel.hidden));
+  document.addEventListener('click', (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) toggle(false);
+  });
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && toggle(false));
+};
 
 const stopExtraAudio = async () => {
   if (!extraAudio) return;
@@ -241,7 +284,8 @@ const setupHost = () => {
   $('host-controls').hidden = false;
   $('invite').hidden = false;
   $('invite-link').value = inviteLink;
-  showOverlay('Clique em “Compartilhar tela” para começar.');
+  setupSettings();
+  showOverlay('Clique no botão de tela, embaixo, para começar a transmitir.');
 
   if (!navigator.mediaDevices?.getDisplayMedia) {
     $('share').disabled = true;
@@ -279,7 +323,7 @@ const setupHost = () => {
     select.length = 1;
     for (const d of await navigator.mediaDevices.enumerateDevices()) {
       if (d.kind !== 'audioinput' || d.deviceId === 'default' || d.deviceId === 'communications') continue;
-      select.add(new Option(`Áudio: ${d.label || d.deviceId}`, d.deviceId));
+      select.add(new Option(d.label || d.deviceId, d.deviceId));
     }
     addMessage('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.');
   });
@@ -291,7 +335,7 @@ const setupHost = () => {
     } catch {
       $('invite-link').select();
     }
-    setTimeout(() => ($('copy').textContent = 'Copiar'), 1500);
+    setTimeout(() => ($('copy').textContent = 'Copiar convite'), 1500);
   });
 
   $('end').addEventListener('click', async () => {

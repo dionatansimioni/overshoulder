@@ -104,3 +104,30 @@ test('anfitrião encerra a sala e o amigo é avisado', async () => {
   await host.page.click('#end');
   await viewer.page.waitForFunction(() => document.querySelector('#overlay').textContent.includes('encerrada'));
 });
+
+test('painel de ajustes do anfitrião abre e fecha', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  assert.ok(await host.page.isHidden('#settings'));
+  await host.page.click('#settings-btn');
+  assert.ok(await host.page.isVisible('#settings'));
+  assert.ok(await host.page.isVisible('#quality'));
+  await host.page.keyboard.press('Escape');
+  assert.ok(await host.page.isHidden('#settings'));
+  await host.page.click('#settings-btn');
+  await host.page.click('#player', { position: { x: 10, y: 10 } });
+  assert.ok(await host.page.isHidden('#settings'));
+  assert.deepEqual(host.errors, []);
+});
+
+test('mensagem do chat mostra avatar, autor e horário', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page, 'Zé');
+  await host.page.fill('#chat-input', 'testando');
+  await host.page.press('#chat-input', 'Enter');
+  const msg = host.page.locator('#messages li.msg').last();
+  assert.equal(await msg.locator('.avatar').textContent(), 'Z');
+  assert.equal(await msg.locator('.author').textContent(), 'Zé');
+  assert.match(await msg.locator('.time').textContent(), /\d{2}:\d{2}/);
+  assert.equal(await msg.locator('.text').textContent(), 'testando');
+});
