@@ -17,7 +17,7 @@ git check-ignore -q --no-index .env || { echo "ERRO: .env não está no .gitigno
 if git ls-files --error-unmatch .env >/dev/null 2>&1 || [ -n "$(git log --all --format=%H -- .env)" ]; then
   echo "ERRO: .env foi adicionado ao git" >&2; exit 1
 fi
-docker run --rm -v "$PWD:/repo:ro" "$GITLEAKS_IMAGE" git /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
+docker run --rm -v "$PWD:/repo:ro" -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo "$GITLEAKS_IMAGE" git /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
 docker run --rm -v "$PWD:/repo:ro" "$GITLEAKS_IMAGE" dir /repo --config /repo/.gitleaks.toml --no-banner --redact --exit-code 1
 
 # --- testes do servidor e do navegador --------------------------------------

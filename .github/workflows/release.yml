@@ -1,0 +1,88 @@
+# Publicação de uma versão (tag vX.Y.Z): testes e varredura, imagem amd64 + arm64 no GHCR com SBOM e
+# proveniência, assinatura sem chave (cosign/Sigstore), SBOM atestado na imagem e release no GitHub.
+name: Publicação
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publicar:
+    needs: ci
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write # release
+      packages: write # GHCR
+      id-token: write # assinatura sem chave (OIDC do GitHub)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - name: QEMU (arm64) e buildx
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt:qemu-v10.2.3-68 --install arm64
+          docker buildx create --name overshoulder --use
+
+      - name: Login no GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Compilar e publicar (amd64 + arm64)
+        id: build
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          VERSION="${GITHUB_REF_NAME#v}"
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --sbom=true --provenance=mode=max \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.licenses=AGPL-3.0-only" \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:latest" \
+            --metadata-file metadata.json --push .
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "digest=$(jq -r '."containerimage.digest"' metadata.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Assinar a imagem (cosign, sem chave)
+        run: cosign sign --yes "${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}"
+
+      - name: Varredura da imagem publicada
+        run: ./scripts/scan.sh "${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}"
+
+      - name: SBOM (CycloneDX) atestado na imagem
+        run: |
+          docker run --rm -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" aquasec/trivy:0.76.1 \
+            image --format cyclonedx --no-progress "${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}" > sbom.cdx.json
+          cosign attest --yes --type cyclonedx --predicate sbom.cdx.json \
+            "${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}"
+
+      - name: Release no GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "Imagem: \`${{ steps.build.outputs.image }}:${GITHUB_REF_NAME#v}\`"
+            echo
+            echo "Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo
+            echo "Para conferir a assinatura:"
+            echo
+            echo '```bash'
+            echo "cosign verify ${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }} \\"
+            echo "  --certificate-identity-regexp '^https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/v' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" sbom.cdx.json --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes

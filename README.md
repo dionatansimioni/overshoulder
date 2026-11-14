@@ -102,6 +102,20 @@ To remove the warning for good on a device, install Caddy's CA on it:
 - **H.264** usually uses the GPU's hardware encoder and is the lightest while you play.
 - **AV1/VP9** look better at the same bitrate, but are heavier on the CPU if the GPU has no encoder for them.
 
+## Releases and supply chain
+
+Each version (`vX.Y.Z` tag) is published by GitHub Actions as `ghcr.io/dionatansimioni/overshoulder`, for amd64 and arm64, only after the full test suite and a vulnerability scan pass (Trivy blocks high or critical issues that already have a fix). LiveKit and Caddy are compiled from source with updated dependencies. Every image is signed with Sigstore (keyless) and carries an SBOM (CycloneDX) and build provenance. To check the signature:
+
+```bash
+cosign verify ghcr.io/dionatansimioni/overshoulder:<version> \
+  --certificate-identity-regexp '^https://github.com/dionatansimioni/overshoulder/.github/workflows/release.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
 ## Development
 
-`./scripts/test.sh` runs every test: gitleaks, server, security, browser, translation and the Docker image.
+`./scripts/test.sh` runs every test: gitleaks, server, security, browser, translation and the Docker image. `./scripts/scan.sh <image>` runs the same vulnerability scan as the release.
+
+## License
+
+[AGPL-3.0](LICENSE).

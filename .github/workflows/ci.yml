@@ -1,0 +1,36 @@
+# Testes e varredura de vulnerabilidades a cada envio e pull request.
+# Também é chamado pela publicação (release.yml) antes de publicar a imagem.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Testes (gitleaks, app, navegador, imagem)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # O gitleaks varre o histórico inteiro
+          fetch-depth: 0
+          persist-credentials: false
+      - run: ./scripts/test.sh
+
+  varredura:
+    name: Varredura de vulnerabilidades (Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker build -t overshoulder:ci .
+      - run: ./scripts/scan.sh overshoulder:ci

@@ -52,7 +52,11 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Testes: todo texto e toda mensagem precisa de tradução; em inglês, nenhuma tela mostra letras acentuadas do português. Os navegadores dos outros testes abrem em pt-BR (`launchBrowser`).
   - **Ainda em português:** os logs e o comando `reset-admin`, que são ferramentas de quem opera o servidor.
 - Repositório privado publicado em 14/11/2026: github.com/dionatansimioni/overshoulder. O histórico foi reescrito para o e-mail `noreply` do GitHub antes do primeiro envio.
-- Próximo da ordem: publicação (GitHub Actions com testes, varredura, SBOM e assinatura) e o instalador. Antes de divulgar: validar numa VPS real o TURN, o SSO com um provedor real e o certificado no IP.
+- Etapa 8 (publicação automatizada) feita em 14/11/2026:
+  - `ci.yml` (testes e Trivy a cada envio) e `release.yml` (tag vX.Y.Z: imagem amd64 + arm64 no GHCR, SBOM e proveniência do BuildKit, assinatura cosign sem chave, SBOM CycloneDX atestado e release). Só `actions/checkout` e `sigstore/cosign-installer` como ações de terceiros, fixadas pelo hash.
+  - A varredura encontrou 13 falhas altas: o LiveKit agora é compilado do código-fonte (v1.13.11, Go 1.27.4, x/net v0.62.0), o Caddy usa x/net v0.62.0 e o npm saiu da imagem.
+  - LICENSE (AGPL-3.0) adicionada.
+- Próximo da ordem: o instalador de um comando e o botão da Hostinger. Antes de divulgar: validar numa VPS real o TURN, o SSO com um provedor real e o certificado no IP.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

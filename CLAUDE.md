@@ -8,6 +8,12 @@ Converse com o usuário em português (pt-BR).
 
 `./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): primeiro o gitleaks (histórico do git e arquivos; exceções em `.gitleaks.toml`), depois os testes do servidor em `app/test/server.test.js`, de segurança de todos os endpoints em `app/test/security.test.js` do navegador em `app/test/browser.test.js` e, por fim, a imagem Docker única rodando de verdade (`scripts/test-image.sh`). Endpoint ou recurso novo ganha também os casos de segurança correspondentes (entrada malformada, permissões, vazamento). A suíte está verde só quando o script sai com código 0 e o resumo mostra `fail 0`: confira o código de saída, porque um filtro da saída (`grep`, `tail`) esconde falhas de rede do `npm ci`.
 
+`./scripts/scan.sh <imagem>` roda a varredura de vulnerabilidades (Trivy) da publicação: falhas altas ou críticas com correção bloqueiam. Use-a depois de mexer no `Dockerfile` ou nas dependências.
+
+## Publicação
+
+O GitHub Actions roda `ci.yml` (testes e varredura) a cada envio. Uma tag `vX.Y.Z` dispara `release.yml`: imagem amd64 + arm64 no GHCR com SBOM e proveniência, assinatura cosign sem chave e release com o SBOM. As ações são fixadas pelo hash do commit.
+
 ## Como trabalhar
 
 - **Git:** todo trabalho é versionado com git local e enviado ao repositório **privado** `github.com/dionatansimioni/overshoulder` (`origin`, branch `main`) ao fim de cada parte concluída. Os commits usam o e-mail `noreply` do GitHub, já configurado no repositório: a conta bloqueia envios que exponham o e-mail pessoal. Cada mudança coerente vira um commit com mensagem descritiva em português: a primeira linha diz o que mudou, e o corpo explica o porquê quando não for óbvio.
