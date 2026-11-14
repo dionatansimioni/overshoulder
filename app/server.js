@@ -42,10 +42,13 @@ const safeEqual = (a, b) => {
   return crypto.timingSafeEqual(ha, hb);
 };
 
+// Atrás de proxy, vale o último IP do X-Forwarded-For: é o que o proxy acrescentou.
+// Os anteriores vêm do próprio cliente e podem ser forjados para burlar o limite de tentativas.
 const clientIp = (req) => {
   if (TRUST_PROXY) {
     const fwd = req.headers['x-forwarded-for'];
-    if (fwd) return String(fwd).split(',')[0].trim();
+    const last = fwd && String(fwd).split(',').pop().trim();
+    if (last) return last;
   }
   return req.socket.remoteAddress ?? 'unknown';
 };
@@ -71,15 +74,18 @@ const recordFailure = (ip) => {
   else f.count++;
 };
 
+// WebSocket só para o próprio site e para o LiveKit configurado
+const LIVEKIT_ORIGIN = new URL(PUBLIC_URL).origin;
+
 const SECURITY_HEADERS = {
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
-    "media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ws: wss:; " +
+    `media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ${LIVEKIT_ORIGIN}; ` +
     "frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), geolocation=()',
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self), display-capture=(self)',
 };
 
 const send = (res, status, body, headers = {}) => {
@@ -93,23 +99,40 @@ const json = (res, status, obj) =>
     'Cache-Control': 'no-store',
   });
 
+// Erro com status e mensagem que podem ir para o cliente
+class HttpError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const MAX_BODY = 4096;
+
+// Lê o corpo como um objeto JSON; qualquer outra coisa é erro do cliente
 const readJson = (req) =>
   new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 4096) {
-        reject(new Error('corpo muito grande'));
-        req.destroy();
+      if (size > MAX_BODY) {
+        req.removeAllListeners('data');
+        req.resume();
+        reject(new HttpError(413, 'Requisição grande demais.'));
       } else chunks.push(c);
     });
     req.on('end', () => {
+      if (size > MAX_BODY) return;
+      let body;
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+        body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       } catch {
-        reject(new Error('JSON inválido'));
+        return reject(new HttpError(400, 'JSON inválido.'));
       }
+      if (body === null || typeof body !== 'object' || Array.isArray(body))
+        return reject(new HttpError(400, 'Formato de requisição inválido.'));
+      resolve(body);
     });
     req.on('error', reject);
   });
@@ -144,7 +167,7 @@ const createRoom = async (req, res) => {
   if (isBlocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
 
   const { password } = await readJson(req);
-  if (!safeEqual(password ?? '', CREATE_PASSWORD)) {
+  if (typeof password !== 'string' || !safeEqual(password, CREATE_PASSWORD)) {
     recordFailure(ip);
     return json(res, 403, { error: 'Senha incorreta.' });
   }
@@ -161,7 +184,7 @@ const issueToken = async (req, res) => {
   const isHost = typeof hostKey === 'string' && safeEqual(hostKey, hostKeyFor(roomId));
   if (!(await roomExists(roomId))) return json(res, 404, { error: 'Essa sala não existe ou já foi encerrada.' });
 
-  const displayName = String(name ?? '').trim().slice(0, 32) || (isHost ? 'Anfitrião' : 'Espectador');
+  const displayName = (typeof name === 'string' ? name.trim().slice(0, 32) : '') || (isHost ? 'Anfitrião' : 'Espectador');
   const identity = `${isHost ? 'h' : 'v'}-${crypto.randomBytes(6).toString('hex')}`;
 
   const at = new AccessToken(API_KEY, API_SECRET, { identity, name: displayName, ttl: TOKEN_TTL });
@@ -212,10 +235,14 @@ const server = http.createServer(async (req, res) => {
       const name = p.slice('/vendor/'.length);
       if (VENDOR_FILES.has(name)) return await serveFile(res, path.join(VENDOR_DIR, name));
     }
-    if (/^\/static\/[a-z0-9.-]+$/.test(p)) return await serveFile(res, path.join(PUBLIC_DIR, p.slice('/static/'.length)));
+    if (/^\/static\/[a-z0-9-]+(\.[a-z0-9]+)+$/.test(p)) return await serveFile(res, path.join(PUBLIC_DIR, p.slice('/static/'.length)));
 
     send(res, 404, 'Não encontrado', { 'Content-Type': 'text/plain; charset=utf-8' });
   } catch (err) {
+    if (err instanceof HttpError) {
+      if (!res.headersSent) json(res, err.status, { error: err.message });
+      return;
+    }
     console.error(err);
     if (!res.headersSent) json(res, 500, { error: 'Erro interno.' });
   }
