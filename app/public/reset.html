@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overshoulder · Redefinir administrador</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/reset.js"></script>
+</head>
+<body>
+  <main class="home">
+    <div class="card">
+      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
+      <h2>Redefinir a conta de administrador</h2>
+      <p class="muted small">Este link foi gerado pelo comando no servidor e vale uma vez. A senha será trocada, o 2FA removido e as outras sessões encerradas.</p>
+      <form id="reset-form" class="form">
+        <label for="password">Nova senha</label>
+        <input id="password" type="password" autocomplete="new-password" required>
+        <label for="password2">Confirme a nova senha</label>
+        <input id="password2" type="password" autocomplete="new-password" required>
+        <button type="submit">Redefinir</button>
+        <p id="reset-error" class="error" hidden></p>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

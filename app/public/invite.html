@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overshoulder · Convite</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/invite.js"></script>
+</head>
+<body>
+  <main class="home">
+    <div class="card">
+      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
+      <h2>Criar conta de transmissor</h2>
+      <p class="muted small">Você foi convidado para transmitir por este servidor. Escolha seu usuário e senha.</p>
+      <form id="invite-form" class="form">
+        <label for="username">Usuário</label>
+        <input id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="password">Senha</label>
+        <input id="password" type="password" autocomplete="new-password" required>
+        <p class="muted small field-hint">Pelo menos 12 caracteres. Depois, ative o 2FA em "Minha conta".</p>
+        <label for="password2">Confirme a senha</label>
+        <input id="password2" type="password" autocomplete="new-password" required>
+        <button type="submit">Criar conta</button>
+        <p id="invite-error" class="error" hidden></p>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

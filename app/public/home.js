@@ -15,6 +15,7 @@ const showSignedIn = (user) => {
   $('signed-in').hidden = false;
   $('me').textContent = user.username;
   $('recommend-2fa').hidden = user.totp;
+  $('admin-link').hidden = user.role !== 'admin';
 };
 
 const state = await api('/api/state');

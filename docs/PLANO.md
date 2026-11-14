@@ -21,7 +21,8 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Senhas no padrão NIST, com a lista de senhas vazadas em `app/data/`; limite de tentativas por IP e por conta; checagem de origem contra CSRF.
   - Estado salvo em `/data/state.json`. `CREATE_PASSWORD` foi removida.
   - Parte 3 (2FA) feita: TOTP opcional com QR code, login em duas etapas, 10 códigos de recuperação de uso único, "Exigir 2FA" e, só para o admin, gerar códigos novos e remover o 2FA de uma conta. A página `/conta` também troca a senha.
-  - Falta a parte 4: convites e revogação de transmissores, painel do admin e o comando `reset-admin`.
+  - Parte 4 feita: convites de uso único (48 h), contas de transmissor, revogação imediata (sessões e salas ao vivo), reativação e exclusão, painel `/admin` (configurações, transmissores e convites) e `overshoulder reset-admin` dentro do container.
+  - **Etapa 2 concluída.** O próximo item da ordem é a moderação (remover alguém, silenciar o chat, trocar o link) e passar a vez de apresentador.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

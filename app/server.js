@@ -38,6 +38,7 @@ const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const DEFAULT_MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
 const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
 const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
+const INVITE_TTL_MS = Number(env('INVITE_TTL_MS', String(48 * 3600_000)));
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const TOKEN_TTL = '8h';
@@ -54,6 +55,9 @@ const PAGES = {
   '/': 'index.html',
   '/configurar': 'setup.html',
   '/conta': 'account.html',
+  '/admin': 'admin.html',
+  '/convite': 'invite.html',
+  '/redefinir': 'reset.html',
 };
 
 const rooms = new RoomServiceClient(INTERNAL_URL, API_KEY, API_SECRET);
@@ -474,6 +478,182 @@ const reset2fa = async (req, res) => {
   json(res, 200, { ok: true });
 };
 
+// --- API: transmissores e convites ----------------------------------------
+
+const publicAccount = (u) => ({
+  username: u.username,
+  role: u.role,
+  totp: !!u.totp,
+  disabled: !!u.disabled,
+  createdAt: u.createdAt,
+  liveRooms: [...roomOwners.values()].filter((id) => id === u.id).length,
+});
+
+const listUsers = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  json(res, 200, { users: store.state.users.map(publicAccount) });
+};
+
+const pruneInvites = () => {
+  const now = Date.now();
+  if (store.state.invites.some((i) => i.expiresAt <= now))
+    store.update((st) => (st.invites = st.invites.filter((i) => i.expiresAt > now)));
+};
+
+// O convite viaja só no fragmento (#) do link; o servidor guarda apenas o hash
+const createInvite = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  await readJson(req);
+  pruneInvites();
+  const token = randomToken();
+  const invite = { id: randomToken(9), hash: sha256(token), expiresAt: Date.now() + INVITE_TTL_MS, createdBy: user.username };
+  store.update((st) => st.invites.push(invite));
+  log.info('convite criado', { user: user.username });
+  json(res, 201, { id: invite.id, path: `/convite#${token}`, expiresAt: new Date(invite.expiresAt).toISOString() });
+};
+
+const listInvites = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  pruneInvites();
+  json(res, 200, {
+    invites: store.state.invites.map((i) => ({ id: i.id, createdBy: i.createdBy, expiresAt: new Date(i.expiresAt).toISOString() })),
+  });
+};
+
+const cancelInvite = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const { id } = await readJson(req);
+  if (!store.state.invites.some((i) => i.id === id)) return json(res, 404, { error: 'Convite não encontrado.' });
+  store.update((st) => (st.invites = st.invites.filter((i) => i.id !== id)));
+  log.info('convite cancelado', { user: user.username });
+  json(res, 200, { ok: true });
+};
+
+const acceptInvite = async (req, res) => {
+  const ip = clientIp(req);
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { token, username, password } = await readJson(req);
+  pruneInvites();
+  const hash = typeof token === 'string' ? sha256(token) : '';
+  const invite = store.state.invites.find((i) => i.hash === hash);
+  if (!invite) {
+    ipLimiter.fail(ip);
+    log.warn('convite inválido usado');
+    return json(res, 401, { error: 'Convite inválido, já usado ou expirado. Peça um novo ao administrador.' });
+  }
+  const name = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  if (!USERNAME_RE.test(name))
+    return json(res, 400, { error: 'Usuário: de 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen e sublinhado.' });
+  if (findUser((u) => u.username === name)) return json(res, 409, { error: 'Esse usuário já existe. Escolha outro.' });
+  const problem = passwordProblem(password, name);
+  if (problem) return json(res, 400, { error: problem });
+
+  const user = {
+    id: randomToken(12),
+    username: name,
+    role: 'broadcaster',
+    passwordHash: await hashPassword(password),
+    createdAt: new Date().toISOString(),
+    invitedBy: invite.createdBy,
+  };
+  // Confere de novo depois do hash: o convite vale uma vez só e o usuário pode ter sido criado nesse meio-tempo
+  if (!store.state.invites.some((i) => i.hash === hash)) return json(res, 401, { error: 'Convite já usado.' });
+  if (findUser((u) => u.username === name)) return json(res, 409, { error: 'Esse usuário já existe. Escolha outro.' });
+  store.update((st) => {
+    st.invites = st.invites.filter((i) => i.hash !== hash);
+    st.users.push(user);
+  });
+  log.info('transmissor cadastrado', { user: user.username, convidadoPor: invite.createdBy });
+  json(res, 201, { user: publicUser(user) }, startSession(req, user));
+};
+
+// Encerra na hora as salas que a conta criou (quem estiver assistindo é desconectado)
+const endRoomsOf = async (userId) => {
+  let ended = 0;
+  for (const [roomId, owner] of roomOwners) {
+    if (owner !== userId) continue;
+    roomOwners.delete(roomId);
+    await rooms.deleteRoom(roomId).catch(() => {});
+    ended++;
+  }
+  return ended;
+};
+
+const broadcasterTarget = (username) => {
+  const target = targetUser(username);
+  if (target.role === 'admin') throw new HttpError(400, 'A conta de administrador não pode ser revogada nem excluída.');
+  return target;
+};
+
+// Revogação imediata: desativa a conta, encerra as sessões e as salas ao vivo
+const revokeUser = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = broadcasterTarget((await readJson(req)).username);
+  store.update(() => {
+    target.disabled = true;
+  });
+  sessions.destroyUser(target.id);
+  const ended = await endRoomsOf(target.id);
+  log.warn('transmissor revogado', { user: user.username, conta: target.username, salasEncerradas: ended });
+  json(res, 200, { ok: true, endedRooms: ended });
+};
+
+const restoreUser = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = broadcasterTarget((await readJson(req)).username);
+  store.update(() => {
+    delete target.disabled;
+  });
+  log.info('transmissor reativado', { user: user.username, conta: target.username });
+  json(res, 200, { ok: true });
+};
+
+const deleteUser = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = broadcasterTarget((await readJson(req)).username);
+  store.update((st) => (st.users = st.users.filter((u) => u.id !== target.id)));
+  sessions.destroyUser(target.id);
+  const ended = await endRoomsOf(target.id);
+  log.warn('transmissor excluído', { user: user.username, conta: target.username, salasEncerradas: ended });
+  json(res, 200, { ok: true, endedRooms: ended });
+};
+
+// --- API: redefinição do admin (link gerado pelo comando no servidor) -----
+
+const RESET_FILE = path.join(DATA_DIR, 'admin-reset.json');
+
+const adminReset = async (req, res) => {
+  const ip = clientIp(req);
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { token, password } = await readJson(req);
+  let pending = null;
+  try {
+    pending = JSON.parse(await fs.readFile(RESET_FILE, 'utf8'));
+  } catch {}
+  const valid =
+    pending && typeof token === 'string' && pending.expiresAt > Date.now() && safeEqual(sha256(token), pending.hash);
+  if (!valid) {
+    ipLimiter.fail(ip);
+    log.warn('link de redefinição do admin inválido');
+    return json(res, 401, { error: 'Link inválido ou expirado. Gere outro com o comando no servidor.' });
+  }
+  const admin = findUser((u) => u.role === 'admin');
+  const problem = passwordProblem(password, admin.username);
+  if (problem) return json(res, 400, { error: problem });
+
+  const passwordHash = await hashPassword(password);
+  await fs.rm(RESET_FILE, { force: true });
+  store.update(() => {
+    admin.passwordHash = passwordHash;
+    delete admin.totp;
+    delete admin.disabled;
+  });
+  sessions.destroyUser(admin.id);
+  accountLimiter.reset(admin.username);
+  log.warn('admin redefinido pelo link do servidor', { user: admin.username });
+  json(res, 200, { user: publicUser(admin) }, startSession(req, admin));
+};
+
 // --- API: salas -----------------------------------------------------------
 
 const createRoom = async (req, res) => {
@@ -551,6 +731,15 @@ const routes = {
   'POST /api/admin/settings': updateSettings,
   'POST /api/admin/recovery-codes': regenerateRecoveryCodes,
   'POST /api/admin/reset-2fa': reset2fa,
+  'GET /api/admin/users': listUsers,
+  'POST /api/admin/users/revoke': revokeUser,
+  'POST /api/admin/users/restore': restoreUser,
+  'POST /api/admin/users/delete': deleteUser,
+  'GET /api/admin/invites': listInvites,
+  'POST /api/admin/invites': createInvite,
+  'POST /api/admin/invites/cancel': cancelInvite,
+  'POST /api/invites/accept': acceptInvite,
+  'POST /api/admin-reset': adminReset,
   'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
   'POST /api/token': issueToken,

@@ -22,6 +22,10 @@ COPY app/package.json app/*.js ./
 COPY app/data ./data
 COPY app/public ./public
 
+# Comando para quem tem acesso ao servidor: docker exec overshoulder overshoulder reset-admin
+RUN printf '#!/bin/sh\nexec node /app/cli.js "$@"\n' > /usr/local/bin/overshoulder \
+ && chmod 755 /usr/local/bin/overshoulder
+
 ENV DATA_DIR=/data NODE_ENV=production
 USER node
 VOLUME /data

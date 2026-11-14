@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overshoulder · Administração</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/admin.js"></script>
+</head>
+<body>
+  <main class="home wide">
+    <div class="card">
+      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Administração</h1>
+      <p class="muted"><a href="/">Voltar</a> · <a href="/conta">Minha conta</a></p>
+
+      <section class="section">
+        <h2>Configurações</h2>
+        <form id="settings-form" class="form">
+          <label class="check"><input id="require2fa" type="checkbox"> Exigir 2FA de todas as contas</label>
+          <p class="muted small field-hint">Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.</p>
+          <label for="max">Limite de pessoas por sala</label>
+          <input id="max" type="number" min="2" max="500" required>
+          <button type="submit">Salvar</button>
+          <p id="settings-error" class="error" hidden></p>
+          <p id="settings-ok" class="ok" hidden>Configurações salvas.</p>
+        </form>
+      </section>
+
+      <section class="section">
+        <h2>Transmissores</h2>
+        <p class="muted small">Pessoas autorizadas a criar salas e transmitir por este servidor, mesmo sem você presente. Elas não mexem nas configurações.</p>
+        <ul id="users" class="list"></ul>
+        <div id="user-codes" hidden>
+          <p class="notice">Novos códigos de recuperação de <b id="codes-for"></b>. Entregue por um canal seguro; os antigos deixaram de valer.</p>
+          <ol id="codes" class="codes"></ol>
+        </div>
+        <p id="users-error" class="error" hidden></p>
+      </section>
+
+      <section class="section">
+        <h2>Convites</h2>
+        <p class="muted small">O convite é um link de uso único que vale 48 horas. A pessoa escolhe o próprio usuário e senha; você nunca vê a senha.</p>
+        <button id="new-invite" type="button">Gerar convite</button>
+        <div id="invite-box" class="invite-box" hidden>
+          <input id="invite-link" readonly aria-label="Link do convite">
+          <button id="copy-invite" type="button" class="secondary">Copiar</button>
+        </div>
+        <ul id="invites" class="list"></ul>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

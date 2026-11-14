@@ -105,8 +105,18 @@ wait_for 90 healthy || die "container não voltou saudável depois de reiniciar"
   -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}")" = 200 ] || die "login do admin depois do reinício"
 ok "segredos e contas sobrevivem ao reinício do container"
 
+reset_out=$(docker exec "$NAME" overshoulder reset-admin)
+reset_token=$(echo "$reset_out" | sed -n 's|^https://127.0.0.1:18443/redefinir#\([A-Za-z0-9_-]*\)$|\1|p')
+[ -n "$reset_token" ] || die "reset-admin não gerou o link: $reset_out"
+NEW_PASSWORD='outra frase longa para a dona'
+[ "$(api -o /dev/null -w '%{http_code}' -X POST "$BASE/api/admin-reset" -H 'Content-Type: application/json' \
+  -d "{\"token\":\"$reset_token\",\"password\":\"$NEW_PASSWORD\"}")" = 200 ] || die "redefinição do admin pelo link"
+[ "$(api -o /dev/null -w '%{http_code}' -X POST "$BASE/api/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"admin\",\"password\":\"$NEW_PASSWORD\"}")" = 200 ] || die "login com a senha redefinida"
+ok "docker exec … overshoulder reset-admin gera um link que redefine o admin"
+
 logs=$(docker logs "$NAME" 2>&1)
-if echo "$logs" | grep -q "$ADMIN_PASSWORD"; then die "a senha apareceu nos logs"; fi
+if echo "$logs" | grep -qF -e "$ADMIN_PASSWORD" -e "$NEW_PASSWORD" -e "$reset_token"; then die "senha ou link de redefinição apareceu nos logs"; fi
 bad=$(echo "$logs" | python3 -c '
 import json, sys
 for line in sys.stdin:

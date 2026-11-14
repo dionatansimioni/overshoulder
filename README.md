@@ -49,6 +49,15 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
 | `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 500) |
 
+### Contas
+
+- **Administrador:** criado em `/configurar`. Muda as configurações em `/admin` e convida transmissores.
+- **Transmissores:** pessoas autorizadas a criar salas e transmitir mesmo sem você presente. O admin gera em `/admin` um **convite de uso único** (vale 48 h), e a pessoa escolhe o próprio usuário e senha. **Revogar** desativa a conta e encerra na hora as sessões e as salas ao vivo dela.
+- **Espectadores:** não têm conta. Só precisam do link da sala.
+- **2FA (TOTP):** opcional e recomendado; cada um ativa em `/conta` com um app autenticador. O admin pode **exigir 2FA** de todos. Os 10 códigos de recuperação valem uma vez cada, e só o admin gera um conjunto novo (ou remove o 2FA de quem perdeu o celular).
+- **Senhas:** no mínimo 12 caracteres, sem conter o usuário e fora das ~30 mil senhas vazadas mais comuns.
+- **Admin perdeu a senha ou o 2FA:** no servidor, rode `docker exec overshoulder overshoulder reset-admin`. Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin.
+
 Libere no firewall:
 
 | Porta | Protocolo | Uso |

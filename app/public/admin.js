@@ -1,0 +1,147 @@
+import { $, api, busy, showError } from '/static/ui.js';
+
+const state = await api('/api/state');
+if (state.user?.role !== 'admin') location.replace('/');
+
+const el = (tag, attrs = {}, ...children) => {
+  const e = Object.assign(document.createElement(tag), attrs);
+  e.append(...children);
+  return e;
+};
+
+const action = (label, fn, className = 'secondary') => {
+  const b = el('button', { type: 'button', className, textContent: label });
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    $('users-error').hidden = true;
+    try {
+      await fn();
+    } catch (err) {
+      showError($('users-error'), err);
+    } finally {
+      b.disabled = false;
+    }
+  });
+  return b;
+};
+
+const formatDate = (iso) => new Date(iso).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+
+// --- configurações ---------------------------------------------------------
+
+const settings = await api('/api/admin/settings');
+$('require2fa').checked = settings.require2fa;
+$('max').value = settings.maxParticipants;
+
+$('settings-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('settings-error').hidden = true;
+  $('settings-ok').hidden = true;
+  busy(e.target, async () => {
+    try {
+      await api('/api/admin/settings', { require2fa: $('require2fa').checked, maxParticipants: Number($('max').value) });
+      // A regra vale para o próprio admin: sem 2FA, ele precisa configurar antes de continuar
+      if ($('require2fa').checked && !state.user.totp) return location.replace('/conta');
+      $('settings-ok').hidden = false;
+    } catch (err) {
+      showError($('settings-error'), err);
+    }
+  });
+});
+
+// --- transmissores ---------------------------------------------------------
+
+const showCodes = (username, codes) => {
+  $('codes-for').textContent = username;
+  $('codes').replaceChildren(...codes.map((c) => el('li', { textContent: c })));
+  $('user-codes').hidden = false;
+};
+
+const loadUsers = async () => {
+  const { users } = await api('/api/admin/users');
+  $('users').replaceChildren(
+    ...users.map((u) => {
+      const status = [
+        u.role === 'admin' ? 'administrador' : 'transmissor',
+        u.totp ? '2FA ativo' : 'sem 2FA',
+        u.disabled ? 'revogado' : null,
+        u.liveRooms ? `${u.liveRooms} sala(s) ao vivo` : null,
+      ].filter(Boolean);
+      const actions = el('div', { className: 'actions' });
+      if (u.totp) {
+        actions.append(
+          action('Novos códigos', async () => showCodes(u.username, (await api('/api/admin/recovery-codes', { username: u.username })).recoveryCodes)),
+          action('Remover 2FA', async () => {
+            if (!confirm(`Remover o 2FA de ${u.username}? A conta poderá configurá-lo de novo.`)) return;
+            await api('/api/admin/reset-2fa', { username: u.username });
+            await loadUsers();
+          }),
+        );
+      }
+      if (u.role !== 'admin') {
+        actions.append(
+          u.disabled
+            ? action('Reativar', async () => {
+                await api('/api/admin/users/restore', { username: u.username });
+                await loadUsers();
+              })
+            : action(
+                'Revogar',
+                async () => {
+                  if (!confirm(`Revogar ${u.username}? As sessões e as salas ao vivo dessa pessoa serão encerradas agora.`)) return;
+                  await api('/api/admin/users/revoke', { username: u.username });
+                  await loadUsers();
+                },
+                'danger',
+              ),
+          action(
+            'Excluir',
+            async () => {
+              if (!confirm(`Excluir a conta ${u.username}? Isso não pode ser desfeito.`)) return;
+              await api('/api/admin/users/delete', { username: u.username });
+              await loadUsers();
+            },
+            'danger',
+          ),
+        );
+      }
+      const li = el('li', { className: u.disabled ? 'disabled' : '' }, el('div', {}, el('b', { textContent: u.username }), el('span', { className: 'muted small', textContent: ` · ${status.join(' · ')}` })), actions);
+      li.dataset.username = u.username;
+      return li;
+    }),
+  );
+};
+
+// --- convites ----------------------------------------------------------------
+
+const loadInvites = async () => {
+  const { invites } = await api('/api/admin/invites');
+  $('invites').replaceChildren(
+    ...invites.map((i) =>
+      el(
+        'li',
+        {},
+        el('span', { className: 'muted small', textContent: `Convite pendente, vale até ${formatDate(i.expiresAt)}` }),
+        action('Cancelar', async () => {
+          await api('/api/admin/invites/cancel', { id: i.id });
+          await loadInvites();
+        }),
+      ),
+    ),
+  );
+};
+
+$('new-invite').addEventListener('click', async () => {
+  const { path } = await api('/api/admin/invites', {});
+  $('invite-link').value = `${location.origin}${path}`;
+  $('invite-box').hidden = false;
+  $('copy-invite').textContent = 'Copiar';
+  await loadInvites();
+});
+
+$('copy-invite').addEventListener('click', async () => {
+  await navigator.clipboard.writeText($('invite-link').value).catch(() => $('invite-link').select());
+  $('copy-invite').textContent = 'Copiado!';
+});
+
+await Promise.all([loadUsers(), loadInvites()]);
