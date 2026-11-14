@@ -1,4 +1,7 @@
+import { t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
 
 const state = await api('/api/state');
 if (state.user?.role !== 'admin') location.replace('/');
@@ -10,7 +13,7 @@ const el = (tag, attrs = {}, ...children) => {
 };
 
 const action = (label, fn, className = 'secondary') => {
-  const b = el('button', { type: 'button', className, textContent: label });
+  const b = el('button', { type: 'button', className, textContent: t(label) });
   b.addEventListener('click', async () => {
     b.disabled = true;
     $('users-error').hidden = true;
@@ -57,7 +60,7 @@ const fillSso = (sso) => {
   $('sso-issuer').value = sso.issuer;
   $('sso-client-id').value = sso.clientId;
   $('sso-client-secret').value = '';
-  $('sso-client-secret').placeholder = sso.hasClientSecret ? 'Salvo (deixe vazio para manter)' : '';
+  $('sso-client-secret').placeholder = sso.hasClientSecret ? t('Salvo (deixe vazio para manter)') : '';
   $('sso-domains').value = sso.domains.join(', ');
   $('sso-group').value = sso.broadcasterGroup;
   $('sso-emails').value = sso.broadcasterEmails.join(', ');
@@ -105,18 +108,18 @@ const loadUsers = async () => {
   $('users').replaceChildren(
     ...users.map((u) => {
       const status = [
-        u.role === 'admin' ? 'administrador' : 'transmissor',
-        u.sso ? `login da empresa (${u.email})` : null,
-        u.totp ? '2FA ativo' : 'sem 2FA',
-        u.disabled ? 'revogado' : null,
-        u.liveRooms ? `${u.liveRooms} sala(s) ao vivo` : null,
+        t(u.role === 'admin' ? 'administrador' : 'transmissor'),
+        u.sso ? t('login da empresa ({email})', { email: u.email }) : null,
+        t(u.totp ? '2FA ativo' : 'sem 2FA'),
+        u.disabled ? t('revogado') : null,
+        u.liveRooms ? t('{n} sala(s) ao vivo', { n: u.liveRooms }) : null,
       ].filter(Boolean);
       const actions = el('div', { className: 'actions' });
       if (u.totp) {
         actions.append(
           action('Novos códigos', async () => showCodes(u.username, (await api('/api/admin/recovery-codes', { username: u.username })).recoveryCodes)),
           action('Remover 2FA', async () => {
-            if (!confirm(`Remover o 2FA de ${u.username}? A conta poderá configurá-lo de novo.`)) return;
+            if (!confirm(t('Remover o 2FA de {name}? A conta poderá configurá-lo de novo.', { name: u.username }))) return;
             await api('/api/admin/reset-2fa', { username: u.username });
             await loadUsers();
           }),
@@ -132,7 +135,8 @@ const loadUsers = async () => {
             : action(
                 'Revogar',
                 async () => {
-                  if (!confirm(`Revogar ${u.username}? As sessões e as salas ao vivo dessa pessoa serão encerradas agora.`)) return;
+                  if (!confirm(t('Revogar {name}? As sessões e as salas ao vivo dessa pessoa serão encerradas agora.', { name: u.username })))
+                    return;
                   await api('/api/admin/users/revoke', { username: u.username });
                   await loadUsers();
                 },
@@ -141,7 +145,7 @@ const loadUsers = async () => {
           action(
             'Excluir',
             async () => {
-              if (!confirm(`Excluir a conta ${u.username}? Isso não pode ser desfeito.`)) return;
+              if (!confirm(t('Excluir a conta {name}? Isso não pode ser desfeito.', { name: u.username }))) return;
               await api('/api/admin/users/delete', { username: u.username });
               await loadUsers();
             },
@@ -165,7 +169,7 @@ const loadInvites = async () => {
       el(
         'li',
         {},
-        el('span', { className: 'muted small', textContent: `Convite pendente, vale até ${formatDate(i.expiresAt)}` }),
+        el('span', { className: 'muted small', textContent: t('Convite pendente, vale até {date}', { date: formatDate(i.expiresAt) }) }),
         action('Cancelar', async () => {
           await api('/api/admin/invites/cancel', { id: i.id });
           await loadInvites();
@@ -179,13 +183,13 @@ $('new-invite').addEventListener('click', async () => {
   const { path } = await api('/api/admin/invites', {});
   $('invite-link').value = `${location.origin}${path}`;
   $('invite-box').hidden = false;
-  $('copy-invite').textContent = 'Copiar';
+  $('copy-invite').textContent = t('Copiar');
   await loadInvites();
 });
 
 $('copy-invite').addEventListener('click', async () => {
   await navigator.clipboard.writeText($('invite-link').value).catch(() => $('invite-link').select());
-  $('copy-invite').textContent = 'Copiado!';
+  $('copy-invite').textContent = t('Copiado!');
 });
 
 await Promise.all([loadUsers(), loadInvites()]);

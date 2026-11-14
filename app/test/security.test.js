@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import http from 'node:http';
 import { after, before, describe, test } from 'node:test';
-import { chromium } from 'playwright';
-import { ADMIN, api, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const ROOM_ID = 'a'.repeat(22);
 const SECRET_LEAKS = /\bat \S+:\d+:\d+|\/app\/|node_modules|server\.js|Error:|stack|LIVEKIT|API_SECRET|HOST_KEY/i;
@@ -307,7 +306,7 @@ describe('no navegador', () => {
   ownServer(13015);
   let browser;
   before(async () => {
-    browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+    browser = await launchBrowser({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   });
   after(() => browser?.close());
 

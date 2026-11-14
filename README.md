@@ -1,103 +1,107 @@
 # Overshoulder
 
-Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem transmite e quem assiste só precisam abrir um link.
+**English** · [Português](README.pt-BR.md)
 
-- **Baixa latência:** WebRTC via [LiveKit](https://livekit.io) (SFU self-hosted).
-- **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. O servidor repassa vídeo cifrado que ele mesmo não consegue abrir.
-- **Salas de até 16 pessoas por padrão** (configurável): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
-- **Microfone de quem transmite:** o anfitrião liga a voz com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
-- **Moderação:** na aba *Pessoas*, o anfitrião remove alguém da sala ou **passa a vez de apresentar** (tela e microfone) para outra pessoa e pega de volta. Também desliga o chat de quem assiste e gera um link novo para a sala.
-- **Gravação no navegador do anfitrião:** grava o vídeo que está na tela (inclusive de quem recebeu a vez de apresentar) e todo o áudio da sala. O servidor nunca vê o conteúdo. No Chrome e no Edge, o arquivo é gravado numa pasta escolhida, a cada segundo (WebM), e o que já foi gravado fica salvo mesmo se o navegador fechar. Nos outros navegadores, o arquivo (MP4 quando possível) é baixado ao parar. Cada trecho de vídeo vira uma parte (`…-parte1`, `…-parte2`), e todos na sala veem o aviso **● Gravando**.
-- **Chat de texto** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
+Self-hosted screen sharing, right in the browser: for playing games with friends, live streams and training sessions. Presenters and viewers only need to open a link.
 
-## Como funciona
+- **Low latency:** WebRTC through [LiveKit](https://livekit.io) (self-hosted SFU).
+- **End-to-end encryption:** the room key is created in the browser and lives only in the link's `#` fragment, so it never reaches the server. The server forwards encrypted video it cannot open itself.
+- **Rooms of up to 16 people by default** (configurable up to 500): the presenter uploads a single copy and the server distributes it. With simulcast, each viewer gets the quality their connection can handle.
+- **Presenter microphone:** voice turns on with one button, with or without screen sharing, and viewers see a “Microphone on” notice.
+- **Moderation:** in the *People* tab, the host removes someone from the room or **hands over the presenter role** (screen and microphone) to someone else and takes it back. The host can also turn the chat off for viewers and create a new room link.
+- **Recording in the host's browser:** records the video on screen (including whoever holds the presenter role) and all of the room's audio. The server never sees the content. In Chrome and Edge, the file is written to a chosen folder every second (WebM), so what was already recorded survives a browser crash. In other browsers, the file (MP4 when possible) is downloaded when recording stops. Each stretch of video becomes a separate part, and everyone in the room sees a **● Recording** notice.
+- **Text chat with emojis** in the room. It goes through the server over TLS and is *not* end-to-end encrypted.
+- **Accounts with 2FA, invited broadcasters and company sign-in (SSO)**, described below.
+- **Interface in English and Portuguese**, picked from the browser's language (switchable at the bottom of the page).
+
+## How it works
 
 ```
-Navegador (anfitrião) ──1 cópia cifrada──▶ servidor: LiveKit ──▶ navegadores dos amigos
-                                              ▲
-                     app (Node): cria salas, emite tokens
-                     Caddy: HTTPS automático
+Browser (presenter) ──1 encrypted copy──▶ server: LiveKit ──▶ viewers' browsers
+                                             ▲
+                      app (Node): accounts, rooms, tokens
+                      Caddy: automatic HTTPS
 ```
 
-Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveKit, o app e o Caddy, reinicia quem cair ou travar e guarda os segredos internos no volume `/data`.
+Everything runs in a **single Docker image**. Inside it, a supervisor starts LiveKit, the app and Caddy, restarts whatever crashes or hangs, and keeps internal secrets in the `/data` volume.
 
-- **Criar sala:** exige login (conta de administrador, criada na configuração inicial), para que ninguém de fora use o seu servidor.
-- **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele pode transmitir e encerrar a sala.
-- **Link dos amigos:** `/r/<sala>#k=<chave>`. Só assistem e usam o chat.
-- A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
-- **Remover alguém** também troca o link da sala: quem já está assistindo continua, e quem ainda vai entrar precisa do link novo. Se a pessoa removida tentar voltar com a conexão antiga, o servidor a remove de novo em até 2 segundos.
+- **Creating a room** requires signing in (administrator or broadcaster), so outsiders cannot use your server.
+- **Host link:** `/r/<room>#k=<key>&h=<host-key>`. Only the host moderates, ends the room and hands over the presenter role.
+- **Viewer link:** `/r/<room>#k=<key>`. Watch and chat.
+- A room disappears 5 minutes after it becomes empty, or right away with "End room".
+- **Removing someone** also changes the room link: people already watching stay, and anyone still joining needs the new link. If the removed person tries to come back with their old connection, the server removes them again within 2 seconds.
 
-## Subindo no servidor
+## Running on a server
 
-Requisitos: Docker e um domínio (ou subdomínio) apontando para o IP do servidor.
+Requirements: Docker and a domain (or subdomain) pointing at the server's IP.
 
 ```bash
 docker build -t overshoulder .
 docker run -d --name overshoulder --restart unless-stopped \
   -p 80:80 -p 443:443 -p 7881:7881 -p 7882:7882/udp \
   -v overshoulder-data:/data \
-  -e DOMAIN=live.seudominio.com \
+  -e DOMAIN=live.yourdomain.com \
   overshoulder
 ```
 
-Depois abra `https://live.seudominio.com/configurar` para criar a conta de administrador. A página pede o **código de configuração**, que aparece nos logs (`docker logs overshoulder | grep setupCode`) enquanto o servidor não tiver administrador. Assim, só quem tem acesso ao servidor consegue fazer a configuração.
+Then open `https://live.yourdomain.com/configurar` to create the administrator account. The page asks for the **setup code**, shown in the logs (`docker logs overshoulder | grep setupCode`) while the server has no administrator. That way only someone with access to the server can set it up.
 
-Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` sobe.
+Or with Compose: `./setup.sh` writes the `.env` and `docker compose up -d --build` starts it.
 
-| Variável | Padrão | Uso |
+| Variable | Default | Purpose |
 |---|---|---|
-| `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local) |
-| `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
-| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
-| `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor |
-| `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 500) |
+| `DOMAIN` | (required) | The server's domain or IP |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = self-signed certificate (local network) |
+| `NODE_IP` | auto-detected | IP that WebRTC announces to browsers (use it on a local network) |
+| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones with `-p` |
+| `TURN_DOMAIN` | off | **Experimental.** Subdomain for TURN (e.g. `turn.live.yourdomain.com`), for networks that only allow port 443. Requires `HTTPS_PORT=443` and the subdomain pointing at the server |
+| `MAX_PARTICIPANTS` | `16` | Initial people per room limit, suggested during setup (2 to 500) |
 
-### Contas
+### Accounts
 
-- **Administrador:** criado em `/configurar`. Muda as configurações em `/admin` e convida transmissores.
-- **Transmissores:** pessoas autorizadas a criar salas e transmitir mesmo sem você presente. O admin gera em `/admin` um **convite de uso único** (vale 48 h), e a pessoa escolhe o próprio usuário e senha. **Revogar** desativa a conta e encerra na hora as sessões e as salas ao vivo dela.
-- **Espectadores:** não têm conta. Só precisam do link da sala.
-- **2FA (TOTP):** opcional e recomendado; cada um ativa em `/conta` com um app autenticador. O admin pode **exigir 2FA** de todos. Os 10 códigos de recuperação valem uma vez cada, e só o admin gera um conjunto novo (ou remove o 2FA de quem perdeu o celular).
-- **Login da empresa (SSO):** opcional, por OpenID Connect (Google Workspace, Microsoft Entra ID, Keycloak, Authentik…), configurado em `/admin`. Só entra quem tem e-mail dos domínios permitidos. Quem está no grupo de transmissores (ou na lista de e-mails) vira transmissor no primeiro login. Cada sala pode exigir o login da empresa para assistir, e aí o nome no chat é o nome real do provedor. O admin pode tornar isso padrão ou obrigatório. O administrador sempre entra com usuário e senha, para não ficar trancado fora se o provedor cair.
-- **Senhas:** no mínimo 12 caracteres, sem conter o usuário e fora das ~30 mil senhas vazadas mais comuns.
-- **Admin perdeu a senha ou o 2FA:** no servidor, rode `docker exec overshoulder overshoulder reset-admin`. Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin.
+- **Administrator:** created at `/configurar`. Changes settings at `/admin` and invites broadcasters.
+- **Broadcasters:** people allowed to create rooms and broadcast even when you are not around. The admin creates a **single-use invitation** at `/admin` (valid for 48 h), and the person picks their own username and password. **Revoking** disables the account and immediately ends its sessions and live rooms.
+- **Viewers:** have no account. They only need the room link (or a company sign-in, if the room requires it).
+- **2FA (TOTP):** optional and recommended; each person turns it on at `/conta` with an authenticator app. The admin can **require 2FA** for everyone. The 10 recovery codes work once each, and only the admin can generate a new set (or remove 2FA for someone who lost their phone).
+- **Company sign-in (SSO):** optional, through OpenID Connect (Google Workspace, Microsoft Entra ID, Keycloak, Authentik…), configured at `/admin`. Only people with an email from the allowed domains can sign in. People in the broadcasters group (or on the email list) become broadcasters on their first sign-in. Each room can require a company sign-in to watch, and then the chat shows the provider's real name. The admin can make that the default or mandatory. The administrator always signs in with username and password, so they are never locked out if the provider goes down.
+- **Passwords:** at least 12 characters, not containing the username and not among the ~30 thousand most common leaked passwords.
+- **Admin lost the password or 2FA:** on the server, run `docker exec overshoulder overshoulder reset-admin`. It prints a single-use link, valid for 15 minutes, that changes the password and removes the admin's 2FA.
 
-Libere no firewall:
+Open these in the firewall:
 
-| Porta | Protocolo | Uso |
+| Port | Protocol | Purpose |
 |---|---|---|
 | 80, 443 | TCP | site + HTTPS (Caddy) |
-| 7881 | TCP | WebRTC por TCP (redes que bloqueiam UDP) |
-| 7882 | UDP | mídia WebRTC |
+| 7881 | TCP | WebRTC over TCP (networks that block UDP) |
+| 7882 | UDP | WebRTC media |
 
-**Redes corporativas (TURN, experimental):** algumas empresas só liberam a porta 443, e aí o vídeo não passa pelas portas 7881/7882. Com `TURN_DOMAIN`, a própria porta 443 atende também `turn.<domínio>`, sem abrir nada além dela: o Caddy separa as conexões pelo nome e entrega as do TURN ao LiveKit. Os testes comprovam a divisão da porta, o certificado e a autenticação do TURN; a passagem do vídeo inteiro pelo TURN ainda precisa ser confirmada num servidor real.
+**Corporate networks (TURN, experimental):** some companies only allow port 443, and then video cannot use ports 7881/7882. With `TURN_DOMAIN`, port 443 itself also serves `turn.<domain>`, without opening anything else: Caddy tells connections apart by name and hands the TURN ones to LiveKit. The tests prove the port split, the certificate and TURN authentication; full video through TURN still needs to be confirmed on a real server.
 
-**Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 amigos, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
+**Bandwidth:** the server uploads roughly `bitrate × viewers`. At 1080p60 (about 7 Mbps) with 10 viewers, that is around 70 Mbps of upload, close to 30 GB per hour. Check your plan's data allowance.
 
-**Saúde e logs:** `GET /healthz` responde `{"status":"ok"}` e alimenta o healthcheck do Docker. `docker logs overshoulder` mostra os logs em JSON, um por linha, sem senhas nem IDs de sala. Eventos de segurança das contas (login, falha de login, senha alterada) registram o nome de usuário, para investigar acessos indevidos; espectadores nunca aparecem nos logs.
+**Health and logs:** `GET /healthz` answers `{"status":"ok"}` and feeds Docker's healthcheck. `docker logs overshoulder` shows JSON logs, one per line, without passwords or room IDs. Account security events (sign-in, failed sign-in, password change) record the username, to investigate unwanted access; viewers never appear in the logs. Logs and the `reset-admin` command are in Portuguese for now.
 
-## Rede local (LAN)
+## Local network (LAN)
 
-`./setup.sh`, opção 2 (detecta o IP da máquina), e `docker compose up -d --build`.
+`./setup.sh`, option 2 (detects the machine's IP), then `docker compose up -d --build`.
 
-Acesse `https://<seu-ip>`. Precisa ser HTTPS: os navegadores bloqueiam compartilhamento de tela e criptografia em `http://` fora do `localhost`. Com `TLS=local`, o Caddy gera um certificado próprio, então na primeira vez cada navegador mostra um aviso ("Avançado" > "Continuar").
+Open `https://<your-ip>`. It has to be HTTPS: browsers block screen sharing and encryption on `http://` outside `localhost`. With `TLS=local`, Caddy creates its own certificate, so each browser shows a warning the first time ("Advanced" > "Proceed").
 
-Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
+To remove the warning for good on a device, install Caddy's CA on it:
 `docker compose cp overshoulder:/data/caddy/pki/authorities/local/root.crt overshoulder-ca.crt`
 
-## Desenvolvimento
+## Game audio
 
-`./scripts/test.sh` roda todos os testes: gitleaks, servidor, segurança, navegador e a imagem Docker.
+- **Windows (Chrome/Edge):** when picking "Entire screen", check "Share system audio".
+- **Linux:** the browser only captures *tab* audio. For game audio, open the broadcast settings in the room, click “List” and pick your sound output's **"Monitor of …"** device under “Game audio” (PipeWire/PulseAudio). It is sent in stereo, without voice filters.
+  Tip: to avoid broadcasting Discord or other apps, create a virtual output just for the game:
+  `pactl load-module module-null-sink sink_name=game` and pick "Monitor of game".
 
-## Áudio do jogo
+## Quality tips
 
-- **Windows (Chrome/Edge):** ao escolher "Tela inteira", marque "Compartilhar áudio do sistema".
-- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, abra os ajustes da transmissão na sala, clique em “Listar” e escolha em “Áudio do jogo” o dispositivo **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio). Ele é enviado em estéreo, sem filtros de voz.
-  Dica: para não transmitir o som do Discord ou de outros apps, crie uma saída virtual só para o jogo:
-  `pactl load-module module-null-sink sink_name=jogo` e escolha "Monitor of jogo".
+- **H.264** usually uses the GPU's hardware encoder and is the lightest while you play.
+- **AV1/VP9** look better at the same bitrate, but are heavier on the CPU if the GPU has no encoder for them.
 
-## Dicas de qualidade
+## Development
 
-- **H.264** costuma usar o encoder de hardware da GPU e é o mais leve enquanto você joga.
-- **AV1/VP9** dão imagem melhor no mesmo bitrate, mas pesam mais na CPU se a GPU não tiver encoder para eles.
+`./scripts/test.sh` runs every test: gitleaks, server, security, browser, translation and the Docker image.

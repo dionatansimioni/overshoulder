@@ -17,6 +17,7 @@ import {
   verifyPasswordOrDummy,
 } from './auth.js';
 import { renderSVG } from 'uqr';
+import { translateError, wantsEnglish } from './i18n-server.js';
 import { log } from './log.js';
 import { createStore } from './store.js';
 import { authorizationUrl, discover, finishLogin, forgetDiscovery, newAttempt, validIssuer } from './oidc.js';
@@ -122,8 +123,9 @@ const send = (res, status, body, headers = {}) => {
   res.end(body);
 };
 
+// Mensagens de erro saem em inglês quando a página pede (Accept-Language)
 const json = (res, status, obj, headers = {}) =>
-  send(res, status, JSON.stringify(obj), {
+  send(res, status, JSON.stringify(obj.error && wantsEnglish(res.req) ? { ...obj, error: translateError(obj.error) } : obj), {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     ...headers,

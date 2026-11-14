@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
 
 const APP_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -112,4 +113,13 @@ export const loginInBrowser = async (page, base, { username, password } = ADMIN)
   await page.fill('#password', password);
   await page.click('#login-form button');
   await page.waitForSelector('#signed-in:not([hidden])');
+};
+
+// Os testes conferem textos em português: os navegadores abrem em pt-BR, a não ser que o
+// contexto peça outro idioma (o teste de tradução usa en-US)
+export const launchBrowser = async (options = {}) => {
+  const browser = await chromium.launch(options);
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = (contextOptions = {}) => newContext({ locale: 'pt-BR', ...contextOptions });
+  return browser;
 };

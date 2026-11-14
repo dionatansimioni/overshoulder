@@ -1,4 +1,7 @@
+import { t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
 
 const state = await api('/api/state');
 if (!state.user) location.replace('/');
@@ -47,7 +50,7 @@ $('enable-form').addEventListener('submit', (e) => {
 $('copy-recovery').addEventListener('click', async () => {
   const codes = [...$('recovery-codes').children].map((li) => li.textContent).join('\n');
   await navigator.clipboard.writeText(codes).catch(() => {});
-  $('copy-recovery').textContent = 'Copiados!';
+  $('copy-recovery').textContent = t('Copiados!');
 });
 
 $('disable-form').addEventListener('submit', (e) => {

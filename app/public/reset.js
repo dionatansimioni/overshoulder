@@ -1,4 +1,7 @@
+import { t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
 
 const token = location.hash.slice(1);
 history.replaceState(null, '', location.pathname);

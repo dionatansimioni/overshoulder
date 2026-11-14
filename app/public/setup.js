@@ -1,4 +1,7 @@
+import { t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
 
 const state = await api('/api/state');
 if (state.setupDone) location.replace('/');

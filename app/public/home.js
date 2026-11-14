@@ -1,4 +1,8 @@
+import { mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
+mountLanguageSwitch();
 
 const randomKey = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -45,7 +49,7 @@ if (!state.setupDone) {
 } else {
   $('login-form').hidden = false;
 }
-if (ssoError) showError($('login-error'), SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou);
+if (ssoError) showError($('login-error'), t(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou));
 
 $('login-form').addEventListener('submit', (e) => {
   e.preventDefault();

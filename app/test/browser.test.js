@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { chromium } from 'playwright';
-import { loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { loginInBrowser, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 let server;
 let browser;
@@ -10,7 +9,7 @@ before(async () => {
   await waitForLiveKit();
   server = await startServer(13002);
   await setupAdmin(server);
-  browser = await chromium.launch({
+  browser = await launchBrowser({
     // Mídia falsa: microfone de teste e captura de tela aceita sozinha, sem o seletor do navegador
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--auto-select-desktop-capture-source=Entire screen'],
   });

@@ -1,4 +1,7 @@
+import { t, translatePage } from '/static/i18n.js';
 import { $, api, busy, showError } from '/static/ui.js';
+
+translatePage();
 
 // O convite vem no fragmento (#) e sai da barra de endereço, para não vazar num copiar/colar
 const token = location.hash.slice(1);

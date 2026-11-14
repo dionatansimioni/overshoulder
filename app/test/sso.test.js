@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test } from 'node:test';
-import { chromium } from 'playwright';
 import { CLIENT, startOidcMock } from './oidc-mock.js';
-import { api, createRoom, get, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { api, createRoom, get, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 let oidc;
 let s;
@@ -244,7 +243,7 @@ describe('salas que exigem login', () => {
 
 describe('no navegador', () => {
   let browser;
-  before(async () => (browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })));
+  before(async () => (browser = await launchBrowser({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })));
   after(() => browser?.close());
 
   test('espectador entra numa sala fechada pelo login da empresa e aparece com o nome real', async () => {

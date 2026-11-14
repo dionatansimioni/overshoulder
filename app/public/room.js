@@ -10,7 +10,11 @@ import {
   isE2EESupported,
 } from '/vendor/livekit-client.esm.mjs';
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
+import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
+
+translatePage();
+mountLanguageSwitch();
 
 const $ = (id) => document.getElementById(id);
 
@@ -135,7 +139,7 @@ const VOICE_TRACK = 'voice';
 
 const updateCount = () => {
   const n = room.remoteParticipants.size + 1;
-  $('count').textContent = `${n} ${n === 1 ? 'pessoa' : 'pessoas'} na sala`;
+  $('count').textContent = t(n === 1 ? '{n} pessoa na sala' : '{n} pessoas na sala', { n });
 };
 
 const setVideoTrack = (track) => {
@@ -147,7 +151,7 @@ const setVideoTrack = (track) => {
     overlay.hidden = true;
   } else {
     showOverlay(
-      isHost || isPresenter ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…',
+      t(isHost || isPresenter ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…'),
     );
   }
 };
@@ -209,12 +213,12 @@ const wireRoomEvents = () => {
       }
     })
     .on(RoomEvent.ParticipantConnected, (p) => {
-      addMessage(`${p.name} entrou.`);
+      addMessage(t('{name} entrou.', { name: p.name }));
       updateCount();
       renderPeople();
     })
     .on(RoomEvent.ParticipantDisconnected, (p) => {
-      addMessage(`${p.name} saiu.`);
+      addMessage(t('{name} saiu.', { name: p.name }));
       updateCount();
       renderPeople();
     })
@@ -226,16 +230,18 @@ const wireRoomEvents = () => {
       }
     })
     .on(RoomEvent.EncryptionError, () => {
-      showOverlay('Não foi possível descriptografar a transmissão. O link está completo?');
+      showOverlay(t('Não foi possível descriptografar a transmissão. O link está completo?'));
     })
     .on(RoomEvent.Disconnected, (reason) => {
       setVideoTrack(null);
       showOverlay(
-        reason === DisconnectReason.ROOM_DELETED
-          ? 'A sala foi encerrada.'
-          : reason === DisconnectReason.PARTICIPANT_REMOVED
-            ? 'Você foi removido da sala pelo anfitrião.'
-            : 'Você foi desconectado. Recarregue a página para voltar.',
+        t(
+          reason === DisconnectReason.ROOM_DELETED
+            ? 'A sala foi encerrada.'
+            : reason === DisconnectReason.PARTICIPANT_REMOVED
+              ? 'Você foi removido da sala pelo anfitrião.'
+              : 'Você foi desconectado. Recarregue a página para voltar.',
+        ),
       );
       $('chat-input').disabled = true;
       if (recorder?.active) stopRecording();
@@ -254,11 +260,11 @@ const wireRoomEvents = () => {
 const connect = async (name) => {
   const res = await fetch('/api/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': lang },
     body: JSON.stringify({ roomId, hostKey, name }),
   });
   const data = await res.json();
-  if (!res.ok) throw Object.assign(new Error(data.error ?? 'Não foi possível entrar na sala.'), { code: data.code });
+  if (!res.ok) throw Object.assign(new Error(data.error ?? t('Não foi possível entrar na sala.')), { code: data.code });
   isHost = data.role === 'host';
 
   const keyProvider = new ExternalE2EEKeyProvider();
@@ -282,7 +288,7 @@ const connect = async (name) => {
 const nameOf = (identity) =>
   identity === room.localParticipant.identity
     ? room.localParticipant.name
-    : (room.remoteParticipants.get(identity)?.name ?? 'alguém');
+    : (room.remoteParticipants.get(identity)?.name ?? t('alguém'));
 
 function applyMetadata() {
   try {
@@ -291,13 +297,13 @@ function applyMetadata() {
   const input = $('chat-input');
   const blocked = !meta.chat && !isHost;
   input.disabled = blocked;
-  input.placeholder = blocked ? 'O anfitrião desligou o chat' : 'Conversar na sala';
+  input.placeholder = t(blocked ? 'O anfitrião desligou o chat' : 'Conversar na sala');
   $('emoji-btn').disabled = blocked;
-  $('chat-toggle').textContent = meta.chat ? 'Desligar chat' : 'Ligar chat';
+  $('chat-toggle').textContent = t(meta.chat ? 'Desligar chat' : 'Ligar chat');
   $('rec-badge').hidden = !meta.recording;
   const badge = $('presenter-badge');
   badge.hidden = !meta.presenter;
-  if (meta.presenter) badge.textContent = `${nameOf(meta.presenter)} está apresentando`;
+  if (meta.presenter) badge.textContent = t('{name} está apresentando', { name: nameOf(meta.presenter) });
   renderPeople();
 }
 
@@ -305,12 +311,12 @@ function applyMetadata() {
 const hostAction = async (path, extra = {}) => {
   const res = await fetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': lang },
     body: JSON.stringify({ roomId, hostKey, ...extra }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    addMessage(data.error ?? 'Não foi possível concluir a ação.');
+    addMessage(data.error ?? t('Não foi possível concluir a ação.'));
     return null;
   }
   return data;
@@ -322,7 +328,7 @@ const switchRoomCode = (code, why) => {
   storage.set(sessionStorage, `host:${roomId}`, hostKey);
   history.replaceState(null, '', `/r/${roomId}#k=${e2eeKey}`);
   $('invite-link').value = inviteLink();
-  addMessage(`${why} O link antigo não serve mais: envie o novo a quem ainda vai entrar.`);
+  addMessage(t('{why} O link antigo não serve mais: envie o novo a quem ainda vai entrar.', { why }));
 };
 
 const renderPeople = () => {
@@ -335,9 +341,9 @@ const renderPeople = () => {
       const avatar = el('span', 'avatar', [...(p.name || '?')][0].toUpperCase());
       avatar.style.background = avatarColor(p.name || '?');
       const tags = [
-        p.identity.startsWith('h-') ? 'anfitrião' : null,
-        meta.presenter === p.identity ? 'apresentando' : null,
-        p === room.localParticipant ? 'você' : null,
+        p.identity.startsWith('h-') ? t('anfitrião') : null,
+        meta.presenter === p.identity ? t('apresentando') : null,
+        p === room.localParticipant ? t('você') : null,
       ].filter(Boolean);
       const info = el('div', 'person-info');
       info.append(el('span', 'author', p.name || '?'), el('span', 'muted small', tags.join(' · ')));
@@ -345,17 +351,17 @@ const renderPeople = () => {
       if (isHost && p.identity.startsWith('v-')) {
         const actions = el('div', 'person-actions');
         const presenting = meta.presenter === p.identity;
-        const pass = el('button', 'secondary', presenting ? 'Retomar a vez' : 'Passar a vez');
+        const pass = el('button', 'secondary', t(presenting ? 'Retomar a vez' : 'Passar a vez'));
         pass.type = 'button';
         pass.dataset.action = 'presenter';
         pass.addEventListener('click', () => passPresenter(presenting ? null : p.identity));
-        const kick = el('button', 'danger', 'Remover');
+        const kick = el('button', 'danger', t('Remover'));
         kick.type = 'button';
         kick.dataset.action = 'kick';
         kick.addEventListener('click', async () => {
-          if (!confirm(`Remover ${p.name} da sala? O link da sala será trocado para que essa pessoa não volte.`)) return;
+          if (!confirm(t('Remover {name} da sala? O link da sala será trocado para que essa pessoa não volte.', { name: p.name }))) return;
           const data = await hostAction('/api/rooms/kick', { identity: p.identity });
-          if (data) switchRoomCode(data.roomId, `${p.name} foi removido.`);
+          if (data) switchRoomCode(data.roomId, t('{name} foi removido.', { name: p.name }));
         });
         actions.append(pass, kick);
         li.append(actions);
@@ -369,7 +375,7 @@ const passPresenter = async (identity) => {
   // Um apresentador por vez: o anfitrião para a própria tela e o microfone antes de passar a vez
   if (identity) await stopPublishing();
   const data = await hostAction('/api/rooms/presenter', { identity });
-  if (data) addMessage(identity ? `${nameOf(identity)} agora pode apresentar.` : 'Você retomou a vez de apresentar.');
+  if (data) addMessage(identity ? t('{name} agora pode apresentar.', { name: nameOf(identity) }) : t('Você retomou a vez de apresentar.'));
 };
 
 const showTab = (tab) => {
@@ -389,7 +395,7 @@ $('tab-people').addEventListener('click', () => showTab('people'));
 
 const setShareButton = (on) => {
   const btn = $('share');
-  const label = on ? 'Parar de compartilhar' : 'Compartilhar tela';
+  const label = t(on ? 'Parar de compartilhar' : 'Compartilhar tela');
   btn.classList.toggle('on', on);
   btn.title = label;
   btn.setAttribute('aria-label', label);
@@ -398,7 +404,7 @@ const setShareButton = (on) => {
 
 const setMicButton = (on) => {
   const btn = $('mic');
-  const label = on ? 'Desligar microfone' : 'Ligar microfone';
+  const label = t(on ? 'Desligar microfone' : 'Ligar microfone');
   btn.classList.toggle('on', on);
   btn.title = label;
   btn.setAttribute('aria-label', label);
@@ -517,13 +523,13 @@ const setPresenterMode = async (on) => {
     $('host-controls').hidden = false;
     $('end').hidden = true;
     $('record').hidden = true;
-    addMessage('O anfitrião passou a vez para você: compartilhe a tela ou ligue o microfone.');
+    addMessage(t('O anfitrião passou a vez para você: compartilhe a tela ou ligue o microfone.'));
   } else {
     $('host-controls').hidden = true;
     await stopPublishing();
     setShareButton(false);
     setMicButton(false);
-    addMessage('A vez de apresentar voltou para o anfitrião.');
+    addMessage(t('A vez de apresentar voltou para o anfitrião.'));
   }
   if (!videoTrack) setVideoTrack(null);
 };
@@ -534,32 +540,32 @@ const setupHost = () => {
   $('invite').hidden = false;
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
-  showOverlay('Clique no botão de tela, embaixo, para começar a transmitir.');
+  showOverlay(t('Clique no botão de tela, embaixo, para começar a transmitir.'));
 
   $('copy').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(inviteLink());
-      $('copy').textContent = 'Copiado!';
+      $('copy').textContent = t('Copiado!');
     } catch {
       $('invite-link').select();
     }
-    setTimeout(() => ($('copy').textContent = 'Copiar convite'), 1500);
+    setTimeout(() => ($('copy').textContent = t('Copiar convite')), 1500);
   });
 
   $('new-link').addEventListener('click', async () => {
-    if (!confirm('Gerar um link novo? O link atual deixa de funcionar para quem ainda não entrou.')) return;
+    if (!confirm(t('Gerar um link novo? O link atual deixa de funcionar para quem ainda não entrou.'))) return;
     const data = await hostAction('/api/rooms/link');
-    if (data) switchRoomCode(data.roomId, 'Link da sala trocado.');
+    if (data) switchRoomCode(data.roomId, t('Link da sala trocado.'));
   });
 
   $('chat-toggle').addEventListener('click', async () => {
     const data = await hostAction('/api/rooms/chat', { enabled: !meta.chat });
-    if (data) addMessage(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.');
+    if (data) addMessage(t(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.'));
   });
 
   $('end').addEventListener('click', async () => {
-    if (!confirm('Encerrar a sala para todos?')) return;
-    if (!(await hostAction('/api/rooms/end'))) addMessage('Não foi possível encerrar a sala.');
+    if (!confirm(t('Encerrar a sala para todos?'))) return;
+    if (!(await hostAction('/api/rooms/end'))) addMessage(t('Não foi possível encerrar a sala.'));
   });
 
   if (!recordingFormat()) $('record').hidden = true;
@@ -584,7 +590,7 @@ const setupHost = () => {
 
 const setRecordButton = (on) => {
   const btn = $('record');
-  const label = on ? 'Parar a gravação' : 'Gravar a transmissão';
+  const label = t(on ? 'Parar a gravação' : 'Gravar a transmissão');
   btn.classList.toggle('recording', on);
   btn.title = label;
   btn.setAttribute('aria-label', label);
@@ -598,15 +604,17 @@ const startRecording = async () => {
     await recorder.start(videoTrack?.mediaStreamTrack ?? null);
   } catch (err) {
     // Cancelar a escolha da pasta cancela a gravação; não é erro
-    if (err?.name !== 'AbortError') addMessage(`Não foi possível gravar: ${err.message}`);
+    if (err?.name !== 'AbortError') addMessage(t('Não foi possível gravar: {error}', { error: err.message }));
     return;
   }
   setRecordButton(true);
   await hostAction('/api/rooms/recording', { enabled: true });
   addMessage(
-    recorder.folder
-      ? 'Gravando na pasta escolhida. Todos na sala veem o aviso de gravação.'
-      : 'Gravando. O arquivo será baixado quando você parar. Todos na sala veem o aviso de gravação.',
+    t(
+      recorder.folder
+        ? 'Gravando na pasta escolhida. Todos na sala veem o aviso de gravação.'
+        : 'Gravando. O arquivo será baixado quando você parar. Todos na sala veem o aviso de gravação.',
+    ),
   );
 };
 
@@ -614,8 +622,8 @@ const stopRecording = async () => {
   const { parts, toFolder } = await recorder.stop();
   setRecordButton(false);
   await hostAction('/api/rooms/recording', { enabled: false });
-  if (!parts.length) addMessage('Nada foi gravado: não havia vídeo na tela.');
-  else addMessage(`Gravação salva${toFolder ? ' na pasta escolhida' : ''}: ${parts.join(', ')}`);
+  if (!parts.length) addMessage(t('Nada foi gravado: não havia vídeo na tela.'));
+  else addMessage(t(toFolder ? 'Gravação salva na pasta escolhida: {parts}' : 'Gravação salva: {parts}', { parts: parts.join(', ') }));
 };
 
 // Tela, microfone e ajustes: usados pelo anfitrião e por quem recebe a vez de apresentar
@@ -627,7 +635,7 @@ const setupPublishControls = () => {
 
   if (!navigator.mediaDevices?.getDisplayMedia) {
     $('share').disabled = true;
-    showOverlay('Este navegador não permite compartilhar a tela. Use Chrome, Edge ou Firefox no computador.');
+    showOverlay(t('Este navegador não permite compartilhar a tela. Use Chrome, Edge ou Firefox no computador.'));
   }
 
   $('share').addEventListener('click', async () => {
@@ -642,7 +650,7 @@ const setupPublishControls = () => {
       }
     } catch (err) {
       // Cancelar o seletor de tela do navegador cai aqui; não é erro
-      if (err?.name !== 'NotAllowedError') addMessage(`Erro ao compartilhar: ${err.message}`);
+      if (err?.name !== 'NotAllowedError') addMessage(t('Erro ao compartilhar: {error}', { error: err.message }));
     } finally {
       btn.disabled = false;
     }
@@ -654,14 +662,16 @@ const setupPublishControls = () => {
     try {
       await toggleMic();
     } catch (err) {
-      addMessage(err?.name === 'NotAllowedError' ? 'Permissão de microfone negada.' : `Erro no microfone: ${err.message}`);
+      addMessage(
+        err?.name === 'NotAllowedError' ? t('Permissão de microfone negada.') : t('Erro no microfone: {error}', { error: err.message }),
+      );
     } finally {
       btn.disabled = false;
     }
   });
 
   $('mic-device').addEventListener('change', (e) => {
-    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage('Não foi possível trocar o microfone.'));
+    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar o microfone.')));
   });
 
   $('load-devices').addEventListener('click', async () => {
@@ -670,7 +680,7 @@ const setupPublishControls = () => {
       const s = await navigator.mediaDevices.getUserMedia({ audio: true });
       s.getTracks().forEach((t) => t.stop());
     } catch {
-      addMessage('Permissão de áudio negada.');
+      addMessage(t('Permissão de áudio negada.'));
       return;
     }
     const selects = [$('mic-device'), $('audio-device')];
@@ -679,7 +689,7 @@ const setupPublishControls = () => {
       if (d.kind !== 'audioinput' || d.deviceId === 'default' || d.deviceId === 'communications') continue;
       for (const select of selects) select.add(new Option(d.label || d.deviceId, d.deviceId));
     }
-    addMessage('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.');
+    addMessage(t('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.'));
   });
 };
 
@@ -731,7 +741,7 @@ const showCategory = (id) => {
   for (const tab of picker.querySelectorAll('.emoji-tabs button')) {
     tab.setAttribute('aria-selected', String(tab.dataset.category === category.id));
   }
-  picker.querySelector('.emoji-title').textContent = category.label;
+  picker.querySelector('.emoji-title').textContent = t(category.label);
   const grid = picker.querySelector('.emoji-grid');
   grid.replaceChildren(
     ...category.emojis.map((emoji) => {
@@ -741,7 +751,7 @@ const showCategory = (id) => {
       return b;
     }),
   );
-  if (!category.emojis.length) grid.append(el('p', 'empty', 'Os emojis que você usar aparecem aqui.'));
+  if (!category.emojis.length) grid.append(el('p', 'empty', t('Os emojis que você usar aparecem aqui.')));
 };
 
 const toggleEmojiPicker = (open) => {
@@ -764,7 +774,7 @@ picker.querySelector('.emoji-tabs').append(
   ...[{ id: RECENT_ID, label: 'Usados recentemente', icon: '🕘' }, ...CATEGORIES].map((c) => {
     const b = el('button', null, c.icon ?? c.emojis[0]);
     b.type = 'button';
-    b.title = c.label;
+    b.title = t(c.label);
     b.setAttribute('role', 'tab');
     b.dataset.category = c.id;
     return b;
@@ -798,7 +808,7 @@ $('chat-form').addEventListener('submit', async (e) => {
   try {
     await room.localParticipant.sendText(text, { topic: 'chat' });
   } catch {
-    addMessage('Mensagem não enviada.');
+    addMessage(t('Mensagem não enviada.'));
   }
 });
 
@@ -817,7 +827,7 @@ const SSO_ERRORS = {
 const ssoError = new URLSearchParams(location.search).get('erro_sso');
 if (ssoError) {
   history.replaceState(null, '', `${location.pathname}${location.hash}`);
-  joinError(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou);
+  joinError(t(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou));
   $('sso-join').hidden = false;
 }
 fetch('/api/state')
@@ -826,7 +836,7 @@ fetch('/api/state')
     if (!viewer) return;
     $('name').value = viewer.name;
     $('name').readOnly = true;
-    $('sso-hint').textContent = `Você entrou como ${viewer.name} (${viewer.email}) pelo login da empresa.`;
+    $('sso-hint').textContent = t('Você entrou como {name} ({email}) pelo login da empresa.', viewer);
     $('sso-hint').hidden = false;
   })
   .catch(() => {});
@@ -837,10 +847,10 @@ $('sso-join').addEventListener('click', () => {
 });
 
 if (!e2eeKey) {
-  joinError('Link incompleto: falta a chave da sala. Peça o link de novo.');
+  joinError(t('Link incompleto: falta a chave da sala. Peça o link de novo.'));
   $('join-form').querySelector('button').disabled = true;
 } else if (!isE2EESupported()) {
-  joinError('Seu navegador não suporta criptografia de ponta a ponta. Use Chrome, Edge, Firefox ou Safari atualizados.');
+  joinError(t('Seu navegador não suporta criptografia de ponta a ponta. Use Chrome, Edge, Firefox ou Safari atualizados.'));
   $('join-form').querySelector('button').disabled = true;
 }
 
@@ -867,5 +877,5 @@ $('join-form').addEventListener('submit', async (e) => {
   applyMetadata();
   setVideoTrack(videoTrack);
   updateCount();
-  addMessage(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.');
+  addMessage(t(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.'));
 });

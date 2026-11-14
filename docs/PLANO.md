@@ -45,7 +45,14 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Contas de transmissor do SSO não entram por senha e não são afetadas por "Exigir 2FA" (o provedor cuida do MFA).
   - Testes com um provedor OIDC falso (`app/test/oidc-mock.js`), inclusive tokens adulterados, CSRF de login e redirecionamento aberto.
   - **Falta testar com um provedor real** (Google Workspace, Entra ID ou Keycloak).
-  - Próximo da ordem: tradução pt-BR/en.
+- Etapa 7 (tradução pt-BR/en) feita em 14/11/2026:
+  - O texto em português é a chave. `public/i18n.js` traduz os nós de texto e atributos da página e os textos montados por `t()`. `i18n-server.js` traduz as mensagens de erro da API pelo `Accept-Language` que a página envia.
+  - O idioma vem do navegador (português → pt-BR; o resto → inglês), com seletor salvo no navegador.
+  - `README.md` em inglês e `README.pt-BR.md` em português.
+  - Testes: todo texto e toda mensagem precisa de tradução; em inglês, nenhuma tela mostra letras acentuadas do português. Os navegadores dos outros testes abrem em pt-BR (`launchBrowser`).
+  - **Ainda em português:** os logs e o comando `reset-admin`, que são ferramentas de quem opera o servidor.
+- Repositório privado publicado em 14/11/2026: github.com/dionatansimioni/overshoulder. O histórico foi reescrito para o e-mail `noreply` do GitHub antes do primeiro envio.
+- Próximo da ordem: publicação (GitHub Actions com testes, varredura, SBOM e assinatura) e o instalador. Antes de divulgar: validar numa VPS real o TURN, o SSO com um provedor real e o certificado no IP.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

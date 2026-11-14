@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import { RoomServiceClient } from 'livekit-server-sdk';
-import { chromium } from 'playwright';
-import { api, createRoom, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { api, createRoom, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const livekit = new RoomServiceClient('http://127.0.0.1:17880', process.env.TEST_API_KEY, process.env.TEST_API_SECRET);
 let s;
@@ -14,7 +13,7 @@ before(async () => {
   await waitForLiveKit();
   s = await startServer(13090);
   admin = await setupAdmin(s);
-  browser = await chromium.launch({
+  browser = await launchBrowser({
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--auto-select-desktop-capture-source=Entire screen'],
   });
 });

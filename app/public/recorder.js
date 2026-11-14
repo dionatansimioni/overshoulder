@@ -1,5 +1,6 @@
 // Gravação no navegador do anfitrião: o vídeo que está na tela e todo o áudio da sala, misturado.
 // O servidor nunca vê o conteúdo (a transmissão continua cifrada de ponta a ponta).
+import { t } from '/static/i18n.js';
 // Grava em partes: quando a fonte do vídeo muda (outra pessoa passa a apresentar, ou a tela para),
 // a parte atual é fechada e uma nova começa quando houver vídeo de novo.
 
@@ -57,7 +58,7 @@ export class Recorder {
 
   // Precisa ser chamada a partir de um clique: é quando o navegador permite escolher a pasta
   async start(videoTrack) {
-    if (!recordingFormat()) throw new Error('Este navegador não consegue gravar vídeo.');
+    if (!recordingFormat()) throw new Error(t('Este navegador não consegue gravar vídeo.'));
     this.folder = null;
     if (window.showDirectoryPicker) {
       // Chrome e Edge: grava direto numa pasta, enquanto acontece (cancelar o seletor cancela a gravação)
@@ -89,7 +90,7 @@ export class Recorder {
 
   async #beginPart(videoTrack) {
     const [mimeType, ext] = this.format;
-    const name = `${this.baseName}-parte${this.parts.length + 1}.${ext}`;
+    const name = `${this.baseName}-${t('parte')}${this.parts.length + 1}.${ext}`;
     const stream = new MediaStream([videoTrack, ...this.mix.stream.getAudioTracks()]);
     const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 128_000 });
     const file = this.folder && (await (await this.folder.getFileHandle(name, { create: true })).createWritable());

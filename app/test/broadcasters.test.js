@@ -5,9 +5,8 @@ import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { chromium } from 'playwright';
 import { codeAt, currentStep } from '../totp.js';
-import { ADMIN, api, createRoom, get, loginInBrowser, sessionFrom, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, createRoom, get, loginInBrowser, sessionFrom, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const APP_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BROADCASTER = { username: 'bia', password: 'transmissora de domingo' };
@@ -205,7 +204,7 @@ describe('redefinição do admin pelo comando no servidor', () => {
 
 describe('no navegador', () => {
   let browser;
-  before(async () => (browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })));
+  before(async () => (browser = await launchBrowser({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })));
   after(() => browser?.close());
 
   const page = async () => {

@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
-import { chromium } from 'playwright';
-import { ADMIN, api, get, sessionFrom, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, get, sessionFrom, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const servers = [];
@@ -180,7 +179,7 @@ const setupLogin = async (s) => ({ cookie: sessionFrom(await api(s.url, '/api/lo
 
 describe('no navegador', () => {
   let browser;
-  before(async () => (browser = await chromium.launch()));
+  before(async () => (browser = await launchBrowser()));
   after(() => browser?.close());
 
   test('página inicial leva à configuração, que cria o admin e já deixa criar sala', async () => {

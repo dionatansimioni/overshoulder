@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { chromium } from 'playwright';
 import { base32Encode, codeAt, currentStep, verifyCode } from '../totp.js';
-import { ADMIN, api, get, loginInBrowser, sessionFrom, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, get, loginInBrowser, sessionFrom, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const servers = [];
 const fresh = async (port, env) => {
@@ -184,7 +183,7 @@ describe('exigir 2FA e ações do admin', () => {
 
 describe('no navegador', () => {
   let browser;
-  before(async () => (browser = await chromium.launch()));
+  before(async () => (browser = await launchBrowser()));
   after(() => browser?.close());
 
   test('ativa o 2FA pela página da conta e entra com o código', async () => {

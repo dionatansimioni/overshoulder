@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
 import { RoomServiceClient } from 'livekit-server-sdk';
-import { chromium } from 'playwright';
-import { api, createRoom, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { api, createRoom, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit, launchBrowser } from './helpers.js';
 
 const livekit = new RoomServiceClient('http://127.0.0.1:17880', process.env.TEST_API_KEY, process.env.TEST_API_SECRET);
 const servers = [];
@@ -77,7 +76,7 @@ describe('API de moderação', () => {
 describe('no navegador', () => {
   let browser;
   before(async () => {
-    browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+    browser = await launchBrowser({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
   });
   after(() => browser?.close());
 
