@@ -119,6 +119,26 @@ const setVideoTrack = (track) => {
   }
 };
 
+// A mensagem de quem acabou de entrar pode chegar antes do aviso de entrada:
+// espera esse aviso por um tempo antes de desistir do nome
+const participantName = (identity) => {
+  const known = room.remoteParticipants.get(identity);
+  if (known) return Promise.resolve(known.name);
+  return new Promise((resolve) => {
+    const onJoin = (p) => {
+      if (p.identity !== identity) return;
+      clearTimeout(timer);
+      room.off(RoomEvent.ParticipantConnected, onJoin);
+      resolve(p.name);
+    };
+    const timer = setTimeout(() => {
+      room.off(RoomEvent.ParticipantConnected, onJoin);
+      resolve('?');
+    }, 3000);
+    room.on(RoomEvent.ParticipantConnected, onJoin);
+  });
+};
+
 const wireRoomEvents = () => {
   room
     .on(RoomEvent.TrackSubscribed, (track) => {
@@ -171,7 +191,7 @@ const wireRoomEvents = () => {
 
   room.registerTextStreamHandler('chat', async (reader, info) => {
     const text = await reader.readAll();
-    addMessage(text, room.remoteParticipants.get(info.identity)?.name ?? '?');
+    addMessage(text, await participantName(info.identity));
   });
 };
 

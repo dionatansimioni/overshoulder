@@ -131,3 +131,16 @@ test('mensagem do chat mostra avatar, autor e horário', async () => {
   assert.match(await msg.locator('.time').textContent(), /\d{2}:\d{2}/);
   assert.equal(await msg.locator('.text').textContent(), 'testando');
 });
+
+test('mensagem enviada logo ao entrar chega com o nome certo', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  const viewer = await newPage();
+  await joinAsViewer(viewer.page, await host.page.inputValue('#invite-link'), 'Beto');
+  // Sem esperar o anfitrião ver a entrada: a mensagem pode chegar antes do aviso
+  await viewer.page.fill('#chat-input', 'cheguei');
+  await viewer.page.press('#chat-input', 'Enter');
+  const msg = host.page.locator('#messages li.msg', { hasText: 'cheguei' });
+  await msg.waitFor();
+  assert.equal(await msg.locator('.author').textContent(), 'Beto');
+});
