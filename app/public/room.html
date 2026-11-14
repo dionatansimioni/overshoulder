@@ -12,6 +12,8 @@
 <body>
   <!-- Ícones usados pelos botões (<use href="#i-…">) -->
   <svg class="sprite" aria-hidden="true">
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+    <symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M15 9.3V6a3 3 0 0 0-5.7-1.3M9 9v2a3 3 0 0 0 4.9 2.3M5.5 11a6.5 6.5 0 0 0 10.7 5M18.4 12.5a6.5 6.5 0 0 0 .1-1.5M12 17.5V21M3 3l18 18"/></symbol>
     <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
     <symbol id="i-screen-off" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M9 7.5l6 5M15 7.5l-6 5"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
@@ -48,6 +50,10 @@
       <div id="player" class="player">
         <video id="video" playsinline autoplay muted></video>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
+        <div id="mic-badge" class="badge" hidden>
+          <svg class="icon"><use href="#i-mic"/></svg>
+          Microfone ligado
+        </div>
       </div>
 
       <div class="dock">
@@ -63,6 +69,9 @@
         </div>
 
         <div id="host-controls" class="controls" hidden>
+          <button id="mic" type="button" class="round" title="Ligar microfone" aria-label="Ligar microfone" aria-pressed="false">
+            <svg class="icon"><use href="#i-mic-off"/></svg>
+          </button>
           <button id="share" type="button" class="round" title="Compartilhar tela" aria-label="Compartilhar tela">
             <svg class="icon"><use href="#i-screen"/></svg>
           </button>
@@ -89,6 +98,10 @@
               <option value="vp9">VP9</option>
               <option value="av1">AV1</option>
             </select>
+            <label for="mic-device">Microfone</label>
+            <select id="mic-device">
+              <option value="">Padrão do sistema</option>
+            </select>
             <label for="audio-device">Áudio do jogo</label>
             <div class="row">
               <select id="audio-device">
@@ -96,7 +109,7 @@
               </select>
               <button id="load-devices" type="button" class="secondary">Listar</button>
             </div>
-            <p class="muted small">No Linux, o navegador só captura áudio de abas. Para o áudio do jogo, clique em “Listar” e escolha o “Monitor of …” da sua saída de som.</p>
+            <p class="muted small">Clique em “Listar” para ver os microfones e dispositivos de áudio. No Linux, o navegador só captura áudio de abas: para o áudio do jogo, escolha o “Monitor of …” da sua saída de som.</p>
           </div>
         </div>
       </div>

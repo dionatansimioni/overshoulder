@@ -101,7 +101,11 @@ let room;
 let isHost = false;
 let videoTrack = null;
 let extraAudio = null;
+let voiceTrack = null;
 const audioTracks = new Set();
+
+// Nome da faixa de voz do anfitrião; os espectadores mostram o aviso de microfone por ela
+const VOICE_TRACK = 'voice';
 
 const updateCount = () => {
   const n = room.remoteParticipants.size + 1;
@@ -141,7 +145,8 @@ const participantName = (identity) => {
 
 const wireRoomEvents = () => {
   room
-    .on(RoomEvent.TrackSubscribed, (track) => {
+    .on(RoomEvent.TrackSubscribed, (track, pub) => {
+      if (pub.trackName === VOICE_TRACK) $('mic-badge').hidden = false;
       if (track.kind === Track.Kind.Video) {
         setVideoTrack(track);
       } else if (track.kind === Track.Kind.Audio) {
@@ -150,7 +155,8 @@ const wireRoomEvents = () => {
         track.setVolume(Number($('volume').value));
       }
     })
-    .on(RoomEvent.TrackUnsubscribed, (track) => {
+    .on(RoomEvent.TrackUnsubscribed, (track, pub) => {
+      if (pub.trackName === VOICE_TRACK) $('mic-badge').hidden = true;
       track.detach().forEach((el) => el !== video && el.remove());
       audioTracks.delete(track);
       if (track === videoTrack) setVideoTrack(null);
@@ -186,6 +192,8 @@ const wireRoomEvents = () => {
         reason === DisconnectReason.ROOM_DELETED ? 'A sala foi encerrada.' : 'Você foi desconectado. Recarregue a página para voltar.',
       );
       $('host-controls').hidden = true;
+      $('mic-badge').hidden = true;
+      voiceTrack?.stop();
       $('invite').hidden = true;
     });
 
@@ -230,6 +238,43 @@ const setShareButton = (on) => {
   btn.title = label;
   btn.setAttribute('aria-label', label);
   btn.querySelector('use').setAttribute('href', on ? '#i-screen-off' : '#i-screen');
+};
+
+const setMicButton = (on) => {
+  const btn = $('mic');
+  const label = on ? 'Desligar microfone' : 'Ligar microfone';
+  btn.classList.toggle('on', on);
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', String(on));
+  btn.querySelector('use').setAttribute('href', on ? '#i-mic' : '#i-mic-off');
+};
+
+// Voz do anfitrião: independente da tela, com os filtros de voz do navegador ligados
+const toggleMic = async () => {
+  if (voiceTrack) {
+    const track = voiceTrack;
+    voiceTrack = null;
+    setMicButton(false);
+    await room.localParticipant.unpublishTrack(track).catch(() => {});
+    track.stop();
+    return;
+  }
+  const deviceId = $('mic-device').value;
+  const track = await createLocalAudioTrack({
+    ...(deviceId && { deviceId: { exact: deviceId } }),
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  });
+  await room.localParticipant.publishTrack(track, {
+    source: Track.Source.Microphone,
+    name: VOICE_TRACK,
+    audioPreset: AudioPresets.speech,
+    dtx: true,
+  });
+  voiceTrack = track;
+  setMicButton(true);
 };
 
 const setupSettings = () => {
@@ -290,7 +335,7 @@ const startShare = async () => {
       channelCount: 2,
     });
     await room.localParticipant.publishTrack(extraAudio, {
-      source: Track.Source.Microphone,
+      source: Track.Source.ScreenShareAudio,
       name: 'game-audio',
       audioPreset: AudioPresets.musicHighQualityStereo,
       forceStereo: true,
@@ -330,6 +375,22 @@ const setupHost = () => {
     }
   });
 
+  $('mic').addEventListener('click', async () => {
+    const btn = $('mic');
+    btn.disabled = true;
+    try {
+      await toggleMic();
+    } catch (err) {
+      addMessage(err?.name === 'NotAllowedError' ? 'Permissão de microfone negada.' : `Erro no microfone: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('mic-device').addEventListener('change', (e) => {
+    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage('Não foi possível trocar o microfone.'));
+  });
+
   $('load-devices').addEventListener('click', async () => {
     try {
       // Pede permissão uma vez para o navegador revelar os nomes dos dispositivos
@@ -339,11 +400,11 @@ const setupHost = () => {
       addMessage('Permissão de áudio negada.');
       return;
     }
-    const select = $('audio-device');
-    select.length = 1;
+    const selects = [$('mic-device'), $('audio-device')];
+    for (const select of selects) select.length = 1;
     for (const d of await navigator.mediaDevices.enumerateDevices()) {
       if (d.kind !== 'audioinput' || d.deviceId === 'default' || d.deviceId === 'communications') continue;
-      select.add(new Option(d.label || d.deviceId, d.deviceId));
+      for (const select of selects) select.add(new Option(d.label || d.deviceId, d.deviceId));
     }
     addMessage('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.');
   });

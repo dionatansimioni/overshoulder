@@ -5,6 +5,7 @@ Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem tra
 - **Baixa latência:** WebRTC via [LiveKit](https://livekit.io) (SFU self-hosted).
 - **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. A VPS repassa vídeo cifrado que ela mesma não consegue abrir.
 - **Até ~15 pessoas por sala:** quem transmite envia uma única cópia e a VPS distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
+- **Microfone de quem transmite:** o anfitrião liga a voz com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
 - **Chat de texto** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
 
 ## Como funciona
@@ -61,7 +62,7 @@ Se a máquina tiver firewall ativo, libere 80/443 TCP, 7881 TCP e 50000–60000 
 ## Áudio do jogo
 
 - **Windows (Chrome/Edge):** ao escolher "Tela inteira", marque "Compartilhar áudio do sistema".
-- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, clique em 🎚️ na sala e escolha o dispositivo **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio). Ele é enviado em estéreo, sem filtros de voz.
+- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, abra os ajustes da transmissão na sala, clique em “Listar” e escolha em “Áudio do jogo” o dispositivo **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio). Ele é enviado em estéreo, sem filtros de voz.
   Dica: para não transmitir o som do Discord ou de outros apps, crie uma saída virtual só para o jogo:
   `pactl load-module module-null-sink sink_name=jogo` e escolha "Monitor of jogo".
 

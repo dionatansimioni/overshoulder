@@ -192,6 +192,22 @@ button.round.danger:hover { background: var(--danger-hover); }
   background: rgba(0, 0, 0, .6);
 }
 
+.badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 8px;
+  border-radius: 16px;
+  background: var(--live);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.badge .icon { width: 16px; height: 16px; }
+
 .dock { display: flex; justify-content: center; }
 .controls {
   position: relative;

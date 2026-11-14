@@ -144,3 +144,32 @@ test('mensagem enviada logo ao entrar chega com o nome certo', async () => {
   await msg.waitFor();
   assert.equal(await msg.locator('.author').textContent(), 'Beto');
 });
+
+test('anfitrião liga e desliga o microfone e o amigo vê o aviso', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  const viewer = await newPage();
+  await joinAsViewer(viewer.page, await host.page.inputValue('#invite-link'));
+  assert.ok(await viewer.page.isHidden('#mic'), 'só o anfitrião tem botão de microfone');
+  assert.ok(await viewer.page.isHidden('#mic-badge'));
+
+  await host.page.click('#mic');
+  await host.page.waitForSelector('#mic.on[aria-pressed="true"]');
+  await viewer.page.waitForSelector('#mic-badge:not([hidden])');
+
+  await host.page.click('#mic');
+  await host.page.waitForSelector('#mic:not(.on)[aria-pressed="false"]');
+  await viewer.page.waitForSelector('#mic-badge', { state: 'hidden' });
+
+  assert.deepEqual(host.errors, []);
+  assert.deepEqual(viewer.errors, []);
+});
+
+test('lista de dispositivos preenche microfone e áudio do jogo', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  await host.page.click('#settings-btn');
+  await host.page.click('#load-devices');
+  await host.page.waitForFunction(() => document.querySelector('#mic-device').options.length > 1);
+  assert.ok((await host.page.locator('#audio-device option').count()) > 1);
+});
