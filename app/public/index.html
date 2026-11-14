@@ -13,17 +13,28 @@
   <main class="home">
     <div class="card">
       <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
-      <p class="muted">Compartilhe a tela do seu jogo com os amigos, direto no navegador e com criptografia de ponta a ponta.</p>
+      <p class="muted">Compartilhe a tela com seu público, direto no navegador e com criptografia de ponta a ponta.</p>
 
-      <form id="create" class="form">
-        <label for="password">Senha do servidor</label>
+      <form id="login-form" class="form" hidden>
+        <label for="username">Usuário</label>
+        <input id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="password">Senha</label>
         <input id="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Criar sala</button>
-        <p id="error" class="error" hidden></p>
+        <button type="submit">Entrar</button>
+        <p id="login-error" class="error" hidden></p>
       </form>
+
+      <section id="signed-in" class="form" hidden>
+        <p class="muted">Conectado como <b id="me"></b>.</p>
+        <form id="create-form" class="form">
+          <button type="submit">Criar sala</button>
+          <p id="create-error" class="error" hidden></p>
+        </form>
+        <button id="logout" type="button" class="secondary">Sair</button>
+      </section>
     </div>
 
-    <p class="muted small hint">Recebeu um link de um amigo? É só abrir o link, não precisa de senha.</p>
+    <p class="muted small hint">Recebeu um link de alguém? É só abrir o link, não precisa de conta.</p>
   </main>
 </body>
 </html>

@@ -1,14 +1,19 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const APP_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export const PASSWORD = 'senha-dos-testes';
+export const HOST_KEY_SECRET = 'segredo-de-anfitriao-dos-testes';
+export const ADMIN = { username: 'admin', password: 'cavalo correto bateria grampo' };
 
-// Sobe o server.js de verdade, apontando para o LiveKit de teste (scripts/test.sh)
+// Sobe o server.js de verdade, com dados num diretório temporário próprio,
+// apontando para o LiveKit de teste (scripts/test.sh)
 export const startServer = (port, extraEnv = {}) =>
   new Promise((resolve, reject) => {
+    const dataDir = extraEnv.DATA_DIR ?? fs.mkdtempSync(path.join(os.tmpdir(), 'overshoulder-test-'));
     const proc = spawn(process.execPath, ['server.js'], {
       cwd: APP_DIR,
       env: {
@@ -18,25 +23,40 @@ export const startServer = (port, extraEnv = {}) =>
         LIVEKIT_API_SECRET: process.env.TEST_API_SECRET,
         LIVEKIT_INTERNAL_URL: 'http://127.0.0.1:17880',
         LIVEKIT_PUBLIC_URL: 'ws://127.0.0.1:17880',
-        CREATE_PASSWORD: PASSWORD,
         HOST_KEY_SECRET,
+        DATA_DIR: dataDir,
         TRUST_PROXY: '0',
         ...extraEnv,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let output = '';
+    let started = false;
     const onData = (chunk) => {
       output += chunk;
-      if (output.includes('ouvindo em'))
-        resolve({ url: `http://127.0.0.1:${port}`, stop: () => proc.kill(), output: () => output });
+      if (!started && output.includes('ouvindo em')) {
+        started = true;
+        resolve({
+          url: `http://127.0.0.1:${port}`,
+          dataDir,
+          stop: () => proc.kill(),
+          output: () => output,
+          // Código de configuração mais recente impresso nos logs
+          setupCode: async () => {
+            for (let i = 0; i < 40; i++) {
+              const codes = [...output.matchAll(/"setupCode":"([A-Z0-9-]+)"/g)];
+              if (codes.length) return codes.at(-1)[1];
+              await new Promise((r) => setTimeout(r, 50));
+            }
+            throw new Error('código de configuração não apareceu nos logs');
+          },
+        });
+      }
     };
     proc.stdout.on('data', onData);
     proc.stderr.on('data', onData);
-    proc.on('exit', (code) => reject(new Error(`servidor saiu (código ${code}):\n${output}`)));
+    proc.on('exit', (code) => !started && reject(new Error(`servidor saiu (código ${code}):\n${output}`)));
   });
-
-export const HOST_KEY_SECRET = 'segredo-de-anfitriao-dos-testes';
 
 export const api = async (base, route, body, headers = {}) => {
   const res = await fetch(base + route, {
@@ -54,6 +74,23 @@ export const api = async (base, route, body, headers = {}) => {
   return { status: res.status, body: parsed, headers: res.headers, text };
 };
 
+export const get = async (base, route, headers = {}) => {
+  const res = await fetch(base + route, { headers });
+  return { status: res.status, body: await res.json().catch(() => null), headers: res.headers };
+};
+
+// Valor "nome=valor" do cookie de sessão de uma resposta, pronto para o cabeçalho Cookie
+export const sessionFrom = (res) => res.headers.get('set-cookie')?.split(';')[0];
+
+// Configura o servidor pelo fluxo real (código dos logs) e devolve o cabeçalho de sessão do admin
+export const setupAdmin = async (server, extra = {}) => {
+  const r = await api(server.url, '/api/setup', { code: await server.setupCode(), ...ADMIN, ...extra });
+  if (r.status !== 201) throw new Error(`configuração falhou: ${r.status} ${r.text}`);
+  return { cookie: sessionFrom(r) };
+};
+
+export const createRoom = async (base, session) => (await api(base, '/api/rooms', {}, session)).body;
+
 // Lê o conteúdo de um JWT sem validar (a validação é feita à parte nos testes)
 export const jwtPayload = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
 
@@ -66,4 +103,13 @@ export const waitForLiveKit = async () => {
     await new Promise((r) => setTimeout(r, 250));
   }
   throw new Error('LiveKit de teste não respondeu');
+};
+
+// Faz login pela página inicial, no navegador
+export const loginInBrowser = async (page, base, { username, password } = ADMIN) => {
+  await page.goto(`${base}/`);
+  await page.fill('#username', username);
+  await page.fill('#password', password);
+  await page.click('#login-form button');
+  await page.waitForSelector('#signed-in:not([hidden])');
 };

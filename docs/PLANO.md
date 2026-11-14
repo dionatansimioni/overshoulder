@@ -16,7 +16,11 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Segredos gerados em `/data/secrets.json`, `/healthz`, logs em JSON e `MAX_PARTICIPANTS`.
   - Mídia numa porta UDP só (7882) e testes da imagem em `scripts/test-image.sh`.
   - A instância de teste desta máquina roda pela imagem única (`docker compose up -d --build`, com `.env` em DOMAIN=192.168.0.102, HTTPS_PORT=8443).
-  - A senha de criar salas ainda vem de `CREATE_PASSWORD`; o onboarding é a próxima etapa.
+- Etapa 2, partes 1 e 2, feitas em 14/11/2026:
+  - Contas com onboarding em `/configurar` (código de uso único nos logs), conta de admin, login, sessões (12 h, ou 2 h sem uso) e troca de senha.
+  - Senhas no padrão NIST, com a lista de senhas vazadas em `app/data/`; limite de tentativas por IP e por conta; checagem de origem contra CSRF.
+  - Estado salvo em `/data/state.json`. `CREATE_PASSWORD` foi removida.
+  - Ainda faltam: 2FA (parte 3), convites e revogação de transmissores e o painel do admin (parte 4).
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

@@ -3,22 +3,24 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 import { after, before, describe, test } from 'node:test';
 import { chromium } from 'playwright';
-import { PASSWORD, api, jwtPayload, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, jwtPayload, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 const ROOM_ID = 'a'.repeat(22);
 const SECRET_LEAKS = /\bat \S+:\d+:\d+|\/app\/|node_modules|server\.js|Error:|stack|LIVEKIT|API_SECRET|HOST_KEY/i;
 
 let server;
 let base;
+let session;
 
 before(async () => {
   await waitForLiveKit();
   server = await startServer(13010);
   base = server.url;
+  session = await setupAdmin(server);
 });
 after(() => server?.stop());
 
-const createRoom = async () => (await api(base, '/api/rooms', { password: PASSWORD })).body;
+const createRoom = async () => (await api(base, '/api/rooms', {}, session)).body;
 
 const rawRequest = (route, { method = 'GET', body, headers = {} } = {}) =>
   fetch(base + route, { method, body, headers, redirect: 'manual' });
@@ -41,13 +43,14 @@ const exactPath = (route) =>
 const ownServer = (port) => {
   let previous;
   before(async () => {
-    previous = { server, base };
+    previous = { server, base, session };
     server = await startServer(port);
     base = server.url;
+    session = await setupAdmin(server);
   });
   after(() => {
     server.stop();
-    ({ server, base } = previous);
+    ({ server, base, session } = previous);
   });
 };
 
@@ -160,7 +163,7 @@ describe('métodos e rotas', () => {
 describe('entradas malformadas', () => {
   ownServer(13013);
   test('JSON inválido devolve 400 sem detalhes internos', async () => {
-    for (const route of ['/api/rooms', '/api/token', '/api/rooms/end']) {
+    for (const route of ['/api/login', '/api/token', '/api/rooms/end']) {
       const r = await api(base, route, '{"password": ');
       assert.equal(r.status, 400, route);
       assert.doesNotMatch(r.text, SECRET_LEAKS, route);
@@ -168,14 +171,14 @@ describe('entradas malformadas', () => {
   });
 
   test('corpo grande demais devolve 413', async () => {
-    const r = await api(base, '/api/rooms', { password: 'x'.repeat(10_000) });
+    const r = await api(base, '/api/login', { password: 'x'.repeat(10_000) });
     assert.equal(r.status, 413);
     assert.doesNotMatch(r.text, SECRET_LEAKS);
   });
 
   test('JSON que não é objeto não derruba a API', async () => {
     for (const body of ['null', '[]', '"texto"', '42', 'true']) {
-      for (const route of ['/api/rooms', '/api/token', '/api/rooms/end']) {
+      for (const route of ['/api/login', '/api/token', '/api/rooms/end']) {
         const r = await api(base, route, body);
         assert.ok([400, 403].includes(r.status), `${route} ${body}: ${r.status}`);
       }
@@ -183,9 +186,9 @@ describe('entradas malformadas', () => {
   });
 
   test('campos com tipos errados não derrubam a API nem passam pela senha', async () => {
-    for (const password of [null, 0, 1, true, [], {}, [PASSWORD], { toString: PASSWORD }]) {
-      const r = await api(base, '/api/rooms', { password });
-      assert.equal(r.status, 403, JSON.stringify(password));
+    for (const password of [null, 0, 1, true, [], {}, [ADMIN.password], { toString: ADMIN.password }]) {
+      const r = await api(base, '/api/login', { username: ADMIN.username, password });
+      assert.equal(r.status, 401, JSON.stringify(password));
     }
     for (const roomId of [null, 42, [], {}, ['a'.repeat(22)]]) {
       assert.equal((await api(base, '/api/token', { roomId })).status, 400, JSON.stringify(roomId));
@@ -195,7 +198,7 @@ describe('entradas malformadas', () => {
 
   test('erros nunca expõem detalhes internos', async () => {
     const attempts = [
-      api(base, '/api/rooms', { password: 'errada' }),
+      api(base, '/api/login', { username: ADMIN.username, password: 'errada' }),
       api(base, '/api/token', { roomId: 'b'.repeat(22) }),
       api(base, '/api/rooms/end', { roomId: 'b'.repeat(22), hostKey: 'x' }),
       api(base, '/api/token', '{'),
@@ -270,14 +273,15 @@ describe('tokens do LiveKit', () => {
 
 describe('limite de tentativas de senha', () => {
   const failTenTimes = async (url, headers) => {
-    for (let i = 0; i < 10; i++) await api(url, '/api/rooms', { password: 'errada' }, headers(i));
+    for (let i = 0; i < 10; i++) await api(url, '/api/login', { username: `x${i}`, password: 'errada' }, headers(i));
   };
 
   test('sem proxy confiável, X-Forwarded-For é ignorado', async () => {
     const s = await startServer(13011);
+    await setupAdmin(s);
     try {
       await failTenTimes(s.url, (i) => ({ 'X-Forwarded-For': `198.51.100.${i}` }));
-      const r = await api(s.url, '/api/rooms', { password: PASSWORD }, { 'X-Forwarded-For': '203.0.113.9' });
+      const r = await api(s.url, '/api/login', ADMIN, { 'X-Forwarded-For': '203.0.113.9' });
       assert.equal(r.status, 429);
     } finally {
       s.stop();
@@ -286,10 +290,11 @@ describe('limite de tentativas de senha', () => {
 
   test('atrás de proxy, falsificar o começo do X-Forwarded-For não burla o limite', async () => {
     const s = await startServer(13012, { TRUST_PROXY: '1' });
+    await setupAdmin(s);
     try {
       // O proxy acrescenta o IP real (203.0.113.7) ao fim; o começo vem do cliente e pode ser forjado
       await failTenTimes(s.url, (i) => ({ 'X-Forwarded-For': `198.51.100.${i}, 203.0.113.7` }));
-      const r = await api(s.url, '/api/rooms', { password: PASSWORD }, { 'X-Forwarded-For': '192.0.2.1, 203.0.113.7' });
+      const r = await api(s.url, '/api/login', ADMIN, { 'X-Forwarded-For': '192.0.2.1, 203.0.113.7' });
       assert.equal(r.status, 429);
     } finally {
       s.stop();
@@ -324,9 +329,8 @@ describe('no navegador', () => {
 
   test('a chave E2EE nunca sai do navegador e a de anfitrião sai da barra de endereço', async () => {
     const host = await watchedPage();
-    await host.page.goto(`${base}/`);
-    await host.page.fill('#password', PASSWORD);
-    await host.page.click('#create button');
+    await loginInBrowser(host.page, base);
+    await host.page.click('#create-form button');
     await host.page.waitForURL(/#k=/);
     const key = new URLSearchParams(new URL(host.page.url()).hash.slice(1)).get('k');
     assert.ok(key && key.length >= 40);
@@ -345,9 +349,8 @@ describe('no navegador', () => {
 
   test('nome e mensagem com HTML aparecem como texto, sem executar', async () => {
     const host = await watchedPage();
-    await host.page.goto(`${base}/`);
-    await host.page.fill('#password', PASSWORD);
-    await host.page.click('#create button');
+    await loginInBrowser(host.page, base);
+    await host.page.click('#create-form button');
     await host.page.waitForURL(/#k=/);
     await join(host.page, 'Ana');
 

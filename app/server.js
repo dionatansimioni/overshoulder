@@ -4,7 +4,19 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
+import {
+  USERNAME_RE,
+  createLimiter,
+  createSessions,
+  hashPassword,
+  parseCookies,
+  passwordProblem,
+  randomToken,
+  safeEqual,
+  verifyPasswordOrDummy,
+} from './auth.js';
 import { log } from './log.js';
+import { createStore } from './store.js';
 
 const env = (name, fallback) => {
   const v = process.env[name] ?? fallback;
@@ -17,13 +29,16 @@ const API_KEY = env('LIVEKIT_API_KEY');
 const API_SECRET = env('LIVEKIT_API_SECRET');
 const INTERNAL_URL = env('LIVEKIT_INTERNAL_URL', 'http://127.0.0.1:7880');
 const PUBLIC_URL = env('LIVEKIT_PUBLIC_URL');
-const CREATE_PASSWORD = env('CREATE_PASSWORD');
 const HOST_KEY_SECRET = env('HOST_KEY_SECRET');
+const DATA_DIR = env('DATA_DIR');
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
-const MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
+const DEFAULT_MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
+const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
+const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const TOKEN_TTL = '8h';
+const COOKIE = 'overshoulder_session';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(here, 'public');
@@ -31,18 +46,27 @@ const VENDOR_DIR = path.join(here, 'node_modules', 'livekit-client', 'dist');
 // Só esses arquivos do livekit-client são servidos em /vendor/
 const VENDOR_FILES = new Set(['livekit-client.esm.mjs', 'livekit-client.e2ee.worker.mjs']);
 
+// Páginas: caminho → arquivo em public/
+const PAGES = {
+  '/': 'index.html',
+  '/configurar': 'setup.html',
+};
+
 const rooms = new RoomServiceClient(INTERNAL_URL, API_KEY, API_SECRET);
+const store = createStore(DATA_DIR);
+const sessions = createSessions({ maxMs: SESSION_MAX_MS, idleMs: SESSION_IDLE_MS });
+
+// Tentativas erradas: por IP e por conta, 10 a cada 10 minutos
+const ipLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
+const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
+
+// Salas abertas e quem as criou (só na memória: as salas também são efêmeras)
+const roomOwners = new Map();
 
 // --- utilidades ---------------------------------------------------------
 
 const hostKeyFor = (roomId) =>
   crypto.createHmac('sha256', HOST_KEY_SECRET).update(`host:${roomId}`).digest('base64url');
-
-const safeEqual = (a, b) => {
-  const ha = crypto.createHash('sha256').update(String(a)).digest();
-  const hb = crypto.createHash('sha256').update(String(b)).digest();
-  return crypto.timingSafeEqual(ha, hb);
-};
 
 // Atrás de proxy, vale o último IP do X-Forwarded-For: é o que o proxy acrescentou.
 // Os anteriores vêm do próprio cliente e podem ser forjados para burlar o limite de tentativas.
@@ -53,27 +77,6 @@ const clientIp = (req) => {
     if (last) return last;
   }
   return req.socket.remoteAddress ?? 'unknown';
-};
-
-// Limite simples de tentativas de senha por IP
-const failures = new Map();
-const FAIL_WINDOW_MS = 10 * 60 * 1000;
-const FAIL_MAX = 10;
-
-const isBlocked = (ip) => {
-  const f = failures.get(ip);
-  if (!f) return false;
-  if (Date.now() - f.since > FAIL_WINDOW_MS) {
-    failures.delete(ip);
-    return false;
-  }
-  return f.count >= FAIL_MAX;
-};
-
-const recordFailure = (ip) => {
-  const f = failures.get(ip);
-  if (!f || Date.now() - f.since > FAIL_WINDOW_MS) failures.set(ip, { count: 1, since: Date.now() });
-  else f.count++;
 };
 
 // WebSocket só para o próprio site e para o LiveKit configurado
@@ -95,10 +98,11 @@ const send = (res, status, body, headers = {}) => {
   res.end(body);
 };
 
-const json = (res, status, obj) =>
+const json = (res, status, obj, headers = {}) =>
   send(res, status, JSON.stringify(obj), {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...headers,
   });
 
 // Erro com status e mensagem que podem ir para o cliente
@@ -162,22 +166,153 @@ const serveFile = async (res, file) => {
 
 const roomExists = async (roomId) => (await rooms.listRooms([roomId])).length > 0;
 
-// --- API ----------------------------------------------------------------
+// --- contas e sessões ----------------------------------------------------
+
+const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, ...store.state.settings });
+const findUser = (pred) => store.state.users.find(pred);
+const hasAdmin = () => store.state.users.some((u) => u.role === 'admin');
+
+// O cookie de sessão é Secure quando o acesso chega por HTTPS através do proxy (Caddy)
+const sessionCookie = (req, id, maxAgeSec) => {
+  const secure = TRUST_PROXY && req.headers['x-forwarded-proto'] === 'https';
+  return `${COOKIE}=${id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSec}${secure ? '; Secure' : ''}`;
+};
+
+const startSession = (req, user) => {
+  const id = sessions.create(user.id);
+  return { 'Set-Cookie': sessionCookie(req, id, Math.floor(SESSION_MAX_MS / 1000)) };
+};
+
+const currentSession = (req) => {
+  const id = parseCookies(req.headers.cookie)[COOKIE];
+  const session = sessions.get(id);
+  if (!session) return null;
+  const user = findUser((u) => u.id === session.userId);
+  if (!user || user.disabled) {
+    sessions.destroy(id);
+    return null;
+  }
+  return { id, session, user };
+};
+
+// Exige sessão válida (e, se pedido, um papel); devolve { id, session, user }
+const requireUser = (req, role) => {
+  const current = currentSession(req);
+  if (!current) throw new HttpError(401, 'Faça login para continuar.');
+  if (role && current.user.role !== role) throw new HttpError(403, 'Sem permissão para isso.');
+  return current;
+};
+
+const publicUser = (user) => ({ username: user.username, role: user.role });
+
+// Código de uso único para criar a conta de administrador; aparece nos logs enquanto não houver admin
+let setupCode = null;
+const newSetupCode = () => {
+  const raw = crypto.randomBytes(10).toString('base64url').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+  setupCode = raw.match(/.{4}/g).join('-');
+  log.warn('configuração pendente: abra /configurar e use o código', { setupCode });
+};
+
+// --- API: configuração inicial e login ----------------------------------------
+
+const getState = async (req, res) => {
+  const current = currentSession(req);
+  json(res, 200, { setupDone: hasAdmin(), user: current && publicUser(current.user) });
+};
+
+const setup = async (req, res) => {
+  const ip = clientIp(req);
+  if (hasAdmin()) return json(res, 409, { error: 'O servidor já foi configurado.' });
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+
+  const { code, username, password, maxParticipants } = await readJson(req);
+  if (typeof code !== 'string' || !setupCode || !safeEqual(code.trim().toUpperCase(), setupCode)) {
+    ipLimiter.fail(ip);
+    log.warn('código de configuração incorreto');
+    return json(res, 403, { error: 'Código de configuração incorreto. Veja o código atual nos logs do servidor.' });
+  }
+  const name = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  if (!USERNAME_RE.test(name))
+    return json(res, 400, { error: 'Usuário: de 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen e sublinhado.' });
+  const problem = passwordProblem(password, name);
+  if (problem) return json(res, 400, { error: problem });
+  const limit = maxParticipants === undefined ? DEFAULT_MAX_PARTICIPANTS : maxParticipants;
+  if (!Number.isInteger(limit) || limit < 2 || limit > 500)
+    return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 500.' });
+
+  const user = {
+    id: randomToken(12),
+    username: name,
+    role: 'admin',
+    passwordHash: await hashPassword(password),
+    createdAt: new Date().toISOString(),
+  };
+  // Confere de novo: outra requisição pode ter configurado enquanto o hash era calculado
+  if (hasAdmin()) return json(res, 409, { error: 'O servidor já foi configurado.' });
+  store.update((s) => {
+    s.users.push(user);
+    s.settings.maxParticipants = limit;
+  });
+  setupCode = null;
+  log.info('servidor configurado', { user: user.username });
+  json(res, 201, { user: publicUser(user) }, startSession(req, user));
+};
+
+const login = async (req, res) => {
+  const ip = clientIp(req);
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+
+  const { username, password } = await readJson(req);
+  const name = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  if (accountLimiter.blocked(name)) return json(res, 429, { error: 'Muitas tentativas nesta conta. Espere alguns minutos.' });
+
+  const user = findUser((u) => u.username === name);
+  const ok = typeof password === 'string' && (await verifyPasswordOrDummy(password, user?.passwordHash));
+  if (!ok || user.disabled) {
+    ipLimiter.fail(ip);
+    if (user) accountLimiter.fail(name);
+    log.warn('login falhou', user ? { user: user.username } : {});
+    return json(res, 401, { error: 'Usuário ou senha incorretos.' });
+  }
+  accountLimiter.reset(name);
+  log.info('login', { user: user.username });
+  json(res, 200, { user: publicUser(user) }, startSession(req, user));
+};
+
+const logout = async (req, res) => {
+  const current = currentSession(req);
+  if (current) sessions.destroy(current.id);
+  json(res, 200, { ok: true }, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0` });
+};
+
+const changePassword = async (req, res) => {
+  const { id, user } = requireUser(req);
+  const { current, password } = await readJson(req);
+  if (typeof current !== 'string' || !(await verifyPasswordOrDummy(current, user.passwordHash))) {
+    log.warn('troca de senha recusada', { user: user.username });
+    return json(res, 403, { error: 'Senha atual incorreta.' });
+  }
+  const problem = passwordProblem(password, user.username);
+  if (problem) return json(res, 400, { error: problem });
+  const passwordHash = await hashPassword(password);
+  store.update(() => {
+    user.passwordHash = passwordHash;
+  });
+  sessions.destroyUser(user.id, id);
+  log.info('senha alterada', { user: user.username });
+  json(res, 200, { ok: true });
+};
+
+// --- API: salas -----------------------------------------------------------
 
 const createRoom = async (req, res) => {
-  const ip = clientIp(req);
-  if (isBlocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
-
-  const { password } = await readJson(req);
-  if (typeof password !== 'string' || !safeEqual(password, CREATE_PASSWORD)) {
-    recordFailure(ip);
-    log.warn('senha incorreta');
-    return json(res, 403, { error: 'Senha incorreta.' });
-  }
-
+  const { user } = requireUser(req);
+  await readJson(req);
   const roomId = crypto.randomBytes(16).toString('base64url');
-  await rooms.createRoom({ name: roomId, emptyTimeout: 300, departureTimeout: 60, maxParticipants: MAX_PARTICIPANTS });
-  log.info('sala criada', { maxParticipants: MAX_PARTICIPANTS });
+  const { maxParticipants } = settings();
+  await rooms.createRoom({ name: roomId, emptyTimeout: 300, departureTimeout: 60, maxParticipants });
+  roomOwners.set(roomId, user.id);
+  log.info('sala criada', { user: user.username, maxParticipants });
   json(res, 201, { roomId, hostKey: hostKeyFor(roomId) });
 };
 
@@ -213,6 +348,7 @@ const endRoom = async (req, res) => {
     return json(res, 403, { error: 'Apenas o anfitrião pode encerrar a sala.' });
 
   if (await roomExists(roomId)) await rooms.deleteRoom(roomId);
+  roomOwners.delete(roomId);
   log.info('sala encerrada');
   json(res, 200, { ok: true });
 };
@@ -232,10 +368,27 @@ const healthz = async (req, res) => {
 // --- roteamento ---------------------------------------------------------
 
 const routes = {
+  'GET /api/state': getState,
+  'POST /api/setup': setup,
+  'POST /api/login': login,
+  'POST /api/logout': logout,
+  'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
   'POST /api/token': issueToken,
   'POST /api/rooms/end': endRoom,
   'GET /healthz': healthz,
+};
+
+// Requisições que alteram algo precisam vir do próprio site (proteção contra CSRF,
+// além do cookie SameSite=Strict)
+const sameOrigin = (req) => {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
 };
 
 const server = http.createServer(async (req, res) => {
@@ -244,10 +397,13 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const handler = routes[`${req.method} ${p}`];
-    if (handler) return await handler(req, res);
+    if (handler) {
+      if (req.method === 'POST' && !sameOrigin(req)) return json(res, 403, { error: 'Origem não permitida.' });
+      return await handler(req, res);
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Método não permitido.' });
 
-    if (p === '/') return await serveFile(res, path.join(PUBLIC_DIR, 'index.html'));
+    if (PAGES[p]) return await serveFile(res, path.join(PUBLIC_DIR, PAGES[p]));
     if (/^\/r\/[A-Za-z0-9_-]{22}$/.test(p)) return await serveFile(res, path.join(PUBLIC_DIR, 'room.html'));
     if (p.startsWith('/vendor/')) {
       const name = p.slice('/vendor/'.length);
@@ -266,4 +422,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => {
+  log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`);
+  if (!hasAdmin()) newSetupCode();
+});

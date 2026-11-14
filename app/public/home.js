@@ -1,32 +1,56 @@
-const form = document.getElementById('create');
-const errorEl = document.getElementById('error');
+import { $, api, busy, showError } from '/static/ui.js';
 
 const randomKey = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
-form.addEventListener('submit', async (e) => {
+const showSignedIn = (user) => {
+  $('login-form').hidden = true;
+  $('signed-in').hidden = false;
+  $('me').textContent = user.username;
+};
+
+const state = await api('/api/state');
+if (!state.setupDone) {
+  location.replace('/configurar');
+} else if (state.user) {
+  showSignedIn(state.user);
+} else {
+  $('login-form').hidden = false;
+}
+
+$('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  errorEl.hidden = true;
-  const button = form.querySelector('button');
-  button.disabled = true;
+  $('login-error').hidden = true;
+  busy(e.target, async () => {
+    try {
+      const { user } = await api('/api/login', { username: $('username').value, password: $('password').value });
+      $('password').value = '';
+      showSignedIn(user);
+    } catch (err) {
+      showError($('login-error'), err);
+    }
+  });
+});
 
-  try {
-    const res = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: document.getElementById('password').value }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? 'Falha ao criar a sala.');
+$('create-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('create-error').hidden = true;
+  busy(e.target, async () => {
+    try {
+      const data = await api('/api/rooms', {});
+      // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
+      const params = new URLSearchParams({ k: randomKey(), h: data.hostKey });
+      location.href = `/r/${data.roomId}#${params}`;
+    } catch (err) {
+      if (err.status === 401) location.reload();
+      else showError($('create-error'), err);
+    }
+  });
+});
 
-    // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
-    const params = new URLSearchParams({ k: randomKey(), h: data.hostKey });
-    location.href = `/r/${data.roomId}#${params}`;
-  } catch (err) {
-    errorEl.textContent = err.message;
-    errorEl.hidden = false;
-    button.disabled = false;
-  }
+$('logout').addEventListener('click', async () => {
+  await api('/api/logout', {}).catch(() => {});
+  location.reload();
 });

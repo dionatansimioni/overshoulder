@@ -9,9 +9,11 @@ NAME=overshoulder-test-image
 VOLUME=overshoulder-test-image-data
 HTTPS=18443
 BASE="https://127.0.0.1:$HTTPS"
-PASSWORD=senha-do-teste-da-imagem
+ADMIN_PASSWORD='frase comprida para testar a imagem'
+JAR=$(mktemp)
 
 cleanup() {
+  rm -f "$JAR"
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$VOLUME" >/dev/null 2>&1 || true
 }
@@ -41,7 +43,7 @@ docker build -q -t "$IMAGE" . >/dev/null
 docker run -d --name "$NAME" \
   -p "127.0.0.1:$HTTPS:$HTTPS" \
   -e DOMAIN=127.0.0.1 -e TLS=local -e HTTP_PORT=18080 -e HTTPS_PORT=$HTTPS -e NODE_IP=127.0.0.1 \
-  -e CREATE_PASSWORD=$PASSWORD -e WATCHDOG_INTERVAL_MS=1000 \
+  -e WATCHDOG_INTERVAL_MS=1000 \
   --health-interval=2s --health-start-period=60s \
   -v "$VOLUME:/data" "$IMAGE" >/dev/null
 
@@ -52,7 +54,15 @@ ok "container saudável pelo HEALTHCHECK do Docker"
 api "$BASE/" | grep -q '<title>Overshoulder' || die "página inicial pelo Caddy"
 ok "site e /healthz respondem por HTTPS pelo Caddy"
 
-room=$(api -X POST "$BASE/api/rooms" -H 'Content-Type: application/json' -d "{\"password\":\"$PASSWORD\"}")
+code=$(docker logs "$NAME" 2>&1 | sed -n 's/.*"setupCode":"\([A-Z0-9-]*\)".*/\1/p' | tail -1)
+[ -n "$code" ] || die "código de configuração não apareceu nos logs"
+setup=$(api -c "$JAR" -X POST "$BASE/api/setup" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"$code\",\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}")
+echo "$setup" | grep -q '"role":"admin"' || die "configuração inicial: $setup"
+grep -q 'overshoulder_session.*' "$JAR" || die "configuração não abriu sessão"
+ok "configuração inicial pelo código dos logs cria o admin"
+
+room=$(api -b "$JAR" -X POST "$BASE/api/rooms" -H 'Content-Type: application/json' -d '{}')
 room_id=$(echo "$room" | sed -n 's/.*"roomId":"\([^"]*\)".*/\1/p')
 host_key=$(echo "$room" | sed -n 's/.*"hostKey":"\([^"]*\)".*/\1/p')
 [ -n "$room_id" ] || die "criar sala: $room"
@@ -90,10 +100,13 @@ before=$(docker exec "$NAME" sha256sum /data/secrets.json)
 docker restart "$NAME" >/dev/null
 wait_for 90 healthy || die "container não voltou saudável depois de reiniciar"
 [ "$(docker exec "$NAME" sha256sum /data/secrets.json)" = "$before" ] || die "segredos mudaram ao reiniciar"
-ok "segredos sobrevivem ao reinício do container"
+[ "$(api "$BASE/api/state" | grep -o '"setupDone":true')" = '"setupDone":true' ] || die "configuração perdida no reinício"
+[ "$(api -o /dev/null -w '%{http_code}' -X POST "$BASE/api/login" -H 'Content-Type: application/json' \
+  -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}")" = 200 ] || die "login do admin depois do reinício"
+ok "segredos e contas sobrevivem ao reinício do container"
 
 logs=$(docker logs "$NAME" 2>&1)
-if echo "$logs" | grep -q "$PASSWORD"; then die "a senha apareceu nos logs"; fi
+if echo "$logs" | grep -q "$ADMIN_PASSWORD"; then die "a senha apareceu nos logs"; fi
 bad=$(echo "$logs" | python3 -c '
 import json, sys
 for line in sys.stdin:

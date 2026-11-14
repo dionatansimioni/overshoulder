@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { chromium } from 'playwright';
-import { PASSWORD, startServer, waitForLiveKit } from './helpers.js';
+import { loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 let server;
 let browser;
@@ -9,6 +9,7 @@ let browser;
 before(async () => {
   await waitForLiveKit();
   server = await startServer(13002);
+  await setupAdmin(server);
   browser = await chromium.launch({
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
   });
@@ -29,9 +30,8 @@ const newPage = async () => {
 };
 
 const createRoomAsHost = async (page, name = 'Ana') => {
-  await page.goto(`${server.url}/`);
-  await page.fill('#password', PASSWORD);
-  await page.click('#create button');
+  await loginInBrowser(page, server.url);
+  await page.click('#create-form button');
   await page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=/);
   await page.fill('#name', name);
   await page.click('#join-form button');
@@ -48,17 +48,18 @@ const joinAsViewer = async (page, link, name = 'Beto') => {
 test('página inicial carrega sem erros', async () => {
   const { page, errors } = await newPage();
   await page.goto(`${server.url}/`);
-  assert.ok(await page.isVisible('#create'));
+  await page.waitForSelector('#login-form:not([hidden])');
   assert.deepEqual(errors, []);
 });
 
 test('senha errada mostra erro na página', async () => {
   const { page } = await newPage();
   await page.goto(`${server.url}/`);
+  await page.fill('#username', 'admin');
   await page.fill('#password', 'errada');
-  await page.click('#create button');
-  await page.waitForSelector('#error:not([hidden])');
-  assert.match(await page.textContent('#error'), /Senha incorreta/);
+  await page.click('#login-form button');
+  await page.waitForSelector('#login-error:not([hidden])');
+  assert.match(await page.textContent('#login-error'), /incorretos/);
 });
 
 test('link sem chave avisa e bloqueia a entrada', async () => {

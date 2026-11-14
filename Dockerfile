@@ -18,7 +18,8 @@ RUN setcap cap_net_bind_service=+ep /usr/local/bin/caddy && apk del libcap
 
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY app/package.json app/server.js app/supervisor.js app/log.js ./
+COPY app/package.json app/*.js ./
+COPY app/data ./data
 COPY app/public ./public
 
 ENV DATA_DIR=/data NODE_ENV=production

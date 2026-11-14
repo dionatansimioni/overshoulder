@@ -9,8 +9,6 @@ if [[ -f .env ]]; then
   [[ "$ans" =~ ^[sS]$ ]] || exit 0
 fi
 
-rand() { head -c "$1" /dev/urandom | base64 | tr -d '/+=\n' | head -c "$2"; }
-
 lan_ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
 
 echo "Onde o Overshoulder vai rodar?"
@@ -36,9 +34,6 @@ case "$mode" in
   *) echo "Opção inválida." >&2; exit 1 ;;
 esac
 
-read -rsp "Senha para criar salas (vazio = gerar uma): " password; echo
-password=${password:-$(rand 18 20)}
-
 http_port=${HTTP_PORT:-80}
 https_port=${HTTPS_PORT:-443}
 
@@ -49,7 +44,6 @@ https_port=${HTTPS_PORT:-443}
   echo "HTTP_PORT=$http_port"
   echo "HTTPS_PORT=$https_port"
   echo "MAX_PARTICIPANTS=16"
-  echo "CREATE_PASSWORD=$password"
 } > .env
 chmod 600 .env
 
@@ -57,8 +51,8 @@ url="https://$domain"
 [[ "$https_port" == 443 ]] || url="$url:$https_port"
 echo
 echo "Pronto. Suba com:  docker compose up -d --build"
-echo "Acesse:            $url"
-echo "Senha das salas:   $password"
+echo "Depois abra:       $url/configurar"
+echo "e use o código que aparece em:  docker compose logs | grep setupCode"
 if [[ "$tls" == local ]]; then
   echo
   echo "O certificado é próprio: na primeira vez, cada navegador vai mostrar um aviso."

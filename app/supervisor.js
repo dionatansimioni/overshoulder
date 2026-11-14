@@ -36,7 +36,6 @@ const config = {
   rtcTcpPort: port('RTC_TCP_PORT', 7881),
   rtcUdpPort: port('RTC_UDP_PORT', 7882),
   nodeIp: process.env.NODE_IP ?? '',
-  password: process.env.CREATE_PASSWORD ?? '',
   maxParticipants: Number(process.env.MAX_PARTICIPANTS ?? 16),
   watchdogMs: Number(process.env.WATCHDOG_INTERVAL_MS ?? 15_000),
 };
@@ -46,7 +45,6 @@ if (!/^(?=.{1,253}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])
   fail('DOMAIN ausente ou inválido: informe o domínio (ex.: live.empresa.com) ou o IP do servidor.');
 if (!['acme', 'local'].includes(config.tls)) fail('TLS inválido: use "acme" (Let\'s Encrypt) ou "local".');
 if (config.nodeIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(config.nodeIp)) fail('NODE_IP inválido: informe um IPv4.');
-if (!config.password) fail('CREATE_PASSWORD ausente: defina a senha para criar salas.');
 if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 500)
   fail('MAX_PARTICIPANTS inválido: use um número entre 2 e 500.');
 
@@ -156,7 +154,7 @@ const services = {
       LIVEKIT_API_SECRET: secrets.livekitApiSecret,
       LIVEKIT_INTERNAL_URL: `http://127.0.0.1:${LIVEKIT_PORT}`,
       LIVEKIT_PUBLIC_URL: publicUrl,
-      CREATE_PASSWORD: config.password,
+      DATA_DIR,
       HOST_KEY_SECRET: secrets.hostKeySecret,
       MAX_PARTICIPANTS: String(config.maxParticipants),
       TRUST_PROXY: '1',

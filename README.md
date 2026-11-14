@@ -19,7 +19,7 @@ Navegador (anfitrião) ──1 cópia cifrada──▶ servidor: LiveKit ──�
 
 Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveKit, o app e o Caddy, reinicia quem cair ou travar e guarda os segredos internos no volume `/data`.
 
-- **Criar sala:** exige a *senha do servidor*, para que ninguém de fora use o seu servidor.
+- **Criar sala:** exige login (conta de administrador, criada na configuração inicial), para que ninguém de fora use o seu servidor.
 - **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele pode transmitir e encerrar a sala.
 - **Link dos amigos:** `/r/<sala>#k=<chave>`. Só assistem e usam o chat.
 - A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
@@ -34,20 +34,20 @@ docker run -d --name overshoulder --restart unless-stopped \
   -p 80:80 -p 443:443 -p 7881:7881 -p 7882:7882/udp \
   -v overshoulder-data:/data \
   -e DOMAIN=live.seudominio.com \
-  -e CREATE_PASSWORD='uma senha forte' \
   overshoulder
 ```
+
+Depois abra `https://live.seudominio.com/configurar` para criar a conta de administrador. A página pede o **código de configuração**, que aparece nos logs (`docker logs overshoulder | grep setupCode`) enquanto o servidor não tiver administrador. Assim, só quem tem acesso ao servidor consegue fazer a configuração.
 
 Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` sobe.
 
 | Variável | Padrão | Uso |
 |---|---|---|
 | `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `CREATE_PASSWORD` | (obrigatória) | Senha para criar salas |
 | `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local) |
 | `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
-| `MAX_PARTICIPANTS` | `16` | Limite de pessoas por sala (2 a 500) |
+| `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 500) |
 
 Libere no firewall:
 
@@ -59,7 +59,7 @@ Libere no firewall:
 
 **Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 amigos, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
 
-**Saúde e logs:** `GET /healthz` responde `{"status":"ok"}` e alimenta o healthcheck do Docker. `docker logs overshoulder` mostra os logs em JSON, um por linha, sem senhas, nomes nem IDs de sala.
+**Saúde e logs:** `GET /healthz` responde `{"status":"ok"}` e alimenta o healthcheck do Docker. `docker logs overshoulder` mostra os logs em JSON, um por linha, sem senhas nem IDs de sala. Eventos de segurança das contas (login, falha de login, senha alterada) registram o nome de usuário, para investigar acessos indevidos; espectadores nunca aparecem nos logs.
 
 ## Rede local (LAN)
 

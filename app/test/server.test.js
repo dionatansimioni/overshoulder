@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { PASSWORD, api, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 let server;
 let base;
+let session;
 
 before(async () => {
   await waitForLiveKit();
   server = await startServer(13000);
   base = server.url;
+  session = await setupAdmin(server);
 });
 after(() => server?.stop());
 
@@ -65,12 +67,13 @@ describe('arquivos', () => {
 
 describe('API de salas', () => {
   test('senha errada é recusada', async () => {
-    const r = await api(base, '/api/rooms', { password: 'errada' });
-    assert.equal(r.status, 403);
+    const r = await api(base, '/api/login', { username: ADMIN.username, password: 'errada' });
+    assert.equal(r.status, 401);
+    assert.equal((await api(base, '/api/rooms', {})).status, 401, 'criar sala exige login');
   });
 
   test('cria sala, emite tokens e encerra', async () => {
-    const created = await api(base, '/api/rooms', { password: PASSWORD });
+    const created = await api(base, '/api/rooms', {}, session);
     assert.equal(created.status, 201);
     const { roomId, hostKey } = created.body;
     assert.match(roomId, /^[A-Za-z0-9_-]{22}$/);
@@ -101,13 +104,16 @@ describe('API de salas', () => {
 describe('limite de tentativas', () => {
   // Servidor separado: o bloqueio por IP afetaria os outros testes
   let other;
-  before(async () => (other = await startServer(13001)));
+  before(async () => {
+    other = await startServer(13001);
+    await setupAdmin(other);
+  });
   after(() => other?.stop());
 
   test('bloqueia depois de 10 senhas erradas', async () => {
     for (let i = 0; i < 10; i++) {
-      assert.equal((await api(other.url, '/api/rooms', { password: 'errada' })).status, 403);
+      assert.equal((await api(other.url, '/api/login', { username: ADMIN.username, password: 'errada' })).status, 401);
     }
-    assert.equal((await api(other.url, '/api/rooms', { password: PASSWORD })).status, 429);
+    assert.equal((await api(other.url, '/api/login', ADMIN)).status, 429);
   });
 });

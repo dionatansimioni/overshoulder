@@ -121,7 +121,11 @@ button.round.danger:hover { background: var(--danger-hover); }
 }
 
 .form { display: flex; flex-direction: column; gap: 8px; }
-.form button { margin-top: 12px; }
+.form > button { margin-top: 12px; }
+.form p { margin: 0; }
+.field-hint { margin-top: -2px !important; }
+.card h2 { margin: 16px 0 4px; font-size: 18px; }
+code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size: 13px; }
 
 .brand {
   display: flex;

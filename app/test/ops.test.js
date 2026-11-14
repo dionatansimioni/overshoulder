@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { PASSWORD, api, startServer, waitForLiveKit } from './helpers.js';
+import { ADMIN, api, createRoom, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 let server;
+let session;
 
 before(async () => {
   await waitForLiveKit();
   server = await startServer(13020);
+  session = await setupAdmin(server);
 });
 after(() => server?.stop());
 
@@ -30,8 +32,8 @@ test('/healthz responde 503 sem detalhes quando o LiveKit não responde', async 
 });
 
 test('logs são JSON por linha e não expõem dados pessoais nem segredos', async () => {
-  const { body: room } = await api(server.url, '/api/rooms', { password: PASSWORD });
-  await api(server.url, '/api/rooms', { password: 'senha-errada-qualquer' });
+  const room = await createRoom(server.url, session);
+  await api(server.url, '/api/login', { username: ADMIN.username, password: 'senha-errada-qualquer' });
   await api(server.url, '/api/token', { roomId: room.roomId, hostKey: room.hostKey, name: 'Fulana de Tal' });
   await api(server.url, '/api/rooms/end', { roomId: room.roomId, hostKey: room.hostKey });
   await new Promise((r) => setTimeout(r, 200));
@@ -43,10 +45,11 @@ test('logs são JSON por linha e não expõem dados pessoais nem segredos', asyn
     assert.ok(entry.time && entry.level && entry.msg, line);
   }
   const all = server.output();
-  for (const secret of [PASSWORD, 'senha-errada-qualquer', room.roomId, room.hostKey, 'Fulana', process.env.TEST_API_SECRET]) {
+  for (const secret of [ADMIN.password, 'senha-errada-qualquer', session.cookie.split('=')[1], room.roomId, room.hostKey, 'Fulana', process.env.TEST_API_SECRET]) {
     assert.ok(!all.includes(secret), `log contém ${secret.slice(0, 6)}…`);
   }
   assert.match(all, /"msg":"sala criada"/);
   assert.match(all, /"msg":"sala encerrada"/);
-  assert.match(all, /"msg":"senha incorreta"/);
+  assert.match(all, /"msg":"login falhou","user":"admin"/);
+  assert.match(all, /"msg":"servidor configurado","user":"admin"/);
 });
