@@ -5,10 +5,14 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 test/"
   },
   "dependencies": {
     "livekit-client": "2.22.4",
     "livekit-server-sdk": "2.19.1"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
   }
 }

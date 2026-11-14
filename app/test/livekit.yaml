@@ -1,0 +1,16 @@
+# LiveKit só para os testes: portas próprias para não colidir com uma instância rodando
+port: 17880
+bind_addresses: [127.0.0.1]
+log_level: warn
+
+rtc:
+  tcp_port: 17881
+  udp_port: 17882
+  node_ip: 127.0.0.1
+  use_external_ip: false
+
+room:
+  auto_create: false
+  empty_timeout: 300
+  departure_timeout: 60
+  max_participants: 16

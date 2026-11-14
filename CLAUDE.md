@@ -4,6 +4,10 @@ Compartilhamento de tela para jogar com os amigos: LiveKit + app Node (`app/`) +
 
 Converse com o usuário em português (pt-BR).
 
+## Testes
+
+`./scripts/test.sh` roda a suíte inteira em containers (LiveKit de teste nas portas 17880–17882 e Playwright): testes do servidor em `app/test/server.test.js` e do navegador em `app/test/browser.test.js`.
+
 ## Como trabalhar
 
 - **Git:** todo trabalho é versionado com git local. Cada mudança coerente vira um commit com mensagem descritiva em português: a primeira linha diz o que mudou, e o corpo explica o porquê quando não for óbvio.
