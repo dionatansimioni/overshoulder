@@ -1,8 +1,17 @@
 # Imagem única do Overshoulder: LiveKit + app + Caddy, coordenados por app/supervisor.js
-FROM livekit/livekit-server:v1.13.10 AS livekit
+# LiveKit compilado do código-fonte: o binário pronto traz dependências com falhas conhecidas,
+# atualizadas aqui (a varredura da publicação bloqueia falhas altas que já têm correção)
+FROM golang:1.27.4-alpine AS livekit
+ARG LIVEKIT_VERSION=v1.13.11
+RUN apk add --no-cache git \
+ && git clone --depth 1 --branch "$LIVEKIT_VERSION" https://github.com/livekit/livekit.git /src
+WORKDIR /src
+RUN go get golang.org/x/net@v0.62.0 \
+ && go mod tidy \
+ && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /livekit-server ./cmd/server
 # Caddy com o módulo layer4: divide a porta 443 entre o site e o TURN (turn.<domínio>)
 FROM caddy:2.11-builder AS caddy
-RUN xcaddy build --with github.com/mholt/caddy-l4@v0.1.2 --output /usr/bin/caddy
+RUN xcaddy build --with github.com/mholt/caddy-l4@v0.1.2 --replace golang.org/x/net=golang.org/x/net@v0.62.0 --output /usr/bin/caddy
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -10,7 +19,10 @@ COPY app/package.json app/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 FROM node:24-alpine
-RUN apk add --no-cache tini libcap \
+# npm, npx e yarn não são usados em produção (e trazem dependências com falhas): saem da imagem
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn* \
+     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/corepack \
+ && apk add --no-cache tini libcap \
  && mkdir -p /data \
  && chown node:node /data
 COPY --from=livekit /livekit-server /usr/local/bin/livekit-server

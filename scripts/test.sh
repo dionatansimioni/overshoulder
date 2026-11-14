@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-LIVEKIT_IMAGE=livekit/livekit-server:v1.13.10
+LIVEKIT_IMAGE=livekit/livekit-server:v1.13.11
 GITLEAKS_IMAGE=zricethezav/gitleaks:v8.30.1
 PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.65.0-noble
 export TEST_API_KEY=testkey
