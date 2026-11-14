@@ -28,7 +28,8 @@ export const startServer = (port, extraEnv = {}) =>
     let output = '';
     const onData = (chunk) => {
       output += chunk;
-      if (output.includes('ouvindo em')) resolve({ url: `http://127.0.0.1:${port}`, stop: () => proc.kill() });
+      if (output.includes('ouvindo em'))
+        resolve({ url: `http://127.0.0.1:${port}`, stop: () => proc.kill(), output: () => output });
     };
     proc.stdout.on('data', onData);
     proc.stderr.on('data', onData);

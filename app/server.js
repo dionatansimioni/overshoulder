@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
+import { log } from './log.js';
 
 const env = (name, fallback) => {
   const v = process.env[name] ?? fallback;
@@ -19,6 +20,7 @@ const PUBLIC_URL = env('LIVEKIT_PUBLIC_URL');
 const CREATE_PASSWORD = env('CREATE_PASSWORD');
 const HOST_KEY_SECRET = env('HOST_KEY_SECRET');
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+const MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const TOKEN_TTL = '8h';
@@ -169,11 +171,13 @@ const createRoom = async (req, res) => {
   const { password } = await readJson(req);
   if (typeof password !== 'string' || !safeEqual(password, CREATE_PASSWORD)) {
     recordFailure(ip);
+    log.warn('senha incorreta');
     return json(res, 403, { error: 'Senha incorreta.' });
   }
 
   const roomId = crypto.randomBytes(16).toString('base64url');
-  await rooms.createRoom({ name: roomId, emptyTimeout: 300, departureTimeout: 60, maxParticipants: 16 });
+  await rooms.createRoom({ name: roomId, emptyTimeout: 300, departureTimeout: 60, maxParticipants: MAX_PARTICIPANTS });
+  log.info('sala criada', { maxParticipants: MAX_PARTICIPANTS });
   json(res, 201, { roomId, hostKey: hostKeyFor(roomId) });
 };
 
@@ -209,7 +213,20 @@ const endRoom = async (req, res) => {
     return json(res, 403, { error: 'Apenas o anfitrião pode encerrar a sala.' });
 
   if (await roomExists(roomId)) await rooms.deleteRoom(roomId);
+  log.info('sala encerrada');
   json(res, 200, { ok: true });
+};
+
+// Saúde do serviço para o healthcheck do Docker: app de pé e LiveKit respondendo
+const healthz = async (req, res) => {
+  try {
+    const r = await fetch(INTERNAL_URL, { signal: AbortSignal.timeout(2000) });
+    if (!r.ok) throw new Error(`LiveKit respondeu ${r.status}`);
+    json(res, 200, { status: 'ok' });
+  } catch (err) {
+    log.warn('healthcheck falhou', { error: err.message });
+    json(res, 503, { status: 'unavailable' });
+  }
 };
 
 // --- roteamento ---------------------------------------------------------
@@ -218,6 +235,7 @@ const routes = {
   'POST /api/rooms': createRoom,
   'POST /api/token': issueToken,
   'POST /api/rooms/end': endRoom,
+  'GET /healthz': healthz,
 };
 
 const server = http.createServer(async (req, res) => {
@@ -243,9 +261,9 @@ const server = http.createServer(async (req, res) => {
       if (!res.headersSent) json(res, err.status, { error: err.message });
       return;
     }
-    console.error(err);
+    log.error('erro interno', { error: err.message, stack: err.stack });
     if (!res.headersSent) json(res, 500, { error: 'Erro interno.' });
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`));

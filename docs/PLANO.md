@@ -60,6 +60,10 @@ Estas decisões têm prioridade sobre as da tabela acima quando conflitarem.
 | Operação | **`/healthz`** com healthcheck do Docker, **logs em JSON** sem dados pessoais e o painel de uso já decidido |
 | Idioma | **pt-BR e inglês**: interface traduzível (pelo idioma do navegador) e README em inglês com versão em português |
 
+### Pedidos de 14/11/2026 (desenho a decidir na etapa de onboarding)
+- **2FA** para aumentar a segurança. Hoje não há contas: existe só a senha do servidor. Então o 2FA depende de criar pelo menos uma conta de administrador. Proposta a discutir: TOTP (Google Authenticator, Aegis, 1Password) com códigos de recuperação, obrigatório para quem administra e para quem transmite.
+- **Transmissores autorizados**: o dono do servidor autoriza certas pessoas a transmitir quando ele não está presente, de forma segura. Proposta a discutir: o administrador cria contas de "transmissor" (ou convites de uso único para cadastrá-las), cada uma com a própria senha e 2FA. Elas podem criar salas e transmitir, mas não mexem na configuração do servidor. Podem ser revogadas a qualquer momento, e com SSO ligado podem vir de um grupo do provedor. Isso substitui a senha única compartilhada, que não dá para revogar de uma pessoa só.
+
 ### Ordem sugerida para implementar
 1. Imagem única + `/healthz` + logs JSON (a base de tudo o que vem depois).
 2. Onboarding: segredos automáticos, senha de admin, domínio e limite de plateia; o resto das opções entra conforme cada recurso.
