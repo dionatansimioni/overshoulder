@@ -6,6 +6,13 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
 
 - Etapa 0 feita: git local e testes automáticos (`./scripts/test.sh`).
 - Etapa 1 feita: nome **Overshoulder** e ícone novo (pessoa vista por cima do ombro olhando uma tela).
+- Feito em 14/11/2026, fora da ordem das etapas, a pedido do usuário:
+  - Visual inspirado no Discord, com as cores do Overshoulder: barra de botões redondos, painel de ajustes, chat com avatares.
+  - **Microfone só de quem transmite**: botão de voz e aviso "Microfone ligado" para os espectadores. O áudio extra do jogo passou a ser publicado como áudio da tela.
+  - **Emojis no chat**: seletor próprio com recentes; mensagens só com emojis aparecem grandes.
+  - **GIFs descartados**: a API do Tenor foi desligada em 30/06/2026, e GIPHY/KLIPY exigiriam uma chave por servidor.
+- Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
+- O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.
 - O `.env` local tem a senha `senha-teste`: só serve para testes.
 - A transmissão real (vídeo, áudio, E2EE e chat) ainda não foi testada num navegador, nem antes nem depois da troca de nome.
