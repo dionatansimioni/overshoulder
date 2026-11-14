@@ -16,6 +16,7 @@ services:
       HTTP_PORT: ${HTTP_PORT:-80}
       HTTPS_PORT: ${HTTPS_PORT:-443}
       NODE_IP: ${NODE_IP:-}
+      TURN_DOMAIN: ${TURN_DOMAIN:-}
       MAX_PARTICIPANTS: ${MAX_PARTICIPANTS:-16}
     volumes:
       - data:/data

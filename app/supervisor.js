@@ -14,6 +14,7 @@ const DATA_DIR = process.env.DATA_DIR ?? '/data';
 const RUN_DIR = path.join(os.tmpdir(), 'overshoulder');
 const APP_PORT = 3000;
 const LIVEKIT_PORT = 7880;
+const TURN_INTERNAL_PORT = 5349;
 
 const fail = (msg) => {
   log.error(msg);
@@ -36,13 +37,19 @@ const config = {
   rtcTcpPort: port('RTC_TCP_PORT', 7881),
   rtcUdpPort: port('RTC_UDP_PORT', 7882),
   nodeIp: process.env.NODE_IP ?? '',
+  turnDomain: process.env.TURN_DOMAIN ?? '',
   maxParticipants: Number(process.env.MAX_PARTICIPANTS ?? 16),
   watchdogMs: Number(process.env.WATCHDOG_INTERVAL_MS ?? 15_000),
 };
 
-// O domínio vai para o Caddyfile: só nomes de host e IPv4, nada que mude a sintaxe
-if (!/^(?=.{1,253}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i.test(config.domain))
+// Os domínios vão para o Caddyfile: só nomes de host e IPv4, nada que mude a sintaxe
+const HOST_RE = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+if (!HOST_RE.test(config.domain))
   fail('DOMAIN ausente ou inválido: informe o domínio (ex.: live.empresa.com) ou o IP do servidor.');
+if (config.turnDomain && (!HOST_RE.test(config.turnDomain) || /^[\d.]+$/.test(config.turnDomain) || config.turnDomain === config.domain))
+  fail('TURN_DOMAIN inválido: use um subdomínio próprio para o TURN (ex.: turn.live.empresa.com), diferente de DOMAIN.');
+// O LiveKit anuncia o TURN sempre na porta 443, e o TURN só faz sentido onde só a 443 passa
+if (config.turnDomain && config.httpsPort !== 443) fail('TURN_DOMAIN exige HTTPS_PORT=443: o TURN é anunciado na porta 443.');
 if (!['acme', 'local'].includes(config.tls)) fail('TLS inválido: use "acme" (Let\'s Encrypt) ou "local".');
 if (config.nodeIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(config.nodeIp)) fail('NODE_IP inválido: informe um IPv4.');
 if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 500)
@@ -93,8 +100,36 @@ room:
   empty_timeout: 300
   departure_timeout: 60
   max_participants: ${config.maxParticipants}
-`,
+${
+  // TURN/TLS para redes que só liberam a 443: o Caddy termina o TLS de turn.<domínio> e repassa
+  config.turnDomain
+    ? `turn:
+  enabled: true
+  domain: ${config.turnDomain}
+  tls_port: ${TURN_INTERNAL_PORT}
+  external_tls: true
+`
+    : ''
+}`,
 );
+
+// Na porta HTTPS, conexões para turn.<domínio> vão para o TURN do LiveKit (TLS terminado aqui);
+// todo o resto segue para o site, sem perder o IP de quem acessa
+const turnRouting = config.turnDomain
+  ? `
+	servers :${config.httpsPort} {
+		listener_wrappers {
+			layer4 {
+				@turn tls sni ${config.turnDomain}
+				route @turn {
+					tls
+					proxy tcp/127.0.0.1:${TURN_INTERNAL_PORT}
+				}
+			}
+			tls
+		}
+	}`
+  : '';
 
 const caddyfile = path.join(RUN_DIR, 'Caddyfile');
 fs.writeFileSync(
@@ -109,7 +144,7 @@ fs.writeFileSync(
 	log {
 		output stdout
 		format json
-	}
+	}${turnRouting}
 }
 
 ${config.domain} {
@@ -123,7 +158,16 @@ ${config.domain} {
 		reverse_proxy 127.0.0.1:${APP_PORT}
 	}
 }
-`,
+${
+  // Bloco só para o Caddy obter e renovar o certificado de turn.<domínio>
+  config.turnDomain
+    ? `
+${config.turnDomain} {
+	respond "TURN do Overshoulder" 404
+}
+`
+    : ''
+}`,
 );
 
 const publicUrl = `wss://${config.domain}${config.httpsPort === 443 ? '' : `:${config.httpsPort}`}`;
@@ -268,5 +312,6 @@ log.info('iniciando Overshoulder', {
   rtcTcpPort: config.rtcTcpPort,
   rtcUdpPort: config.rtcUdpPort,
   maxParticipants: config.maxParticipants,
+  turn: config.turnDomain || 'desligado',
 });
 for (const name of ['livekit', 'app', 'caddy']) start(name);

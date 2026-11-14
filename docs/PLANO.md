@@ -32,7 +32,13 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Na pasta (Chrome/Edge): WebM gravado a cada segundo. No download: MP4.
   - Aviso "● Gravando" para todos. Ele some na hora quando o anfitrião fecha a aba (sendBeacon) e, se o navegador travar ou a rede cair, em ~22 s: o tempo que o LiveKit espera por uma reconexão.
   - O compartilhamento de tela passou a ser testado de ponta a ponta (o Chromium dos testes compartilha tela com flags de mídia falsa).
-  - Próximo da ordem: TURN/TLS opcional na 443.
+- Etapa 5 (TURN/TLS na 443) feita em parte em 14/11/2026, **experimental**:
+  - O Caddy é compilado com o caddy-l4 (v0.1.2). Com `TURN_DOMAIN`, a 443 leva `turn.<domínio>` ao TURN do LiveKit (TLS terminado no Caddy, `external_tls`) e o resto ao site, preservando o IP de quem acessa.
+  - O LiveKit anuncia o TURN sempre na 443, então `TURN_DOMAIN` exige `HTTPS_PORT=443`.
+  - **Comprovado:** a divisão da porta, o certificado do subdomínio e o STUN pelo TLS (teste da imagem). Numa sonda manual, o Chrome negociou TLS, autenticou e obteve uma alocação (candidato `relay`).
+  - **Não comprovado:** a conexão completa só por TURN (`iceTransportPolicy: relay`) falhou no ambiente de teste (tudo no mesmo container, certificado local, IP interno do Docker); o TURN aloca, mas o vídeo não chega. Confirmar num servidor real com domínio e Let's Encrypt (por exemplo, a VPS da Hostinger) antes de tirar o "experimental".
+  - Sondas usadas: a página do anfitrião conecta, e um `Room` à parte conecta com `rtcConfig: { iceTransportPolicy: 'relay' }`; o Chromium precisa confiar na CA do Caddy (NSS, via `certutil`) e resolver `turn.<domínio>` pelo `/etc/hosts`.
+  - Próximo da ordem: SSO via OIDC.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

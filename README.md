@@ -50,6 +50,7 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 | `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local) |
 | `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
+| `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor |
 | `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 500) |
 
 ### Contas
@@ -68,6 +69,8 @@ Libere no firewall:
 | 80, 443 | TCP | site + HTTPS (Caddy) |
 | 7881 | TCP | WebRTC por TCP (redes que bloqueiam UDP) |
 | 7882 | UDP | mídia WebRTC |
+
+**Redes corporativas (TURN, experimental):** algumas empresas só liberam a porta 443, e aí o vídeo não passa pelas portas 7881/7882. Com `TURN_DOMAIN`, a própria porta 443 atende também `turn.<domínio>`, sem abrir nada além dela: o Caddy separa as conexões pelo nome e entrega as do TURN ao LiveKit. Os testes comprovam a divisão da porta, o certificado e a autenticação do TURN; a passagem do vídeo inteiro pelo TURN ainda precisa ser confirmada num servidor real.
 
 **Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 amigos, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
 

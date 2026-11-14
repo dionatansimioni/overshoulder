@@ -1,6 +1,8 @@
 # Imagem única do Overshoulder: LiveKit + app + Caddy, coordenados por app/supervisor.js
 FROM livekit/livekit-server:v1.13.10 AS livekit
-FROM caddy:2.11 AS caddy
+# Caddy com o módulo layer4: divide a porta 443 entre o site e o TURN (turn.<domínio>)
+FROM caddy:2.11-builder AS caddy
+RUN xcaddy build --with github.com/mholt/caddy-l4@v0.1.2 --output /usr/bin/caddy
 
 FROM node:24-alpine AS deps
 WORKDIR /app
