@@ -41,6 +41,35 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
 | Sistemas | Ubuntu e Debian (amd64 e arm64) no instalador. Outros sistemas pelo compose manual |
 | LAN/localhost | Saem do instalador. Fica só o uso pela internet |
 
+## Decisões de 14/11/2026: uso por empresas (lives e treinamentos)
+
+Estas decisões têm prioridade sobre as da tabela acima quando conflitarem.
+
+| Tema | Decisão |
+|---|---|
+| Plateia | Até ~150 pessoas por sala, **limite configurável** por quem administra (hoje fixo em 16). Um servidor só; o gargalo é a banda (~7 Mbps por espectador em 1080p60) |
+| Acesso | Senha + link continuam o padrão. **SSO opcional via OIDC** (Google Workspace, Microsoft Entra, Keycloak etc.), podendo exigir login também para assistir, com o nome real no chat |
+| Gravação | **No navegador de quem transmite** (MediaRecorder → arquivo .webm). Mantém o E2EE; sem gravação no servidor |
+| Redes corporativas | **TURN/TLS opcional na 443**, num subdomínio (ex.: `turn.empresa.com`), compartilhando a porta com o site. Substitui o "sem TURN" anterior |
+| Empacotamento | **Imagem Docker única** (LiveKit + app + Caddy, com supervisor leve): instalar = um `docker run` com volume e portas. O compose vira só exemplo. Substitui "três containers no compose" |
+| Configuração | **Tela de onboarding** para tudo o que for configurável: senha de admin, domínio, TURN, SSO, limite de plateia. Nada de editar arquivos. Guardada num arquivo no volume de dados (sem banco: só há configuração, nada de histórico) |
+| Histórico | **Nada guardado**: sem relatório de presença, sem chat salvo. Salas efêmeras |
+| Moderação | Anfitrião pode **remover alguém** (sem voltar com o mesmo link), **desligar o chat** e **trocar o link** da sala (o antigo deixa de valer) |
+| Apresentadores | **Um por vez**; o anfitrião pode **passar a vez** (tela e microfone) e pegar de volta |
+| Cadeia de publicação | No GitHub Actions: **varredura de vulnerabilidades** de dependências e da imagem (bloqueia falha grave), **SBOM** e **imagem assinada** (cosign/Sigstore). Gitleaks já roda nos testes |
+| Operação | **`/healthz`** com healthcheck do Docker, **logs em JSON** sem dados pessoais e o painel de uso já decidido |
+| Idioma | **pt-BR e inglês**: interface traduzível (pelo idioma do navegador) e README em inglês com versão em português |
+
+### Ordem sugerida para implementar
+1. Imagem única + `/healthz` + logs JSON (a base de tudo o que vem depois).
+2. Onboarding: segredos automáticos, senha de admin, domínio e limite de plateia; o resto das opções entra conforme cada recurso.
+3. Moderação (remover, silenciar chat, trocar link) e passar a vez de apresentador.
+4. Gravação no navegador.
+5. TURN/TLS opcional.
+6. SSO via OIDC.
+7. Tradução pt-BR/en.
+8. Publicação: GitHub Actions com varredura, SBOM e assinatura.
+
 ## Etapas
 
 Cada etapa termina com algo funcionando e testado, na ordem abaixo. As regras de trabalho (git, commits descritivos, testes) estão no `CLAUDE.md`.
