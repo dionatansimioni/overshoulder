@@ -11,7 +11,8 @@ before(async () => {
   server = await startServer(13002);
   await setupAdmin(server);
   browser = await chromium.launch({
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+    // Mídia falsa: microfone de teste e captura de tela aceita sozinha, sem o seletor do navegador
+    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--auto-select-desktop-capture-source=Entire screen'],
   });
 });
 after(async () => {
@@ -25,7 +26,11 @@ const newPage = async () => {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (err) => errors.push(err.message));
-  page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
+  // A política do site bloqueia a câmera de propósito (o Overshoulder não usa câmera); o LiveKit
+  // tenta enumerá-la ao mexer em dispositivos e o navegador registra o bloqueio. Não é erro do app.
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && !/Permissions policy violation: camera/.test(msg.text())) errors.push(msg.text());
+  });
   return { page, errors };
 };
 
@@ -212,4 +217,31 @@ test('mensagem só com emojis aparece grande', async () => {
   await texts.nth(1).waitFor();
   assert.match(await texts.nth(0).getAttribute('class'), /jumbo/);
   assert.doesNotMatch(await texts.nth(1).getAttribute('class'), /jumbo/);
+});
+
+test('anfitrião compartilha a tela e o amigo recebe o vídeo decifrado', async () => {
+  const host = await newPage();
+  await createRoomAsHost(host.page);
+  const viewer = await newPage();
+  await joinAsViewer(viewer.page, await host.page.inputValue('#invite-link'));
+
+  await host.page.click('#share');
+  await host.page.waitForSelector('#share.on');
+  await viewer.page.waitForSelector('#overlay', { state: 'hidden' });
+  const playing = async () => viewer.page.evaluate(() => {
+    const v = document.querySelector('#video');
+    return { width: v.videoWidth, time: v.currentTime };
+  });
+  await viewer.page.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
+  const before = await playing();
+  await viewer.page.waitForTimeout(1500);
+  const after = await playing();
+  assert.ok(after.time > before.time + 1, `o vídeo avança: ${before.time} → ${after.time}`);
+  await viewer.page.waitForFunction(() => /\d+×\d+ · [\d.]+ Mbps/.test(document.querySelector('#stats').textContent));
+
+  await host.page.click('#share');
+  await host.page.waitForSelector('#share:not(.on)');
+  await viewer.page.waitForFunction(() => document.querySelector('#overlay').textContent.includes('Aguardando'));
+  assert.deepEqual(host.errors, []);
+  assert.deepEqual(viewer.errors, []);
 });
