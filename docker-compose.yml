@@ -1,0 +1,45 @@
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.10
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      NODE_IP: ${NODE_IP:-}
+    volumes:
+      - ./${LIVEKIT_CONFIG_FILE:-livekit.yaml}:/etc/livekit.yaml:ro
+    restart: unless-stopped
+
+  app:
+    build: ./app
+    network_mode: host
+    environment:
+      PORT: 3000
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_INTERNAL_URL: http://127.0.0.1:7880
+      LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL}
+      CREATE_PASSWORD: ${CREATE_PASSWORD}
+      HOST_KEY_SECRET: ${HOST_KEY_SECRET}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    depends_on: [livekit]
+    restart: unless-stopped
+
+  # Só sobe na VPS e no modo LAN (COMPOSE_PROFILES=prod no .env): HTTPS automático.
+  caddy:
+    image: caddy:2.11
+    profiles: [prod]
+    network_mode: host
+    environment:
+      DOMAIN: ${DOMAIN}
+      CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app, livekit]
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Owncord</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/home.js"></script>
+</head>
+<body>
+  <main class="home">
+    <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Owncord</h1>
+    <p class="muted">Compartilhe a tela do seu jogo com os amigos, direto no navegador e com criptografia de ponta a ponta.</p>
+
+    <form id="create" class="card">
+      <label for="password">Senha do servidor</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Criar sala</button>
+      <p id="error" class="error" hidden></p>
+    </form>
+
+    <p class="muted small">Recebeu um link de um amigo? É só abrir o link, não precisa de senha.</p>
+  </main>
+</body>
+</html>

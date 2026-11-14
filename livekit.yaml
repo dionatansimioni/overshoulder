@@ -1,0 +1,18 @@
+# Configuração de produção (VPS). As chaves vêm da variável LIVEKIT_KEYS.
+port: 7880
+log_level: info
+
+rtc:
+  # Fallback via TCP para redes que bloqueiam UDP
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  # Descobre o IP público da VPS via STUN
+  use_external_ip: true
+
+room:
+  # Salas só existem se o app criar (impede uso da VPS por terceiros)
+  auto_create: false
+  empty_timeout: 300
+  departure_timeout: 60
+  max_participants: 16

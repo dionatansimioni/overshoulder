@@ -1,0 +1,16 @@
+{
+	# Vazio na VPS (Let's Encrypt). No modo LAN vira "local_certs" (certificado próprio do Caddy).
+	{$CADDY_GLOBAL_OPTIONS}
+}
+
+{$DOMAIN} {
+	# Sinalização WebRTC do LiveKit (WebSocket)
+	handle /rtc* {
+		reverse_proxy 127.0.0.1:7880
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy 127.0.0.1:3000
+	}
+}

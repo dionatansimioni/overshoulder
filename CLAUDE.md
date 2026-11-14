@@ -1,0 +1,11 @@
+# Overshoulder (antigo Owncord)
+
+Compartilhamento de tela para jogar com os amigos: LiveKit + app Node (`app/`) + Caddy, via Docker Compose. O plano em andamento, as decisões e as perguntas em aberto estão em `docs/PLANO.md`. Leia esse arquivo antes de retomar o trabalho.
+
+Converse com o usuário em português (pt-BR).
+
+## Como trabalhar
+
+- **Git:** todo trabalho é versionado com git local. Cada mudança coerente vira um commit com mensagem descritiva em português: a primeira linha diz o que mudou, e o corpo explica o porquê quando não for óbvio.
+- **Testes verdes:** o projeto tem testes básicos que provam que o site e o servidor funcionam. Depois de qualquer modificação, rode a suíte inteira. Se algo ficar vermelho, analise a causa, corrija e rode de novo até tudo passar. Só faça commit com a suíte verde.
+- **Teste novo por recurso:** todo recurso novo que tenha comportamento testável entra junto com o teste que o cobre, no mesmo commit.

@@ -1,0 +1,16 @@
+# Configuração para testes locais e rede doméstica (LAN), sem domínio.
+# O IP anunciado aos navegadores vem da variável NODE_IP (definida no .env).
+port: 7880
+log_level: info
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: false
+
+room:
+  auto_create: false
+  empty_timeout: 300
+  departure_timeout: 60
+  max_participants: 16
