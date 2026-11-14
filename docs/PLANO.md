@@ -27,7 +27,12 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - Aba *Pessoas* na sala; o anfitrião remove alguém, passa e retoma a vez de apresentar, desliga o chat de quem assiste e gera um link novo.
   - O link público (`/r/<código>`) é separado do nome interno da sala no LiveKit, e remover alguém troca o link.
   - **Limitação conhecida:** o LiveKit 1.13.10 não aplica `revokeTokenTs`, então quem foi removido ainda tem um token válido (8 h). Um vigia remove de novo, em até 2 s, quem voltar com ele; nesse intervalo a pessoa ainda poderia ver a transmissão, porque conhece a chave E2EE. Fechar de vez exigiria trocar a chave E2EE ao remover alguém (a estudar).
-  - Próximo da ordem: gravação no navegador.
+- Etapa 4 (gravação no navegador) feita em 14/11/2026:
+  - Botão de gravar para o anfitrião: grava o vídeo exibido e a mistura de todo o áudio da sala, em partes quando a fonte do vídeo muda.
+  - Na pasta (Chrome/Edge): WebM gravado a cada segundo. No download: MP4.
+  - Aviso "● Gravando" para todos. Ele some na hora quando o anfitrião fecha a aba (sendBeacon) e, se o navegador travar ou a rede cair, em ~22 s: o tempo que o LiveKit espera por uma reconexão.
+  - O compartilhamento de tela passou a ser testado de ponta a ponta (o Chromium dos testes compartilha tela com flags de mídia falsa).
+  - Próximo da ordem: TURN/TLS opcional na 443.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.

@@ -10,6 +10,7 @@ import {
   isE2EESupported,
 } from '/vendor/livekit-client.esm.mjs';
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
+import { Recorder, recordingFormat } from '/static/recorder.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -102,6 +103,17 @@ const joinError = (msg) => {
 let room;
 let isHost = false;
 let isPresenter = false;
+let recorder = null;
+// Todos os áudios da sala (de quem fala, do jogo, de quem apresenta), para a gravação misturar
+const roomAudio = new Set();
+const addRoomAudio = (track) => {
+  roomAudio.add(track);
+  recorder?.addAudio(track);
+};
+const removeRoomAudio = (track) => {
+  roomAudio.delete(track);
+  recorder?.removeAudio(track);
+};
 // Estado da sala que o anfitrião controla, recebido pelos metadados da sala
 let meta = { chat: true, presenter: null };
 let videoTrack = null;
@@ -120,6 +132,7 @@ const updateCount = () => {
 const setVideoTrack = (track) => {
   if (videoTrack) videoTrack.detach(video);
   videoTrack = track;
+  recorder?.switchVideo(track?.mediaStreamTrack ?? null);
   if (track) {
     track.attach(video);
     overlay.hidden = true;
@@ -158,6 +171,7 @@ const wireRoomEvents = () => {
         setVideoTrack(track);
       } else if (track.kind === Track.Kind.Audio) {
         audioTracks.add(track);
+        addRoomAudio(track.mediaStreamTrack);
         $('audio-sink').append(track.attach());
         track.setVolume(Number($('volume').value));
       }
@@ -166,15 +180,18 @@ const wireRoomEvents = () => {
       if (pub.trackName === VOICE_TRACK) $('mic-badge').hidden = true;
       track.detach().forEach((el) => el !== video && el.remove());
       audioTracks.delete(track);
+      if (track.kind === Track.Kind.Audio) removeRoomAudio(track.mediaStreamTrack);
       if (track === videoTrack) setVideoTrack(null);
     })
     .on(RoomEvent.LocalTrackPublished, (pub) => {
+      if (pub.kind === Track.Kind.Audio) addRoomAudio(pub.track.mediaStreamTrack);
       if (pub.source === Track.Source.ScreenShare) {
         setVideoTrack(pub.track);
         setShareButton(true);
       }
     })
     .on(RoomEvent.LocalTrackUnpublished, (pub) => {
+      if (pub.kind === Track.Kind.Audio && pub.track) removeRoomAudio(pub.track.mediaStreamTrack);
       if (pub.source === Track.Source.ScreenShare) {
         // Também dispara quando se clica em "Parar de compartilhar" na barra do navegador
         setVideoTrack(null);
@@ -212,6 +229,7 @@ const wireRoomEvents = () => {
             : 'Você foi desconectado. Recarregue a página para voltar.',
       );
       $('chat-input').disabled = true;
+      if (recorder?.active) stopRecording();
       $('host-controls').hidden = true;
       $('mic-badge').hidden = true;
       voiceTrack?.stop();
@@ -267,6 +285,7 @@ function applyMetadata() {
   input.placeholder = blocked ? 'O anfitrião desligou o chat' : 'Conversar na sala';
   $('emoji-btn').disabled = blocked;
   $('chat-toggle').textContent = meta.chat ? 'Desligar chat' : 'Ligar chat';
+  $('rec-badge').hidden = !meta.recording;
   const badge = $('presenter-badge');
   badge.hidden = !meta.presenter;
   if (meta.presenter) badge.textContent = `${nameOf(meta.presenter)} está apresentando`;
@@ -488,6 +507,7 @@ const setPresenterMode = async (on) => {
     setupPublishControls();
     $('host-controls').hidden = false;
     $('end').hidden = true;
+    $('record').hidden = true;
     addMessage('O anfitrião passou a vez para você: compartilhe a tela ou ligue o microfone.');
   } else {
     $('host-controls').hidden = true;
@@ -532,6 +552,61 @@ const setupHost = () => {
     if (!confirm('Encerrar a sala para todos?')) return;
     if (!(await hostAction('/api/rooms/end'))) addMessage('Não foi possível encerrar a sala.');
   });
+
+  if (!recordingFormat()) $('record').hidden = true;
+  $('record').addEventListener('click', async () => {
+    const btn = $('record');
+    btn.disabled = true;
+    try {
+      if (recorder?.active) await stopRecording();
+      else await startRecording();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Fechar a aba no meio da gravação: avisa a sala que ela parou (o que já foi para a pasta fica salvo)
+  addEventListener('pagehide', () => {
+    if (!recorder?.active) return;
+    const body = JSON.stringify({ roomId, hostKey, enabled: false });
+    navigator.sendBeacon('/api/rooms/recording', new Blob([body], { type: 'application/json' }));
+  });
+};
+
+const setRecordButton = (on) => {
+  const btn = $('record');
+  const label = on ? 'Parar a gravação' : 'Gravar a transmissão';
+  btn.classList.toggle('recording', on);
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', String(on));
+};
+
+const startRecording = async () => {
+  recorder ??= new Recorder();
+  for (const track of roomAudio) recorder.addAudio(track);
+  try {
+    await recorder.start(videoTrack?.mediaStreamTrack ?? null);
+  } catch (err) {
+    // Cancelar a escolha da pasta cancela a gravação; não é erro
+    if (err?.name !== 'AbortError') addMessage(`Não foi possível gravar: ${err.message}`);
+    return;
+  }
+  setRecordButton(true);
+  await hostAction('/api/rooms/recording', { enabled: true });
+  addMessage(
+    recorder.folder
+      ? 'Gravando na pasta escolhida. Todos na sala veem o aviso de gravação.'
+      : 'Gravando. O arquivo será baixado quando você parar. Todos na sala veem o aviso de gravação.',
+  );
+};
+
+const stopRecording = async () => {
+  const { parts, toFolder } = await recorder.stop();
+  setRecordButton(false);
+  await hostAction('/api/rooms/recording', { enabled: false });
+  if (!parts.length) addMessage('Nada foi gravado: não havia vídeo na tela.');
+  else addMessage(`Gravação salva${toFolder ? ' na pasta escolhida' : ''}: ${parts.join(', ')}`);
 };
 
 // Tela, microfone e ajustes: usados pelo anfitrião e por quem recebe a vez de apresentar

@@ -70,7 +70,7 @@ describe('API de moderação', () => {
     const host = jwtPayload((await api(s.url, '/api/token', { roomId: r.roomId, hostKey: r.hostKey })).body.token);
     assert.equal(host.video.canPublishData, true, 'o anfitrião continua falando no chat');
     const room = (await livekit.listRooms([await internalName(r.roomId)]))[0];
-    assert.deepEqual(JSON.parse(room.metadata), { chat: false, presenter: null });
+    assert.deepEqual(JSON.parse(room.metadata), { chat: false, presenter: null, recording: false });
   });
 });
 

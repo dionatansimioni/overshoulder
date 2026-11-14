@@ -72,7 +72,7 @@ const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
 // derrubar quem já está assistindo.
-const liveRooms = new Map(); // nome interno → { name, owner, code, chat, presenter, banned }
+const liveRooms = new Map(); // nome interno → { name, owner, code, chat, presenter, recording, banned }
 const roomCodes = new Map(); // código público → nome interno
 const PRESENTER_SOURCES = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO, TrackSource.MICROPHONE];
 const VIEWER_ID_RE = /^v-[0-9a-f]{12}$/;
@@ -700,7 +700,7 @@ const viewerPermission = (room, identity) => {
   };
 };
 
-const metadataOf = (room) => JSON.stringify({ chat: room.chat, presenter: room.presenter });
+const metadataOf = (room) => JSON.stringify({ chat: room.chat, presenter: room.presenter, recording: room.recording });
 
 // Aplica as permissões atuais a quem já está na sala e avisa todos pelos metadados da sala
 const syncRoom = async (name, room, identities) => {
@@ -720,15 +720,22 @@ const rotateCode = (room) => {
   return room.code;
 };
 
-// Vigia das salas com pessoas removidas: quem voltar com o token antigo é removido de novo
+// Vigia das salas: quem foi removido e voltou com o token antigo é removido de novo, e o aviso de
+// gravação é desligado se o anfitrião saiu (aba fechada, navegador travado, rede caída)
 setInterval(async () => {
   for (const room of liveRooms.values()) {
-    if (!room.banned.size) continue;
+    if (!room.banned.size && !room.recording) continue;
     try {
-      for (const p of await rooms.listParticipants(room.name)) {
+      const participants = await rooms.listParticipants(room.name);
+      for (const p of participants) {
         if (!room.banned.has(p.identity)) continue;
         await rooms.removeParticipant(room.name, p.identity).catch(() => {});
         log.warn('participante removido tentou voltar e foi removido de novo');
+      }
+      if (room.recording && !participants.some((p) => p.identity.startsWith('h-'))) {
+        room.recording = false;
+        await rooms.updateRoomMetadata(room.name, metadataOf(room));
+        log.info('gravação encerrada: o anfitrião saiu da sala');
       }
     } catch {}
   }
@@ -738,7 +745,7 @@ const createRoom = async (req, res) => {
   const { user } = requireUser(req);
   await readJson(req);
   const name = newRoomId();
-  const room = { name, owner: user.id, code: newRoomId(), chat: true, presenter: null, banned: new Set() };
+  const room = { name, owner: user.id, code: newRoomId(), chat: true, presenter: null, recording: false, banned: new Set() };
   const { maxParticipants } = settings();
   await rooms.createRoom({ name, emptyTimeout: 300, departureTimeout: 60, maxParticipants, metadata: metadataOf(room) });
   liveRooms.set(name, room);
@@ -785,6 +792,17 @@ const setChat = async (req, res) => {
   await syncRoom(name, room);
   log.info(room.chat ? 'chat ligado' : 'chat desligado');
   json(res, 200, { chat: room.chat });
+};
+
+// A gravação acontece no navegador do anfitrião; o servidor só avisa todos na sala que ela está ligada
+const setRecording = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  if (typeof body.enabled !== 'boolean') return json(res, 400, { error: 'enabled deve ser verdadeiro ou falso.' });
+  room.recording = body.enabled;
+  await rooms.updateRoomMetadata(name, metadataOf(room));
+  log.info(room.recording ? 'gravação iniciada' : 'gravação encerrada');
+  json(res, 200, { recording: room.recording });
 };
 
 const newLink = async (req, res) => {
@@ -872,6 +890,7 @@ const routes = {
   'POST /api/rooms/end': endRoom,
   'POST /api/rooms/chat': setChat,
   'POST /api/rooms/link': newLink,
+  'POST /api/rooms/recording': setRecording,
   'POST /api/rooms/presenter': setPresenter,
   'POST /api/rooms/kick': kick,
   'GET /healthz': healthz,

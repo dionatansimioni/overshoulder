@@ -331,6 +331,9 @@ code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size
 .person-actions { display: flex; gap: 6px; width: 100%; padding-left: 46px; }
 .person-actions button { padding: 4px 10px; font-size: 12px; }
 .badge.presenter { left: auto; right: 12px; background: var(--accent); padding-left: 12px; }
+.badge.rec { left: 50%; transform: translateX(-50%); background: var(--danger); padding-left: 12px; }
+button.round.recording { background: var(--danger); color: #fff; }
+button.round.recording:hover { background: var(--danger-hover); }
 .chat input:disabled { opacity: .6; cursor: not-allowed; }
 
 .chat ul {

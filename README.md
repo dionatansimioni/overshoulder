@@ -7,6 +7,7 @@ Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem tra
 - **Salas de até 16 pessoas por padrão** (configurável): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada amigo recebe a qualidade que a conexão dele aguenta.
 - **Microfone de quem transmite:** o anfitrião liga a voz com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
 - **Moderação:** na aba *Pessoas*, o anfitrião remove alguém da sala ou **passa a vez de apresentar** (tela e microfone) para outra pessoa e pega de volta. Também desliga o chat de quem assiste e gera um link novo para a sala.
+- **Gravação no navegador do anfitrião:** grava o vídeo que está na tela (inclusive de quem recebeu a vez de apresentar) e todo o áudio da sala. O servidor nunca vê o conteúdo. No Chrome e no Edge, o arquivo é gravado numa pasta escolhida, a cada segundo (WebM), e o que já foi gravado fica salvo mesmo se o navegador fechar. Nos outros navegadores, o arquivo (MP4 quando possível) é baixado ao parar. Cada trecho de vídeo vira uma parte (`…-parte1`, `…-parte2`), e todos na sala veem o aviso **● Gravando**.
 - **Chat de texto** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
 
 ## Como funciona
