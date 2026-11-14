@@ -4,8 +4,8 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
 
 ## Onde paramos
 
-- Nome e ícone ainda são **Owncord** (cabo saindo da tela). A troca para Overshoulder é a etapa 1.
-- O projeto **não está no git**.
+- Etapa 0 feita: git local e testes automáticos (`./scripts/test.sh`).
+- Etapa 1 feita: nome **Overshoulder** e ícone novo (pessoa vista por cima do ombro olhando uma tela).
 - A pasta do projeto foi renomeada em 14/11/2026 para `/home/diolinux/claude/overshoulder` (antes `owncord`). Em 14/11/2026 a instância de teste foi religada na pasta nova (containers `overshoulder-*`). Para subir de novo nesta máquina, o Discourse ocupa a porta 80, então use a 8443: `export CADDY_GLOBAL_OPTIONS=$'local_certs\nhttp_port 8081\nhttps_port 8443' LIVEKIT_PUBLIC_URL=wss://192.168.0.102:8443` e depois `docker compose up -d --build`.
 - O `.env` local tem a senha `senha-teste`: só serve para testes.
 - A transmissão real (vídeo, áudio, E2EE e chat) ainda não foi testada num navegador, nem antes nem depois da troca de nome.

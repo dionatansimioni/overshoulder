@@ -22,6 +22,15 @@ describe('arquivos', () => {
     assert.match(await res.text(), /<title>[^<]+<\/title>/);
   });
 
+  test('páginas usam o nome Overshoulder e o ícone', async () => {
+    for (const route of ['/', `/r/${'a'.repeat(22)}`]) {
+      const html = await (await fetch(base + route)).text();
+      assert.match(html, /<title>Overshoulder/, route);
+      assert.match(html, /class="brand"><img src="\/static\/icon\.svg"[^>]*>Overshoulder</, route);
+      assert.match(html, /rel="icon" href="\/static\/icon\.svg"/, route);
+    }
+  });
+
   test('página da sala responde em /r/<id>', async () => {
     const res = await fetch(`${base}/r/${'a'.repeat(22)}`);
     assert.equal(res.status, 200);

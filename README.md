@@ -1,4 +1,4 @@
-# Owncord
+# Overshoulder
 
 Compartilhamento de tela para jogar com os amigos, direto no navegador. Quem transmite e quem assiste só precisam abrir um link.
 
@@ -50,7 +50,7 @@ docker compose up -d --build
 Acesse `https://<seu-ip>`. Precisa ser HTTPS: os navegadores bloqueiam compartilhamento de tela e criptografia em `http://` fora do `localhost`. O Caddy gera um certificado próprio, então na primeira vez cada navegador mostra um aviso ("Avançado" > "Continuar").
 
 Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
-`docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt owncord-ca.crt`
+`docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt overshoulder-ca.crt`
 
 Se a máquina tiver firewall ativo, libere 80/443 TCP, 7881 TCP e 50000–60000 UDP.
 

@@ -12,7 +12,7 @@ rand() { head -c "$1" /dev/urandom | base64 | tr -d '/+=\n' | head -c "$2"; }
 
 lan_ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
 
-echo "Onde o Owncord vai rodar?"
+echo "Onde o Overshoulder vai rodar?"
 echo "  1) VPS com domínio (amigos pela internet)"
 echo "  2) Rede local, pelo IP${lan_ip:+ ($lan_ip)}"
 echo "  3) Só nesta máquina (localhost, para testes)"
@@ -20,7 +20,7 @@ read -rp "Escolha [1-3]: " mode
 
 case "$mode" in
   1)
-    read -rp "Domínio (ex.: owncord.seudominio.com): " domain
+    read -rp "Domínio (ex.: overshoulder.seudominio.com): " domain
     [[ -n "$domain" ]] || { echo "Domínio obrigatório." >&2; exit 1; }
     ;;
   2)
