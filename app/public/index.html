@@ -24,13 +24,25 @@
         <p id="login-error" class="error" hidden></p>
       </form>
 
+      <form id="totp-form" class="form" hidden>
+        <label for="totp-code">Código de verificação</label>
+        <input id="totp-code" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required>
+        <p class="muted small field-hint">O código de 6 dígitos do seu app autenticador, ou um código de recuperação.</p>
+        <button type="submit">Confirmar</button>
+        <p id="totp-error" class="error" hidden></p>
+      </form>
+
       <section id="signed-in" class="form" hidden>
         <p class="muted">Conectado como <b id="me"></b>.</p>
+        <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
         <form id="create-form" class="form">
           <button type="submit">Criar sala</button>
           <p id="create-error" class="error" hidden></p>
         </form>
-        <button id="logout" type="button" class="secondary">Sair</button>
+        <div class="row-actions">
+          <a class="button secondary" href="/conta">Minha conta</a>
+          <button id="logout" type="button" class="secondary">Sair</button>
+        </div>
       </section>
     </div>
 

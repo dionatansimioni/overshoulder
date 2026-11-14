@@ -5,10 +5,16 @@ const randomKey = () => {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
+let ticket = null;
+
 const showSignedIn = (user) => {
+  // Servidor que exige 2FA: quem ainda não configurou vai direto para a conta
+  if (user.needs2fa) return location.replace('/conta');
   $('login-form').hidden = true;
+  $('totp-form').hidden = true;
   $('signed-in').hidden = false;
   $('me').textContent = user.username;
+  $('recommend-2fa').hidden = user.totp;
 };
 
 const state = await api('/api/state');
@@ -25,11 +31,39 @@ $('login-form').addEventListener('submit', (e) => {
   $('login-error').hidden = true;
   busy(e.target, async () => {
     try {
-      const { user } = await api('/api/login', { username: $('username').value, password: $('password').value });
+      const result = await api('/api/login', { username: $('username').value, password: $('password').value });
       $('password').value = '';
-      showSignedIn(user);
+      if (result.next === 'totp') {
+        ticket = result.ticket;
+        $('login-form').hidden = true;
+        $('totp-form').hidden = false;
+        $('totp-code').focus();
+      } else {
+        showSignedIn(result.user);
+      }
     } catch (err) {
       showError($('login-error'), err);
+    }
+  });
+});
+
+$('totp-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('totp-error').hidden = true;
+  busy(e.target, async () => {
+    try {
+      const { user } = await api('/api/login/totp', { ticket, code: $('totp-code').value });
+      showSignedIn(user);
+    } catch (err) {
+      $('totp-code').value = '';
+      // Tíquete expirado ou tentativas demais: volta para a senha
+      if (/expirou/.test(err.message)) {
+        $('totp-form').hidden = true;
+        $('login-form').hidden = false;
+        showError($('login-error'), err);
+      } else {
+        showError($('totp-error'), err);
+      }
     }
   });
 });

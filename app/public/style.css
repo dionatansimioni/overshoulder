@@ -125,6 +125,38 @@ button.round.danger:hover { background: var(--danger-hover); }
 .form p { margin: 0; }
 .field-hint { margin-top: -2px !important; }
 .card h2 { margin: 16px 0 4px; font-size: 18px; }
+.home.wide { max-width: 560px; }
+.section { margin-top: 24px; padding-top: 8px; border-top: 1px solid var(--border); }
+.notice {
+  display: block;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(91, 140, 255, .12);
+  border: 1px solid rgba(91, 140, 255, .35);
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+}
+a { color: var(--accent); }
+a.notice:hover { background: rgba(91, 140, 255, .2); }
+.ok { color: var(--live); margin: 0; font-size: 14px; }
+.qr { align-self: center; width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
+.codes { columns: 2; margin: 8px 0; padding-left: 24px; font-family: ui-monospace, monospace; }
+.row-actions { display: flex; gap: 8px; }
+.row-actions > * { flex: 1; }
+a.button {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  color: #fff;
+  background: var(--accent);
+}
+a.button.secondary { background: var(--panel-2); color: var(--text); }
+a.button.secondary:hover { background: var(--hover); }
 code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size: 13px; }
 
 .brand {

@@ -13,10 +13,13 @@ import {
   passwordProblem,
   randomToken,
   safeEqual,
+  sha256,
   verifyPasswordOrDummy,
 } from './auth.js';
+import { renderSVG } from 'uqr';
 import { log } from './log.js';
 import { createStore } from './store.js';
+import { newRecoveryCodes, newSecret, normalizeRecoveryCode, otpauthUri, verifyCode } from './totp.js';
 
 const env = (name, fallback) => {
   const v = process.env[name] ?? fallback;
@@ -50,6 +53,7 @@ const VENDOR_FILES = new Set(['livekit-client.esm.mjs', 'livekit-client.e2ee.wor
 const PAGES = {
   '/': 'index.html',
   '/configurar': 'setup.html',
+  '/conta': 'account.html',
 };
 
 const rooms = new RoomServiceClient(INTERNAL_URL, API_KEY, API_SECRET);
@@ -105,11 +109,12 @@ const json = (res, status, obj, headers = {}) =>
     ...headers,
   });
 
-// Erro com status e mensagem que podem ir para o cliente
+// Erro com status e mensagem que podem ir para o cliente (e um código opcional para a interface)
 class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -168,7 +173,7 @@ const roomExists = async (roomId) => (await rooms.listRooms([roomId])).length > 
 
 // --- contas e sessões ----------------------------------------------------
 
-const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, ...store.state.settings });
+const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, require2fa: false, ...store.state.settings });
 const findUser = (pred) => store.state.users.find(pred);
 const hasAdmin = () => store.state.users.some((u) => u.role === 'admin');
 
@@ -195,15 +200,29 @@ const currentSession = (req) => {
   return { id, session, user };
 };
 
-// Exige sessão válida (e, se pedido, um papel); devolve { id, session, user }
-const requireUser = (req, role) => {
+const needs2fa = (user) => settings().require2fa && !user.totp;
+
+// Exige sessão válida e, se pedido, um papel; devolve { id, session, user }.
+// Com "Exigir 2FA" ligado, quem ainda não tem 2FA só pode configurá-lo (setup2fa: true).
+const requireUser = (req, { role, setup2fa = false } = {}) => {
   const current = currentSession(req);
   if (!current) throw new HttpError(401, 'Faça login para continuar.');
+  if (!setup2fa && needs2fa(current.user))
+    throw new HttpError(403, 'Este servidor exige verificação em duas etapas. Configure o 2FA para continuar.', '2fa_required');
   if (role && current.user.role !== role) throw new HttpError(403, 'Sem permissão para isso.');
   return current;
 };
 
-const publicUser = (user) => ({ username: user.username, role: user.role });
+const publicUser = (user) => ({
+  username: user.username,
+  role: user.role,
+  totp: !!user.totp,
+  needs2fa: needs2fa(user),
+});
+
+// Login com 2FA em duas etapas: a senha certa gera um tíquete de 5 minutos para o código
+const LOGIN_TICKET_MS = 5 * 60_000;
+const loginTickets = new Map();
 
 // Código de uso único para criar a conta de administrador; aparece nos logs enquanto não houver admin
 let setupCode = null;
@@ -217,7 +236,11 @@ const newSetupCode = () => {
 
 const getState = async (req, res) => {
   const current = currentSession(req);
-  json(res, 200, { setupDone: hasAdmin(), user: current && publicUser(current.user) });
+  json(res, 200, {
+    setupDone: hasAdmin(),
+    require2fa: settings().require2fa,
+    user: current && publicUser(current.user),
+  });
 };
 
 const setup = async (req, res) => {
@@ -275,7 +298,53 @@ const login = async (req, res) => {
     return json(res, 401, { error: 'Usuário ou senha incorretos.' });
   }
   accountLimiter.reset(name);
+  if (user.totp) {
+    const ticket = randomToken();
+    for (const [key, t] of loginTickets) if (t.expires < Date.now()) loginTickets.delete(key);
+    loginTickets.set(sha256(ticket), { userId: user.id, expires: Date.now() + LOGIN_TICKET_MS, attempts: 0 });
+    log.info('senha correta, aguardando 2FA', { user: user.username });
+    return json(res, 200, { next: 'totp', ticket });
+  }
   log.info('login', { user: user.username });
+  json(res, 200, { user: publicUser(user) }, startSession(req, user));
+};
+
+// Segunda etapa do login: código do app autenticador ou um código de recuperação
+const loginTotp = async (req, res) => {
+  const ip = clientIp(req);
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { ticket, code } = await readJson(req);
+  const key = typeof ticket === 'string' ? sha256(ticket) : '';
+  const pending = loginTickets.get(key);
+  const user = pending && pending.expires > Date.now() && findUser((u) => u.id === pending.userId);
+  if (!user || user.disabled || !user.totp) {
+    loginTickets.delete(key);
+    return json(res, 401, { error: 'O login expirou. Entre com a senha de novo.' });
+  }
+  if (accountLimiter.blocked(user.username))
+    return json(res, 429, { error: 'Muitas tentativas nesta conta. Espere alguns minutos.' });
+
+  const step = verifyCode(user.totp.secret, typeof code === 'string' ? code.trim() : '', user.totp.lastStep);
+  const recoveryHash = step === null ? sha256(normalizeRecoveryCode(code)) : null;
+  const recoveryIndex = recoveryHash ? user.totp.recovery.indexOf(recoveryHash) : -1;
+  if (step === null && recoveryIndex < 0) {
+    pending.attempts++;
+    if (pending.attempts >= 5) loginTickets.delete(key);
+    ipLimiter.fail(ip);
+    accountLimiter.fail(user.username);
+    log.warn('2FA falhou', { user: user.username });
+    return json(res, 401, { error: 'Código incorreto.' });
+  }
+
+  loginTickets.delete(key);
+  accountLimiter.reset(user.username);
+  store.update(() => {
+    if (step !== null) user.totp.lastStep = step;
+    else user.totp.recovery.splice(recoveryIndex, 1);
+  });
+  if (step === null)
+    log.warn('código de recuperação usado', { user: user.username, restantes: user.totp.recovery.length });
+  log.info('login', { user: user.username, metodo: step === null ? 'recuperação' : '2FA' });
   json(res, 200, { user: publicUser(user) }, startSession(req, user));
 };
 
@@ -286,7 +355,7 @@ const logout = async (req, res) => {
 };
 
 const changePassword = async (req, res) => {
-  const { id, user } = requireUser(req);
+  const { id, user } = requireUser(req, { setup2fa: true });
   const { current, password } = await readJson(req);
   if (typeof current !== 'string' || !(await verifyPasswordOrDummy(current, user.passwordHash))) {
     log.warn('troca de senha recusada', { user: user.username });
@@ -300,6 +369,108 @@ const changePassword = async (req, res) => {
   });
   sessions.destroyUser(user.id, id);
   log.info('senha alterada', { user: user.username });
+  json(res, 200, { ok: true });
+};
+
+// --- API: 2FA --------------------------------------------------------------
+
+const hashRecoveryCodes = (codes) => codes.map((c) => sha256(normalizeRecoveryCode(c)));
+
+const setup2fa = async (req, res) => {
+  const { session, user } = requireUser(req, { setup2fa: true });
+  await readJson(req);
+  if (user.totp) return json(res, 409, { error: 'O 2FA já está ativo nesta conta.' });
+  const secret = newSecret();
+  session.pendingTotp = secret;
+  const uri = otpauthUri(secret, user.username);
+  const qr = `data:image/svg+xml;base64,${Buffer.from(renderSVG(uri)).toString('base64')}`;
+  json(res, 200, { secret, uri, qr });
+};
+
+const enable2fa = async (req, res) => {
+  const { session, user } = requireUser(req, { setup2fa: true });
+  const { code } = await readJson(req);
+  if (user.totp) return json(res, 409, { error: 'O 2FA já está ativo nesta conta.' });
+  if (!session.pendingTotp) return json(res, 400, { error: 'Comece a configuração do 2FA de novo.' });
+  const step = verifyCode(session.pendingTotp, typeof code === 'string' ? code.trim() : '');
+  if (step === null) return json(res, 400, { error: 'Código incorreto. Confira se o relógio do celular está certo.' });
+  const recoveryCodes = newRecoveryCodes();
+  store.update(() => {
+    user.totp = { secret: session.pendingTotp, lastStep: step, recovery: hashRecoveryCodes(recoveryCodes) };
+  });
+  delete session.pendingTotp;
+  log.info('2FA ativado', { user: user.username });
+  json(res, 200, { recoveryCodes, user: publicUser(user) });
+};
+
+const disable2fa = async (req, res) => {
+  const { user } = requireUser(req);
+  const { password } = await readJson(req);
+  if (!user.totp) return json(res, 409, { error: 'O 2FA não está ativo nesta conta.' });
+  if (settings().require2fa) return json(res, 403, { error: 'O administrador exige 2FA neste servidor.' });
+  if (typeof password !== 'string' || !(await verifyPasswordOrDummy(password, user.passwordHash))) {
+    log.warn('desativar 2FA recusado', { user: user.username });
+    return json(res, 403, { error: 'Senha incorreta.' });
+  }
+  store.update(() => {
+    delete user.totp;
+  });
+  log.warn('2FA desativado', { user: user.username });
+  json(res, 200, { user: publicUser(user) });
+};
+
+// --- API: administração -----------------------------------------------------
+
+const getSettings = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  json(res, 200, settings());
+};
+
+const updateSettings = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const { require2fa, maxParticipants } = await readJson(req);
+  const changes = {};
+  if (require2fa !== undefined) {
+    if (typeof require2fa !== 'boolean') return json(res, 400, { error: 'require2fa deve ser verdadeiro ou falso.' });
+    changes.require2fa = require2fa;
+  }
+  if (maxParticipants !== undefined) {
+    if (!Number.isInteger(maxParticipants) || maxParticipants < 2 || maxParticipants > 500)
+      return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 500.' });
+    changes.maxParticipants = maxParticipants;
+  }
+  store.update((s) => Object.assign(s.settings, changes));
+  log.info('configuração alterada', { user: user.username, ...changes });
+  json(res, 200, settings());
+};
+
+const targetUser = (username) => {
+  const target = typeof username === 'string' && findUser((u) => u.username === username.trim().toLowerCase());
+  if (!target) throw new HttpError(404, 'Conta não encontrada.');
+  return target;
+};
+
+// Só o admin gera um conjunto novo de códigos de recuperação (para si ou para outra conta)
+const regenerateRecoveryCodes = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = targetUser((await readJson(req)).username);
+  if (!target.totp) return json(res, 400, { error: 'Essa conta não usa 2FA.' });
+  const recoveryCodes = newRecoveryCodes();
+  store.update(() => {
+    target.totp.recovery = hashRecoveryCodes(recoveryCodes);
+  });
+  log.warn('códigos de recuperação gerados', { user: user.username, conta: target.username });
+  json(res, 200, { recoveryCodes });
+};
+
+// Para quem perdeu o celular: remove o 2FA da conta, que pode configurá-lo de novo
+const reset2fa = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = targetUser((await readJson(req)).username);
+  store.update(() => {
+    delete target.totp;
+  });
+  log.warn('2FA removido pelo admin', { user: user.username, conta: target.username });
   json(res, 200, { ok: true });
 };
 
@@ -371,7 +542,15 @@ const routes = {
   'GET /api/state': getState,
   'POST /api/setup': setup,
   'POST /api/login': login,
+  'POST /api/login/totp': loginTotp,
   'POST /api/logout': logout,
+  'POST /api/2fa/setup': setup2fa,
+  'POST /api/2fa/enable': enable2fa,
+  'POST /api/2fa/disable': disable2fa,
+  'GET /api/admin/settings': getSettings,
+  'POST /api/admin/settings': updateSettings,
+  'POST /api/admin/recovery-codes': regenerateRecoveryCodes,
+  'POST /api/admin/reset-2fa': reset2fa,
   'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
   'POST /api/token': issueToken,
@@ -414,7 +593,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 404, 'Não encontrado', { 'Content-Type': 'text/plain; charset=utf-8' });
   } catch (err) {
     if (err instanceof HttpError) {
-      if (!res.headersSent) json(res, err.status, { error: err.message });
+      if (!res.headersSent) json(res, err.status, { error: err.message, ...(err.code && { code: err.code }) });
       return;
     }
     log.error('erro interno', { error: err.message, stack: err.stack });

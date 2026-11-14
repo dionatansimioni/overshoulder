@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Overshoulder · Minha conta</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/account.js"></script>
+</head>
+<body>
+  <main class="home wide">
+    <div class="card">
+      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Minha conta</h1>
+      <p class="muted">Conectado como <b id="me"></b>. <a href="/">Voltar</a></p>
+
+      <section class="section">
+        <h2>Verificação em duas etapas (2FA)</h2>
+        <p id="required-2fa" class="notice" hidden>Este servidor exige 2FA. Configure agora para continuar usando a sua conta.</p>
+
+        <div id="twofa-off" hidden>
+          <p class="muted small">Além da senha, o login pede um código de 6 dígitos de um app autenticador no celular (Google Authenticator, Aegis, 1Password, Bitwarden). Recomendado: protege a conta mesmo se a senha vazar.</p>
+          <button id="start-2fa" type="button">Ativar 2FA</button>
+        </div>
+
+        <form id="enable-form" class="form" hidden>
+          <p class="muted small">1. Escaneie o QR code com o app autenticador (ou digite a chave).</p>
+          <img id="qr" class="qr" alt="QR code para o app autenticador" width="200" height="200">
+          <p class="small">Chave: <code id="secret"></code></p>
+          <label for="enable-code">2. Digite o código que o app mostra</label>
+          <input id="enable-code" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6" required>
+          <button type="submit">Confirmar e ativar</button>
+          <p id="enable-error" class="error" hidden></p>
+        </form>
+
+        <div id="recovery" hidden>
+          <p class="notice">Guarde estes códigos de recuperação num lugar seguro. Cada um vale uma vez, caso você perca o celular. Eles não serão mostrados de novo; só o administrador pode gerar outros.</p>
+          <ol id="recovery-codes" class="codes"></ol>
+          <button id="copy-recovery" type="button" class="secondary">Copiar códigos</button>
+        </div>
+
+        <form id="disable-form" class="form" hidden>
+          <p class="muted small">O 2FA está <b>ativo</b>.</p>
+          <label for="disable-password">Senha, para desativar o 2FA</label>
+          <input id="disable-password" type="password" autocomplete="current-password" required>
+          <button type="submit" class="danger">Desativar 2FA</button>
+          <p id="disable-error" class="error" hidden></p>
+        </form>
+        <p id="twofa-locked" class="muted small" hidden>O 2FA está <b>ativo</b>. O administrador exige 2FA neste servidor, então ele não pode ser desativado.</p>
+      </section>
+
+      <section class="section">
+        <h2>Trocar senha</h2>
+        <form id="password-form" class="form">
+          <label for="current">Senha atual</label>
+          <input id="current" type="password" autocomplete="current-password" required>
+          <label for="new-password">Nova senha</label>
+          <input id="new-password" type="password" autocomplete="new-password" required>
+          <p class="muted small field-hint">Pelo menos 12 caracteres. As suas outras sessões serão encerradas.</p>
+          <label for="new-password2">Confirme a nova senha</label>
+          <input id="new-password2" type="password" autocomplete="new-password" required>
+          <button type="submit">Trocar senha</button>
+          <p id="password-error" class="error" hidden></p>
+          <p id="password-ok" class="ok" hidden>Senha alterada.</p>
+        </form>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
