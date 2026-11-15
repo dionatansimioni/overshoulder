@@ -62,7 +62,9 @@ code=$(sed -n 's/.*código de configuração: \([A-Z0-9-]*\)$/\1/p' <<<"$out")
 [ -n "$code" ] || die "instalador não mostrou o código de configuração: $out"
 grep -q "Abra https://127.0.0.1:18493/configurar" <<<"$out" || die "endereço errado no fim da instalação: $out"
 [ "$(curl -sk "$BASE/healthz")" = '{"status":"ok"}' ] || die "site não respondeu depois da instalação"
-[ "$(stat -c %a "$TMP/opt/.env")" = 600 ] || die ".env deveria ter permissão 600"
+# O .env não guarda segredos e precisa ser legível sem sudo (overshoulder status)
+[ "$(stat -c %a "$TMP/opt/.env")" = 644 ] || die ".env deveria ter permissão 644"
+! grep -qiE "secret|senha|password|key" "$TMP/opt/.env" || die ".env não deveria guardar segredos"
 grep -qx 'TLS=local' "$TMP/opt/.env" && grep -qx 'NODE_IP=127.0.0.1' "$TMP/opt/.env" || die ".env da rede local: $(cat "$TMP/opt/.env")"
 ok "modo rede local instala, sobe saudável e mostra o endereço e o código de configuração"
 

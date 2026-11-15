@@ -191,7 +191,8 @@ volumes:
     name: $NAME-data
 EOF
 
-umask 077
+# Sem segredos aqui (eles ficam no volume, em /data): legível para quem usa o comando sem sudo,
+# como "overshoulder status", que precisa do .env para o Compose
 cat >"$DIR/.env" <<EOF
 OVERSHOULDER_VERSION=$VERSION
 DOMAIN=$domain
@@ -203,7 +204,7 @@ RTC_TCP_PORT=$RTC_TCP_PORT
 RTC_UDP_PORT=$RTC_UDP_PORT
 INSTALL_METHOD=installer
 EOF
-umask 022
+chmod 644 "$DIR/.env"
 
 # Comando "overshoulder" do servidor: guarda onde está a instalação
 mkdir -p "$(dirname "$BIN")"
