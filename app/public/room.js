@@ -19,7 +19,8 @@ import { createNetworkWatch, summarizeSend } from '/static/send-stats.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
-import { copyText } from '/static/ui.js';
+import { mountRoomList } from '/static/room-list.js';
+import { api, copyText } from '/static/ui.js';
 
 translatePage();
 mountLanguageSwitch();
@@ -1559,6 +1560,40 @@ if (!e2eeKey) {
 }
 
 setupPreview();
+
+// --- gaveta lateral: outras salas e a gestão do servidor, para quem tem conta ----------
+
+const setupNav = async () => {
+  const { user } = await api('/api/state').catch(() => ({}));
+  if (!user || user.needs2fa) return;
+  $('nav-toggle').hidden = false;
+  $('nav-admin').hidden = user.role !== 'admin';
+  let list = null;
+  const toggle = (open) => {
+    $('room-nav').hidden = $('nav-backdrop').hidden = !open;
+    $('nav-toggle').setAttribute('aria-expanded', String(open));
+    if (open) {
+      list ??= mountRoomList({
+        isAdmin: user.role === 'admin',
+        current: roomId,
+        ids: { mine: 'nav-rooms', empty: 'nav-no-rooms', fixedSection: 'nav-fixed-section', fixed: 'nav-fixed-rooms' },
+      });
+      $('room-nav').querySelector('a')?.focus();
+    } else $('nav-toggle').focus();
+  };
+  $('nav-toggle').addEventListener('click', () => toggle($('room-nav').hidden));
+  $('nav-close').addEventListener('click', () => toggle(false));
+  $('nav-backdrop').addEventListener('click', () => toggle(false));
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && !$('room-nav').hidden && toggle(false));
+  // Sair da sala por um link da gaveta: quem transmite ou é anfitrião confirma antes
+  $('room-nav').addEventListener('click', (e) => {
+    const link = e.target.closest('a[href]');
+    if (!link || !room || room.state !== 'connected') return;
+    const broadcasting = room.localParticipant.isScreenShareEnabled || room.localParticipant.isCameraEnabled || !!voiceTrack;
+    if ((isHost || broadcasting) && !confirm(t('Sair desta sala? Sua transmissão para aqui.'))) e.preventDefault();
+  });
+};
+setupNav();
 
 $('join-form').addEventListener('submit', async (e) => {
   e.preventDefault();

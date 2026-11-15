@@ -379,6 +379,24 @@ button.big { padding: 14px 20px; font-size: 17px; font-weight: 600; }
   .admin-main { padding: 20px 16px; }
 }
 
+/* --- gaveta lateral da sala ---------------------------------------------------- */
+
+.topbar-start { display: flex; align-items: center; gap: 10px; }
+button.round.nav-toggle { width: 40px; height: 40px; }
+.room-nav {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  width: min(300px, 86vw);
+  overflow-y: auto;
+  box-shadow: 12px 0 32px rgba(0, 0, 0, .45);
+}
+.room-nav[hidden], .nav-backdrop[hidden] { display: none; }
+.room-nav-head { display: flex; align-items: center; justify-content: space-between; }
+.room-nav-head button.round { width: 36px; height: 36px; }
+.room-nav .room-link[aria-current="page"] { background: var(--hover); border-radius: 6px; }
+.nav-backdrop { position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .55); }
+
 /* --- antessala: prévia de câmera e microfone -------------------------------- */
 
 .home.lobby { max-width: 880px; }

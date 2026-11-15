@@ -59,6 +59,11 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  Menu: 'Menu',
+  Navegação: 'Navigation',
+  'Fechar menu': 'Close menu',
+  'Página inicial': 'Home',
+  'Sair desta sala? Sua transmissão para aqui.': 'Leave this room? Your broadcast stops here.',
   'No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar” e escolha o “Monitor of …” da sua saída de som.':
     'On Linux, the browser does not send the computer sound with the screen. In Settings › Game audio, click “List” and pick the “Monitor of …” of your sound output.',
   'Enviando o áudio de: {device}': 'Sending audio from: {device}',
