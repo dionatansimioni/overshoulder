@@ -1,14 +1,17 @@
 :root {
-  --bg: #111214;
-  --panel: #1a1b1f;
-  --panel-2: #232429;
-  --hover: #2c2e34;
-  --border: #2f3138;
-  --input: #0d0e10;
-  --text: #f0f1f4;
-  --muted: #9a9ca5;
-  --accent: #5b8cff;
-  --accent-hover: #4878f0;
+  /* Cores da marca: roxo (#9732F6) nos botões e destaques, ciano (#1DF0FC) em links e foco */
+  --bg: #100d16;
+  --panel: #19161f;
+  --panel-2: #221e2b;
+  --hover: #2b2636;
+  --border: #2f2a3a;
+  --input: #0b0910;
+  --text: #f2f0f7;
+  --muted: #a19cae;
+  --accent: #9732f6;
+  --accent-hover: #8324e3;
+  --accent-2: #1df0fc;
+  --brand-gradient: linear-gradient(135deg, #9732f6, #1df0fc);
   --danger: #e5484d;
   --danger-hover: #cc3a3f;
   --live: #2fb37a;
@@ -80,7 +83,7 @@ button {
 }
 button:hover { background: var(--accent-hover); }
 button:active { transform: translateY(1px); }
-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 button:disabled { opacity: .5; cursor: default; transform: none; }
 
 button.secondary { background: var(--panel-2); color: var(--text); }
@@ -133,14 +136,14 @@ button.round.danger:hover { background: var(--danger-hover); }
   margin: 8px 0;
   padding: 10px 12px;
   border-radius: var(--radius);
-  background: rgba(91, 140, 255, .12);
-  border: 1px solid rgba(91, 140, 255, .35);
+  background: rgba(151, 50, 246, .12);
+  border: 1px solid rgba(151, 50, 246, .35);
   color: var(--text);
   font-size: 14px;
   text-decoration: none;
 }
-a { color: var(--accent); }
-a.notice:hover { background: rgba(91, 140, 255, .2); }
+a { color: var(--accent-2); }
+a.notice:hover { background: rgba(151, 50, 246, .2); }
 .ok { color: var(--live); margin: 0; font-size: 14px; }
 .warn { color: var(--warn); }
 .qr { align-self: center; width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
@@ -225,7 +228,7 @@ fieldset.step p { margin: 0; }
 .room-link { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 6px 8px; color: var(--text); text-decoration: none; }
 .room-link-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .room-link-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.room-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+.room-link:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; border-radius: 6px; }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
 .dot.live { background: var(--live); box-shadow: 0 0 0 3px rgba(47, 179, 122, .25); }
 button.forget { padding: 4px 8px; margin-right: 4px; background: transparent; color: var(--muted); font-size: 12px; opacity: 0; }
@@ -686,7 +689,7 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 .people-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .requests { list-style: none; margin: 0; padding: 12px 8px 0; display: flex; flex-direction: column; gap: 6px; }
 .request { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px;
-  background: rgba(91, 140, 255, .12); border: 1px solid rgba(91, 140, 255, .35); font-size: 14px; }
+  background: rgba(151, 50, 246, .12); border: 1px solid rgba(151, 50, 246, .35); font-size: 14px; }
 .request span { flex: 1 1 100%; }
 .request button { padding: 4px 10px; font-size: 12px; }
 .people { flex: none; overflow: visible; }

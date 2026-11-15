@@ -1,12 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Overshoulder">
   <defs>
+    <linearGradient id="g" x1="0" y1="512" x2="512" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9732F6"/><stop offset="1" stop-color="#1DF0FC"/>
+    </linearGradient>
     <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#5b8cff"/>
-  <rect x="168" y="88" width="268" height="190" rx="30" fill="#0f1115" stroke="#fff" stroke-width="26"/>
-  <path d="M276 140 352 183 276 226Z" fill="#fff" stroke="#fff" stroke-width="18" stroke-linejoin="round"/>
-  <g clip-path="url(#tile)" fill="#fff" stroke="#5b8cff" stroke-width="22">
-    <path d="M24 540c0-108 72-176 168-176s168 68 168 176Z"/>
-    <circle cx="192" cy="292" r="74"/>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <rect x="176" y="92" width="256" height="182" rx="34" fill="#140a26" stroke="#fff" stroke-width="24"/>
+  <path d="M282 142 350 183 282 224Z" fill="url(#g)" stroke="url(#g)" stroke-width="16" stroke-linejoin="round"/>
+  <g clip-path="url(#tile)" fill="#fff" stroke="url(#g)" stroke-width="24">
+    <path d="M28 548c0-110 74-180 170-180s170 70 170 180Z"/>
+    <circle cx="198" cy="292" r="76"/>
   </g>
 </svg>

@@ -152,7 +152,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 Ordem de execução, um commit por item:
 1. ✅ **Removido da sala:** quem é removido vai para uma tela "A live foi encerrada. Se isso foi um engano, entre em contato com o dono do servidor." (sem dizer que o anfitrião removeu).
 2. ✅ **Administração com botões:** os itens clicáveis do `/admin` (menu, Voltar, Minha conta) viram botões, não links simples.
-2b. **Logo novo e paleta da interface** (pedido depois): logo melhorado com **#9732F6** (roxo) e **#1DF0FC** (ciano), que passam a ser a referência de cores do app inteiro. Feito antes dos itens visuais seguintes para não refazer o visual duas vezes.
+2b. ✅ **Logo novo e paleta da interface** (pedido depois): logo melhorado com **#9732F6** (roxo) e **#1DF0FC** (ciano), que passam a ser a referência de cores do app inteiro. Feito antes dos itens visuais seguintes para não refazer o visual duas vezes.
 3. **Sala só de voz:** quando ninguém transmite tela ou câmera, o espaço do vídeo mostra uma imagem (quem está na sala e quem está falando), não uma tela preta.
 3b. **Barra de controles reordenada** para quem transmite: à esquerda as entradas (microfone, câmera, tela ou janela); à direita volume, tela cheia, gravar, ajustes e, por último, encerrar. Resolução e taxa de bits ficam nos ajustes.
 4. **Microfone funcionando:** indicador de volume visível para quem transmite.
