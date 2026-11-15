@@ -39,12 +39,15 @@ const PAGES = [...document.querySelectorAll('.admin-page')].map((p) => p.id);
 const showPage = () => {
   const id = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : PAGES[0];
   for (const page of PAGES) $(page).hidden = page !== id;
-  for (const link of document.querySelectorAll('.admin-nav a')) {
-    if (link.hash === `#${id}`) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
+  for (const item of document.querySelectorAll('.admin-nav button')) {
+    if (item.dataset.page === id) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
   }
 };
 addEventListener('hashchange', showPage);
+for (const item of document.querySelectorAll('.admin-nav button')) {
+  item.addEventListener('click', () => (location.hash = item.dataset.page));
+}
 showPage();
 
 // --- configurações ---------------------------------------------------------

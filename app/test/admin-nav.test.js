@@ -26,7 +26,7 @@ const newPage = async (options = {}) => {
 };
 
 const visiblePages = (page) => page.$$eval('.admin-page', (els) => els.filter((e) => !e.hidden).map((e) => e.id));
-const current = (page) => page.getAttribute('.admin-nav a[aria-current="page"]', 'href');
+const current = (page) => page.getAttribute('.admin-nav button[aria-current="page"]', 'data-page').then((p) => `#${p}`);
 
 describe('administração com menu lateral', () => {
   test('uma seção por vez, com endereço próprio e Voltar do navegador', async () => {
@@ -38,11 +38,11 @@ describe('administração com menu lateral', () => {
     assert.deepEqual(await visiblePages(page), ['geral']);
     assert.equal(await current(page), '#geral');
 
-    await page.click('.admin-nav a[href="#salas"]');
+    await page.click('.admin-nav button[data-page="salas"]');
     await page.waitForSelector('#salas:not([hidden])');
     assert.deepEqual(await visiblePages(page), ['salas']);
     assert.equal(await current(page), '#salas');
-    await page.click('.admin-nav a[href="#avancado"]');
+    await page.click('.admin-nav button[data-page="avancado"]');
     await page.waitForSelector('#avancado:not([hidden])');
     assert.deepEqual(await visiblePages(page), ['avancado']);
 
@@ -56,6 +56,21 @@ describe('administração com menu lateral', () => {
     await page.goto(`${s.url}/admin#nada`);
     await page.waitForSelector('#geral:not([hidden])');
     assert.deepEqual(errors, []);
+  });
+
+  test('tudo que se clica no painel é botão: nada de link simples', async () => {
+    const s = await fresh(13206);
+    const { page } = await newPage();
+    await loginInBrowser(page, s.url);
+    for (const section of ['geral', 'salas', 'transmissores', 'convites', 'avancado']) {
+      await page.goto(`${s.url}/admin#${section}`);
+      await page.waitForSelector(`#${section}:not([hidden])`);
+      await page.waitForLoadState('networkidle');
+      const plain = await page.$$eval('a', (links) =>
+        links.filter((a) => a.offsetParent !== null && !a.classList.contains('button')).map((a) => a.textContent.trim()),
+      );
+      assert.deepEqual(plain, [], `links simples em ${section}`);
+    }
   });
 
   test('SSO e TURN ficam em Avançado; o TURN mostra se está ligado', async () => {
@@ -87,7 +102,7 @@ describe('administração com menu lateral', () => {
     await loginInBrowser(page, s.url);
     await page.goto(`${s.url}/admin`);
     await page.waitForSelector('#geral:not([hidden])');
-    await page.focus('.admin-nav a[href="#convites"]');
+    await page.focus('.admin-nav button[data-page="convites"]');
     await page.keyboard.press('Enter');
     await page.waitForSelector('#convites:not([hidden])');
     assert.equal(await current(page), '#convites');
@@ -100,7 +115,7 @@ describe('administração com menu lateral', () => {
     await page.goto(`${s.url}/admin`);
     await page.waitForSelector('#geral:not([hidden])');
     for (const href of ['#geral', '#salas', '#transmissores', '#convites', '#avancado']) {
-      const box = await page.locator(`.admin-nav a[href="${href}"]`).boundingBox();
+      const box = await page.locator(`.admin-nav button[data-page="${href.slice(1)}"]`).boundingBox();
       assert.ok(box && box.x >= 0 && box.x + box.width <= 390, `${href} dentro da tela`);
     }
     assert.ok((await page.evaluate(() => document.documentElement.scrollWidth)) <= 390, 'sem rolagem lateral');

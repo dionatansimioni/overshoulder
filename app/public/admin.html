@@ -18,13 +18,16 @@
     <aside class="admin-side">
       <span class="brand small-brand"><img src="/static/icon.svg" alt="" width="24" height="24">Administração</span>
       <nav class="admin-nav" aria-label="Seções da administração">
-        <a href="#geral">Geral</a>
-        <a href="#salas">Salas fixas</a>
-        <a href="#transmissores">Transmissores</a>
-        <a href="#convites">Convites</a>
-        <a href="#avancado">Avançado</a>
+        <button type="button" data-page="geral">Geral</button>
+        <button type="button" data-page="salas">Salas fixas</button>
+        <button type="button" data-page="transmissores">Transmissores</button>
+        <button type="button" data-page="convites">Convites</button>
+        <button type="button" data-page="avancado">Avançado</button>
       </nav>
-      <p class="side-links"><a href="/">Voltar</a> <a href="/conta">Minha conta</a></p>
+      <div class="side-buttons">
+        <a class="button secondary" href="/">Voltar</a>
+        <a class="button secondary" href="/conta">Minha conta</a>
+      </div>
     </aside>
     <main class="admin-main">
       <section id="geral" class="admin-page" hidden>
