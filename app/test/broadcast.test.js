@@ -134,7 +134,9 @@ describe('avisos de rede para quem transmite', () => {
       const report = await original.call(this);
       const out = new Map();
       report.forEach((v, k) => {
-        if (v.type === 'outbound-rtp' && window.fakeLimit) v = { ...v, qualityLimitationReason: 'bandwidth' };
+        // Sem limite pedido, a rede falsa não limita: no runner lento do CI, a estatística real às vezes
+        // diz "bandwidth" e o aviso de banda aparecia no lugar do de perda de pacotes
+        if (v.type === 'outbound-rtp') v = { ...v, qualityLimitationReason: window.fakeLimit ? 'bandwidth' : 'none' };
         if (v.type === 'remote-inbound-rtp' && window.fakeLoss) v = { ...v, packetsLost: (window.fakeLost += 400) };
         out.set(k, v);
       });
