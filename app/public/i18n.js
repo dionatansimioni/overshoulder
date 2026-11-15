@@ -45,6 +45,14 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Prévia de câmera e microfone': 'Camera and microphone preview',
+  'Câmera desligada': 'Camera off',
+  'Teste a câmera e o microfone antes de entrar. O que estiver ligado aqui entra ligado na sala, se você puder falar ou aparecer.':
+    'Test your camera and microphone before joining. Whatever is on here stays on in the room, if you are allowed to talk or appear.',
+  'Não foi possível abrir o microfone.': 'Could not open the microphone.',
+  'Não foi possível abrir a câmera.': 'Could not open the camera.',
+  'Seu microfone fica desligado até o anfitrião liberar a palavra.': 'Your microphone stays off until the host gives you the floor.',
+  'Sua câmera fica desligada: nesta sala, só quem apresenta aparece.': 'Your camera stays off: in this room, only the presenter appears.',
   'Quem abrir o link entra só com o nome, sem conta.': 'Whoever opens the link joins with just a name, no account.',
   'Compartilhe a tela com seu público, direto no navegador e com criptografia de ponta a ponta.':
     'Share your screen with your audience, right in the browser, with end-to-end encryption.',

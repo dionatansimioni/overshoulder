@@ -285,6 +285,36 @@ button.big { padding: 14px 20px; font-size: 17px; font-weight: 600; }
   button.forget { opacity: 1; }
 }
 
+/* --- antessala: prévia de câmera e microfone -------------------------------- */
+
+.home.lobby { max-width: 880px; }
+.lobby-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items: start; }
+.preview { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.preview p { margin: 0; }
+.preview-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  display: grid;
+  place-items: center;
+}
+.preview-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.preview-buttons { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; }
+.preview-buttons button.round { background: rgba(35, 36, 41, .85); }
+.preview-buttons button.round.on { background: var(--accent); }
+.meter { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0; background: var(--live); transition: width .08s linear; }
+.lobby-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+@media (max-width: 760px) {
+  .lobby-grid { grid-template-columns: 1fr; }
+  /* No celular, quem chega quase sempre só quer entrar: nome e botão primeiro, a prévia depois */
+  .lobby-side { order: -1; }
+  .home.lobby { margin-top: 16px; }
+}
+
 /* --- sala --------------------------------------------------------------- */
 
 .room {

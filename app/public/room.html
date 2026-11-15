@@ -29,29 +29,52 @@
   </svg>
 
   <!-- Tela de entrada: o clique em "Entrar" também libera o autoplay de áudio -->
-  <main id="join" class="home">
+  <main id="join" class="home lobby">
     <div class="card">
       <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
-      <form id="join-form" class="form">
-        <label for="name">Seu nome</label>
-        <input id="name" maxlength="32" autocomplete="nickname" required>
-        <p id="sso-hint" class="muted small" hidden></p>
-        <div id="password-row" hidden>
-          <label for="invite-password">Senha do convite</label>
-          <input id="invite-password" type="password" maxlength="128" autocomplete="off">
+      <div class="lobby-grid">
+        <section class="preview" aria-label="Prévia de câmera e microfone">
+          <div class="preview-video">
+            <video id="preview-video" autoplay muted playsinline></video>
+            <span id="preview-off" class="muted small">Câmera desligada</span>
+            <div class="preview-buttons">
+              <button id="preview-mic" type="button" class="round" aria-pressed="false"><svg class="icon"><use href="#i-mic-off"/></svg></button>
+              <button id="preview-camera" type="button" class="round" aria-pressed="false"><svg class="icon"><use href="#i-camera-off"/></svg></button>
+            </div>
+          </div>
+          <div class="meter" aria-hidden="true"><span id="mic-level"></span></div>
+          <p class="muted small">Teste a câmera e o microfone antes de entrar. O que estiver ligado aqui entra ligado na sala, se você puder falar ou aparecer.</p>
+          <div id="preview-devices" class="form" hidden>
+            <label for="preview-mic-device">Microfone</label>
+            <select id="preview-mic-device"><option value="">Padrão do sistema</option></select>
+            <label for="preview-camera-device">Câmera</label>
+            <select id="preview-camera-device"><option value="">Padrão do sistema</option></select>
+          </div>
+          <p id="preview-error" class="error" role="alert" hidden></p>
+        </section>
+        <div class="lobby-side">
+          <form id="join-form" class="form">
+            <label for="name">Seu nome</label>
+            <input id="name" maxlength="32" autocomplete="nickname" required>
+            <p id="sso-hint" class="muted small" hidden></p>
+            <div id="password-row" hidden>
+              <label for="invite-password">Senha do convite</label>
+              <input id="invite-password" type="password" maxlength="128" autocomplete="off">
+            </div>
+            <button type="submit">Entrar na sala</button>
+            <p id="waiting-msg" class="notice" role="status" hidden>Aguardando o anfitrião liberar sua entrada…</p>
+            <p id="join-error" class="error" hidden></p>
+            <button id="sso-join" type="button" class="secondary" hidden>Entrar com login da empresa</button>
+          </form>
+          <div id="join-invite" class="section" hidden>
+            <label for="join-invite-link">Link para convidar</label>
+            <div class="invite-box">
+              <input id="join-invite-link" readonly>
+              <button id="join-copy" type="button" class="secondary">Copiar</button>
+            </div>
+            <p class="muted small field-hint">Quem abrir o link entra só com o nome, sem conta.</p>
+          </div>
         </div>
-        <button type="submit">Entrar na sala</button>
-        <p id="waiting-msg" class="notice" role="status" hidden>Aguardando o anfitrião liberar sua entrada…</p>
-        <p id="join-error" class="error" hidden></p>
-        <button id="sso-join" type="button" class="secondary" hidden>Entrar com login da empresa</button>
-      </form>
-      <div id="join-invite" class="section" hidden>
-        <label for="join-invite-link">Link para convidar</label>
-        <div class="invite-box">
-          <input id="join-invite-link" readonly>
-          <button id="join-copy" type="button" class="secondary">Copiar</button>
-        </div>
-        <p class="muted small field-hint">Quem abrir o link entra só com o nome, sem conta.</p>
       </div>
       <p class="muted small lang-row"><span data-lang-switch></span></p>
     </div>

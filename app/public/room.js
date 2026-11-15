@@ -15,6 +15,7 @@ import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { PRESETS, HEAVY_HEIGHT, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
+import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { copyText } from '/static/ui.js';
 
@@ -939,6 +940,30 @@ const withButton = async (id, fn, onError) => {
   }
 };
 
+const micError = (err) =>
+  addMessage(err?.name === 'NotAllowedError' ? t('Permissão de microfone negada.') : t('Erro no microfone: {error}', { error: err.message }));
+const cameraError = (err) =>
+  addMessage(err?.name === 'NotAllowedError' ? t('Permissão de câmera negada.') : t('Erro na câmera: {error}', { error: err.message }));
+
+// O que ficou ligado na antessala entra ligado, se a sala permitir; os dispositivos escolhidos vêm junto
+const applyPreviewChoice = async (choice) => {
+  for (const [select, options, value] of [
+    [$('mic-device'), choice.micOptions, choice.micDevice],
+    [$('camera-device'), choice.cameraOptions, choice.cameraDevice],
+  ]) {
+    if (select.length === 1) for (const [text, v] of options) select.add(new Option(text, v));
+    select.value = value;
+  }
+  if (choice.mic) {
+    if (can('microphone')) await withButton('mic', toggleMic, micError);
+    else addMessage(t('Seu microfone fica desligado até o anfitrião liberar a palavra.'));
+  }
+  if (choice.camera) {
+    if (can('camera')) await withButton('camera', toggleCamera, cameraError);
+    else addMessage(t('Sua câmera fica desligada: nesta sala, só quem apresenta aparece.'));
+  }
+};
+
 const setupPublishControls = () => {
   setupSettings();
   setupPipLayout();
@@ -959,17 +984,8 @@ const setupPublishControls = () => {
     ),
   );
 
-  $('mic').addEventListener('click', () =>
-    withButton('mic', toggleMic, (err) =>
-      addMessage(err?.name === 'NotAllowedError' ? t('Permissão de microfone negada.') : t('Erro no microfone: {error}', { error: err.message })),
-    ),
-  );
-
-  $('camera').addEventListener('click', () =>
-    withButton('camera', toggleCamera, (err) =>
-      addMessage(err?.name === 'NotAllowedError' ? t('Permissão de câmera negada.') : t('Erro na câmera: {error}', { error: err.message })),
-    ),
-  );
+  $('mic').addEventListener('click', () => withButton('mic', toggleMic, micError));
+  $('camera').addEventListener('click', () => withButton('camera', toggleCamera, cameraError));
 
   // Pedir a palavra ou a tela: clicar de novo desiste do pedido
   for (const [id, kind] of [['raise-hand', 'speak'], ['ask-screen', 'screen']]) {
@@ -1266,6 +1282,8 @@ if (!e2eeKey) {
   $('join-copy').addEventListener('click', () => copyText($('join-invite-link').value, $('join-copy'), $('join-invite-link')));
 }
 
+setupPreview();
+
 $('join-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('name').value.trim();
@@ -1286,6 +1304,7 @@ $('join-form').addEventListener('submit', async (e) => {
     return;
   }
 
+  const choice = finishPreview();
   $('join').hidden = true;
   $('room').hidden = false;
   setupViewing();
@@ -1294,4 +1313,5 @@ $('join-form').addEventListener('submit', async (e) => {
   applyMetadata();
   updateCount();
   addMessage(t(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.'));
+  await applyPreviewChoice(choice);
 });
