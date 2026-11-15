@@ -162,7 +162,7 @@ Ordem de execução, um commit por item:
 8. ✅ **Barra lateral recolhível na sala** (como o Discord) para quem tem conta: salas, criar sala, administração e conta, sem sair da sala por engano.
 9. ✅ **Gravação gera arquivo quebrado:** (resolvido: os arquivos decodificavam no ffmpeg, mas o MP4 baixado usava áudio Opus e o WebM da pasta saía sem duração, o que muitos programas não abrem. Agora a preferência é MP4 com AAC, depois MP4 com Opus, e o WebM recebe a duração ao terminar; a pasta também grava MP4, porque o navegador só grava o arquivo final ao fechar. Trocar a qualidade no meio não divide mais a gravação. O Chromium não grava AAC; o Chrome do Windows e do Mac costuma gravar, e no Linux não foi confirmado.) Pedido original: investigar e corrigir, com teste que abre o arquivo gravado (ffprobe).
 10. ✅ **Áudio do computador no Linux:** (causa: o "Áudio do jogo" só era lido ao começar a compartilhar; escolher depois não fazia nada. Agora vale na hora, os ajustes mostram de onde o áudio está saindo e, no Linux, o chat explica onde escolher o "Monitor of …". Corrigido junto: o `<audio>` de cada faixa que saía ficava na página.) Pedido original: o usuário escolheu o "Monitor of …" e o áudio não funcionou. Investigar o caminho inteiro e corrigir.
-11. **Documentação em `docs/`** (decisão do usuário: pasta no repositório, não a Wiki), estilo wiki: instalar, configurar, opções do servidor, recuperar a senha, gerir usuários e salas.
+11. ✅ **Documentação em `docs/`** (decisão do usuário: pasta no repositório, não a Wiki), estilo wiki: instalar, configurar, opções do servidor, recuperar a senha, gerir usuários e salas.
 
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
@@ -173,6 +173,10 @@ Ordem de execução, um commit por item:
 6. **Rede local e homelab:** certificado próprio (`TLS=custom`), modo rede local no instalador, guia de instalação sem internet e o aviso sobre o IP de casa exposto.
 7. **Instalador de um comando** e botão da Hostinger.
 8. **Validação numa VPS real** antes de divulgar (TURN, SSO com provedor real, certificado no IP).
+
+### Lacunas encontradas ao documentar (15/11/2026)
+- O admin não troca a senha de um transmissor que a esqueceu: hoje só exclui a conta e manda outro convite. Avaliar um link de redefinição gerado pelo admin, como o `reset-admin`.
+- A documentação em `docs/` está só em português; o README tem versão em inglês.
 
 ## Decisões tomadas
 

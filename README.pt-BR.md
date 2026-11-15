@@ -17,6 +17,8 @@ Compartilhamento de tela self-hosted, direto no navegador: para jogar com os ami
 - **Contas com 2FA, transmissores convidados e login da empresa (SSO)**, descritos abaixo.
 - **Interface em português e inglês**, escolhida pelo idioma do navegador (dá para trocar no rodapé).
 
+**Documentação completa** (instalar, configurar, contas, salas, transmitir e solução de problemas): [docs/](docs/README.md).
+
 ## Como funciona
 
 ```

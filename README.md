@@ -17,6 +17,8 @@ Self-hosted screen sharing, right in the browser: for playing games with friends
 - **Accounts with 2FA, invited broadcasters and company sign-in (SSO)**, described below.
 - **Interface in English and Portuguese**, picked from the browser's language (switchable at the bottom of the page).
 
+**Full documentation** (in Portuguese for now: install, configuration, accounts, rooms, broadcasting and troubleshooting): [docs/](docs/README.md).
+
 ## How it works
 
 ```
