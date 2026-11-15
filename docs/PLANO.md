@@ -93,12 +93,25 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 | Homelab | Funciona; o limite é o upload de casa (~26 pessoas em 720p com 100 Mbps de upload), o CGNAT e o IP de casa exposto a quem assiste. Para lives abertas ao público, recomendar VPS |
 | Rede local de empresa | Benefício a oferecer: servidor no hardware da empresa, só na rede interna. Já funciona com `TLS=local`; faltam o certificado da empresa (`TLS=custom`), o modo rede local no instalador e o guia de instalação sem internet |
 
+### Webcam, celular e navegação (15/11/2026)
+
+| Tema | Decisão |
+|---|---|
+| Webcam | Quem apresenta pode ligar a câmera, em qualquer sala (na "Live", quem tem a vez; na "Jogando juntos", quem mostra a tela). Quem só assiste ou conversa não usa câmera |
+| Picture-in-picture | Tela e câmera vão como **duas transmissões**; o player de quem assiste desenha a câmera sobre a tela, sem recodificar e sem pesar no PC de quem joga. Juntar no PC de quem transmite foi descartado: a aba em segundo plano trava o desenho durante o jogo |
+| Posição da câmera | Escolhida ao vivo por quem transmite: 4 cantos, 3 tamanhos e o formato (retângulo arredondado ou círculo). Quem assiste pode esconder a câmera ou inverter (câmera grande, tela pequena). Sem tela, a câmera vira o vídeo principal |
+| Câmera e permissões | A política do site passa a liberar a câmera para o próprio site (`camera=(self)`); o token de quem apresenta inclui a fonte câmera |
+| Gravação com câmera | Tela (com o áudio da sala) e câmera em **arquivos separados**, sincronizados |
+| Celular | **Um webapp PWA** para PC e celular, **sem apps de Android ou iOS**. Assistir bem no celular (tela cheia no iPhone, paisagem, teste em aparelhos reais), instalação pela tela inicial e live só com câmera pelo celular. Os navegadores móveis não compartilham a tela: guia para transmitir jogos de celular pelo PC (`scrcpy` no Android, AirPlay no iPhone) |
+| Navegação e criar sala | Inspiração: Discord (barra lateral com salas, configurações com menu lateral), Google Meet (criar em 1 clique, antessala com prévia), StreamYard (ajustes com prévia), Twitch (botão de ao vivo e status claros), Whereby/Jitsi (espectador entra só com o nome). Configuração inicial em 3 passos com progresso e Voltar sem perder dados; página inicial com barra lateral e "Criar sala"; criar sala numa janela com dois cartões (Jogando juntos / Live), padrões prontos e "Mais opções" recolhidas; antessala com prévia de câmera e microfone; `/admin` com menu lateral |
+| Critérios de usabilidade (testados no navegador) | Criar e compartilhar uma sala em até 2 cliques a partir da página inicial; Voltar do navegador funciona em toda tela de configuração sem perder dados; tudo funciona pelo teclado; nada some no celular. Sem protótipo: implementar direto e ajustar no app real |
+
 ### Ordem de implementação (novo foco)
-1. **Tipos de sala e várias telas:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela).
+1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.
 3. **Salas fixas e cadastro de transmissores** com fila de aprovação.
 4. **Padrões de qualidade:** 720p, aviso de banda, padrão e qualidade máxima no admin, limite de pessoas sem teto baixo.
-5. **Interface:** reorganizar o `/admin`, com SSO e TURN recolhidos em opções avançadas.
+5. **Interface e navegação:** barra lateral, configuração inicial em passos, criar sala numa janela com cartões, antessala, `/admin` com menu lateral (SSO e TURN em "Avançado") e os critérios de usabilidade. Junto, o PWA e o celular (tela cheia no iPhone, paisagem, guia de jogos mobile pelo PC).
 6. **Rede local e homelab:** certificado próprio (`TLS=custom`), modo rede local no instalador, guia de instalação sem internet e o aviso sobre o IP de casa exposto.
 7. **Instalador de um comando** e botão da Hostinger.
 8. **Validação numa VPS real** antes de divulgar (TURN, SSO com provedor real, certificado no IP).
