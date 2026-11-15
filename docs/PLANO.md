@@ -56,6 +56,10 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - `ci.yml` (testes e Trivy a cada envio) e `release.yml` (tag vX.Y.Z: imagem amd64 + arm64 no GHCR, SBOM e proveniência do BuildKit, assinatura cosign sem chave, SBOM CycloneDX atestado e release). Só `actions/checkout` e `sigstore/cosign-installer` como ações de terceiros, fixadas pelo hash.
   - A varredura encontrou 13 falhas altas: o LiveKit agora é compilado do código-fonte (v1.13.11, Go 1.27.4, x/net v0.62.0), o Caddy usa x/net v0.62.0 e o npm saiu da imagem.
   - LICENSE (AGPL-3.0) adicionada.
+- **v0.1.0 publicada em 15/11/2026** (privada): o CI no GitHub passou (testes 8 min, varredura 5 min) e a publicação também (58 min, a maior parte compilando o arm64 no QEMU). Imagem `ghcr.io/dionatansimioni/overshoulder:0.1.0`, manifesto `sha256:20168a6292166bdab892babb382b780d6a4bafd1f9ac81169a1ed0fbc9f7d06a`, release com o SBOM.
+  - **Atenção:** a assinatura sem chave registra no log de transparência público do Sigstore (Rekor) o nome do repositório, o fluxo e a tag. O conteúdo continua privado, mas a existência do projeto e da versão ficou pública. O que já foi registrado não pode ser apagado; para repositório privado, decidir se a assinatura fica desligada até a abertura.
+  - Falta verificar a assinatura de fora (`cosign verify`): o token do `gh` desta máquina não tem `read:packages` (`gh auth refresh -h github.com -s read:packages`).
+  - Melhoria possível: compilar o arm64 num runner ARM nativo em vez do QEMU (bem mais rápido; para repositório privado depende do plano do GitHub).
 - Próximo da ordem: o instalador de um comando e o botão da Hostinger. Antes de divulgar: validar numa VPS real o TURN, o SSO com um provedor real e o certificado no IP.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
