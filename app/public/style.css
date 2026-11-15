@@ -202,6 +202,7 @@ button.round.danger:hover { background: var(--danger-hover); }
 a { color: var(--accent-2); }
 a.notice:hover { background: rgba(151, 50, 246, .2); }
 .ok { color: var(--live); margin: 0; font-size: 14px; }
+#audio-status:empty { display: none; }
 .warn { color: var(--warn); }
 .qr { align-self: center; width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
 .codes { columns: 2; margin: 8px 0; padding-left: 24px; font-family: ui-monospace, monospace; }

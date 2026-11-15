@@ -19,8 +19,9 @@ after(async () => {
   s?.stop();
 });
 
-const newPage = async () => {
+const newPage = async (init) => {
   const page = await (await browser.newContext({ permissions: ['microphone', 'camera'] })).newPage();
+  if (init) await page.addInitScript(init);
   const errors = [];
   page.on('pageerror', (err) => errors.push(err.message));
   return { page, errors };
@@ -33,8 +34,8 @@ const enter = async (page, name) => {
 };
 
 // Anfitrião compartilhando a tela e um espectador assistindo
-const sharing = async () => {
-  const host = await newPage();
+const sharing = async ({ hostInit } = {}) => {
+  const host = await newPage(hostInit);
   await loginInBrowser(host.page, s.url);
   await host.page.click('#new-room');
   await host.page.click('#create-live');
@@ -169,5 +170,41 @@ describe('avisos de rede para quem transmite', () => {
     assert.ok(await host.page.isHidden('#net-warning-action'));
     await host.page.click('#net-warning-close');
     assert.ok(await host.page.isHidden('#net-warning'));
+  });
+});
+
+describe('áudio do jogo (Linux: "Monitor of …")', () => {
+  // Como no Chrome do Linux: compartilhar a tela não traz o som do computador
+  const linuxCapture = () => {
+    const original = MediaDevices.prototype.getDisplayMedia;
+    MediaDevices.prototype.getDisplayMedia = function (options) {
+      return original.call(this, { ...options, audio: false });
+    };
+  };
+
+  test('sem som da captura no Linux, o chat explica onde escolher o monitor da saída de som', async () => {
+    const { host } = await sharing({ hostInit: linuxCapture });
+    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Monitor of'));
+  });
+
+  test('escolher o áudio com a tela já compartilhada vale na hora, e desligar para de enviar', async () => {
+    const { host, viewer } = await sharing({ hostInit: linuxCapture });
+    const audios = () => viewer.page.evaluate(() => document.querySelectorAll('#audio-sink audio').length);
+    assert.equal(await audios(), 0, 'sem microfone nem áudio do jogo, nada a ouvir');
+
+    await host.page.click('#settings-btn');
+    await host.page.click('#load-devices');
+    await host.page.waitForFunction(() => document.querySelector('#audio-device').options.length > 1);
+    const device = await host.page.$eval('#audio-device', (s) => ({ value: s.options[1].value, text: s.options[1].text }));
+    await host.page.selectOption('#audio-device', device.value);
+    await host.page.waitForFunction((text) => document.querySelector('#audio-status').textContent === `Enviando o áudio de: ${text}`, device.text);
+    await viewer.page.waitForFunction(() => document.querySelectorAll('#audio-sink audio').length === 1);
+
+    await host.page.selectOption('#audio-device', '');
+    await host.page.waitForFunction(() => document.querySelector('#audio-status').textContent === '');
+    await viewer.page.waitForFunction(() => document.querySelectorAll('#audio-sink audio').length === 0);
+    assert.ok(await host.page.isVisible('#share.on'), 'a tela continua compartilhada');
+    assert.deepEqual(host.errors, []);
+    assert.deepEqual(viewer.errors, []);
   });
 });

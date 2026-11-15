@@ -59,6 +59,10 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar” e escolha o “Monitor of …” da sua saída de som.':
+    'On Linux, the browser does not send the computer sound with the screen. In Settings › Game audio, click “List” and pick the “Monitor of …” of your sound output.',
+  'Enviando o áudio de: {device}': 'Sending audio from: {device}',
+  'Não foi possível usar esse áudio: {error}': 'Could not use that audio: {error}',
   'Qualidade que você recebe': 'Quality you receive',
   Automática: 'Automatic',
   'Só aparecem as qualidades que quem transmite está enviando.': 'Only the qualities the broadcaster is sending are listed.',

@@ -160,6 +160,8 @@ let republishing = false;
 // Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
 let allowed = { microphone: false, screen: false };
 const audioTracks = new Set();
+// Elemento <audio> de cada faixa recebida, para sair da página quando a faixa sai
+const audioElements = new Map();
 
 // Nomes das faixas: voz de quem fala e áudio extra do jogo
 const VOICE_TRACK = 'voice';
@@ -474,14 +476,19 @@ const wireRoomEvents = () => {
       if (track.kind === Track.Kind.Audio) {
         audioTracks.add(track);
         addRoomAudio(track.mediaStreamTrack);
-        $('audio-sink').append(track.attach());
+        const element = track.attach();
+        audioElements.set(track, element);
+        $('audio-sink').append(element);
         track.setVolume(Number($('volume').value));
       }
       renderStage();
     })
     .on(RoomEvent.TrackUnsubscribed, (track) => {
       if (track.kind === Track.Kind.Audio) {
-        track.detach().forEach((e) => e.remove());
+        // O LiveKit já desanexa a faixa antes deste evento (detach() volta vazio): o elemento guardado sai
+        track.detach();
+        audioElements.get(track)?.remove();
+        audioElements.delete(track);
         audioTracks.delete(track);
         removeRoomAudio(track.mediaStreamTrack);
       }
@@ -1005,12 +1012,16 @@ const setupSettings = () => {
     applyScreenSettings();
   });
   $('codec').addEventListener('change', applyScreenSettings);
+  $('audio-device').addEventListener('change', () =>
+    changeExtraAudio().catch((err) => addMessage(t('Não foi possível usar esse áudio: {error}', { error: err.message }))),
+  );
 };
 
 const stopExtraAudio = async () => {
   if (!extraAudio) return;
   const track = extraAudio;
   extraAudio = null;
+  updateExtraAudioStatus();
   await room.localParticipant.unpublishTrack(track).catch(() => {});
   track.stop();
 };
@@ -1045,24 +1056,49 @@ const startShare = async () => {
     screenPublishOptions(),
   );
 
-  const deviceId = $('audio-device').value;
-  if (deviceId) {
-    extraAudio = await createLocalAudioTrack({
-      deviceId: { exact: deviceId },
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-      channelCount: 2,
-    });
-    await room.localParticipant.publishTrack(extraAudio, {
-      source: Track.Source.ScreenShareAudio,
-      name: GAME_AUDIO_TRACK,
-      audioPreset: AudioPresets.musicHighQualityStereo,
-      forceStereo: true,
-      dtx: false,
-      red: false,
-    });
+  await startExtraAudio();
+  // No Linux o navegador não captura o som do computador junto com a tela: explica onde escolher
+  const captured = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+  if (!captured && IS_LINUX) {
+    addMessage(t('No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar” e escolha o “Monitor of …” da sua saída de som.'));
   }
+};
+
+const IS_LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+
+// Áudio do jogo por um dispositivo de entrada (no Linux, o "Monitor of …" da saída de som), enviado como
+// áudio da tela: sem filtros de voz e em estéreo
+const startExtraAudio = async () => {
+  const select = $('audio-device');
+  if (!select.value) return updateExtraAudioStatus();
+  extraAudio = await createLocalAudioTrack({
+    deviceId: { exact: select.value },
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 2,
+  });
+  await room.localParticipant.publishTrack(extraAudio, {
+    source: Track.Source.ScreenShareAudio,
+    name: GAME_AUDIO_TRACK,
+    audioPreset: AudioPresets.musicHighQualityStereo,
+    forceStereo: true,
+    dtx: false,
+    red: false,
+  });
+  updateExtraAudioStatus();
+};
+
+const updateExtraAudioStatus = () => {
+  const option = $('audio-device').selectedOptions[0];
+  $('audio-status').textContent = extraAudio ? t('Enviando o áudio de: {device}', { device: option?.text ?? '' }) : '';
+};
+
+// Trocar o áudio do jogo com a tela já compartilhada vale na hora
+const changeExtraAudio = async () => {
+  await stopExtraAudio();
+  if (room?.localParticipant.isScreenShareEnabled) await startExtraAudio();
+  else updateExtraAudioStatus();
 };
 
 // Trocar a qualidade ou o codec com a tela já sendo compartilhada: a mesma captura é publicada de
