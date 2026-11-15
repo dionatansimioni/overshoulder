@@ -204,7 +204,8 @@ describe('no navegador', () => {
     await page.waitForSelector('#signed-in:not([hidden])');
     assert.equal(await page.textContent('#me'), 'dona');
 
-    await page.click('#create-form button');
+    await page.click('#new-room');
+    await page.click('#create-together');
     await page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=.+&h=/);
 
     await page.goto(`${s.url}/configurar`);

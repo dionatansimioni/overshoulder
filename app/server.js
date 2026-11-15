@@ -1033,6 +1033,29 @@ const roomByCode = async (code) => {
   return { name: entry.name, room, invite: room.invites.get(entry.inviteId) };
 };
 
+// Quais salas da lista "suas salas" (guardada no navegador) seguem no ar, sem trazer de volta
+// uma sala fixa vazia. Só para quem tem conta; quem não tem o código não descobre nada.
+const STATUS_MAX = 50;
+const roomStatus = async (req, res) => {
+  requireUser(req);
+  const { codes } = await readJson(req);
+  if (!Array.isArray(codes) || codes.length > STATUS_MAX || !codes.every((c) => typeof c === 'string' && ROOM_ID_RE.test(c)))
+    return json(res, 400, { error: 'Lista de salas inválida.' });
+  const open = new Set((await rooms.listRooms()).map((r) => r.name));
+  const status = {};
+  for (const code of new Set(codes)) {
+    const entry = roomCodes.get(code);
+    const room = entry && liveRooms.get(entry.name);
+    if (!room || (!room.fixed && !open.has(entry.name))) {
+      status[code] = { exists: false };
+      continue;
+    }
+    const online = open.has(entry.name) ? (await rooms.listParticipants(entry.name).catch(() => [])).length : 0;
+    status[code] = { exists: true, fixed: room.fixed, online };
+  }
+  json(res, 200, { status });
+};
+
 // --- convites de sala ---------------------------------------------------------
 
 const INVITE_LIMITS = { label: 40, maxUses: 10_000, minutes: 30 * 24 * 60, password: 128 };
@@ -1280,6 +1303,8 @@ const issueToken = async (req, res) => {
     identity,
     // A página só oferece qualidades até a máxima do servidor (limite da interface, não do LiveKit)
     quality: { default: settings().defaultQuality, max: settings().maxQuality },
+    // Para a lista "suas salas" da página inicial, guardada só no navegador
+    room: { type: found.room.type, ...(found.room.fixed && { title: found.room.title }) },
     ...(admitted?.ticket && { ticket: admitted.ticket }),
   });
 };
@@ -1597,6 +1622,7 @@ const routes = {
   'POST /api/sso/logout': ssoLogout,
   'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
+  'POST /api/rooms/status': roomStatus,
   'POST /api/token': issueToken,
   'POST /api/rooms/end': endRoom,
   'POST /api/rooms/chat': setChat,

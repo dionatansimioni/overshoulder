@@ -168,7 +168,8 @@ describe('no navegador', () => {
   const hostRoom = async () => {
     const h = await page();
     await loginInBrowser(h, s.url);
-    await h.click('#create-form button');
+    await h.click('#new-room');
+    await h.click('#create-together');
     await h.waitForURL(/#k=/);
     await h.fill('#name', 'Ana');
     await h.click('#join-form button');

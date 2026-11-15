@@ -135,6 +135,12 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Bitrates e nomes das qualidades ficam em `public/quality.js`, usado pela sala e pelo painel (a lista `QUALITIES` do `server.js` precisa seguir a mesma ordem).
   - Testes em `app/test/quality.test.js`.
 
+- **Item 5 em andamento (15/11/2026)**, em cinco partes: (1) página inicial com barra lateral e criar sala numa janela; (2) configuração inicial em 3 passos; (3) antessala com prévia de câmera e microfone; (4) `/admin` com menu lateral e SSO/TURN em "Avançado"; (5) celular e PWA.
+  - **Parte 1 feita:** a página inicial tem barra lateral com **as salas deste navegador** (decisão do usuário: a chave E2EE fica só no link, então a lista é local; em outro aparelho começa vazia) e, para o admin, as salas fixas com a chave guardada neste navegador. Cada sala mostra se está no ar e quantas pessoas há; salas encerradas somem, e dá para esquecer uma sala.
+  - A lista fica no `localStorage` (`public/rooms-local.js`), com o link completo; o de quem é anfitrião inclui a chave de anfitrião (antes ficava só na aba). `POST /api/rooms/status` (só com conta, até 50 códigos) diz quais seguem no ar sem trazer de volta uma sala fixa vazia. O token passou a informar o tipo e o nome da sala fixa.
+  - "Criar sala" abre uma janela com dois cartões (Jogando juntos / Live): um clique no cartão cria com os padrões; "Mais opções" fica recolhido. A tela de entrada do anfitrião já mostra o link de convite com "Copiar": em 2 cliques a sala existe e o link está na tela (copiar é o 3º).
+  - Testes em `app/test/home.test.js` (inclui teclado, Voltar do navegador e celular).
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

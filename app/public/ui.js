@@ -36,3 +36,15 @@ export const busy = async (form, fn) => {
     button.disabled = false;
   }
 };
+
+// Copia o texto e mostra "Copiado!" no botão; sem acesso à área de transferência, seleciona o campo
+export const copyText = async (text, button, input) => {
+  const label = button.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = t('Copiado!');
+    setTimeout(() => (button.textContent = label), 1500);
+  } catch {
+    input?.select();
+  }
+};

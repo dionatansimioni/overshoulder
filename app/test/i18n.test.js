@@ -157,8 +157,8 @@ describe('no navegador, em inglês', () => {
     }
 
     await page.goto(`${s.url}/`);
-    await page.click('label:has(#type-live)');
-    await page.click('#create-form button');
+    await page.click('#new-room');
+    await page.click('#create-live');
     await page.waitForURL(/#k=/);
     assert.equal(await page.textContent('#join-form button[type="submit"]'), 'Join the room');
     await assertEnglish(page, 'entrada da sala');

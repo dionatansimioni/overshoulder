@@ -123,9 +123,12 @@ describe('no navegador', () => {
     const host = await page();
     if (initScript) await host.context().addInitScript(initScript);
     await loginInBrowser(host, s.url);
-    await host.click(`label:has(#type-${type})`);
-    if (type === 'together' && !openScreens) await host.uncheck('#open-screens');
-    await host.click('#create-form button');
+    await host.click('#new-room');
+    if (type === 'together' && !openScreens) {
+      await host.click('#more-options summary');
+      await host.uncheck('#open-screens');
+    }
+    await host.click(`#create-${type}`);
     await host.waitForURL(/#k=/);
     await host.fill('#name', 'Ana');
     await host.click('#join-form button');

@@ -24,6 +24,28 @@ const EN = {
   English: 'English',
 
   // --- página inicial
+  'Suas salas': 'Your rooms',
+  '+ Criar sala': '+ Create room',
+  'As salas que você criar ou visitar neste navegador aparecem aqui.':
+    'Rooms you create or visit in this browser show up here.',
+  'Compartilhe sua tela': 'Share your screen',
+  'Crie uma sala, mande o link e pronto: quem recebe entra só com o nome, sem conta.':
+    'Create a room, send the link and you are done: whoever gets it joins with just a name, no account.',
+  Fechar: 'Close',
+  'Mais opções': 'More options',
+  'Na sala "Jogando juntos", qualquer um pode mostrar a tela': 'In a "Playing together" room, anyone can share their screen',
+  'Ao vivo': 'Live now',
+  'Fora do ar': 'Offline',
+  'Esquecer {name}': 'Forget {name}',
+  'Esquecer esta sala neste navegador': 'Forget this room in this browser',
+  Sala: 'Room',
+  convidado: 'guest',
+  'Sua sala': 'Your room',
+  'Sala de outra pessoa': "Someone else's room",
+  '{n} sala(s) com a chave em outro navegador: veja em Administração.':
+    '{n} room(s) with the key in another browser: see Administration.',
+  'Link para convidar': 'Invite link',
+  'Quem abrir o link entra só com o nome, sem conta.': 'Whoever opens the link joins with just a name, no account.',
   'Compartilhe a tela com seu público, direto no navegador e com criptografia de ponta a ponta.':
     'Share your screen with your audience, right in the browser, with end-to-end encryption.',
   Usuário: 'Username',

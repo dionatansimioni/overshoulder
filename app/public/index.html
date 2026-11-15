@@ -10,7 +10,7 @@
   <script type="module" src="/static/home.js"></script>
 </head>
 <body>
-  <main class="home">
+  <main id="login-view" class="home" hidden>
     <div class="card">
       <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
       <p class="muted">Compartilhe a tela com seu público, direto no navegador e com criptografia de ponta a ponta.</p>
@@ -33,39 +33,70 @@
         <button type="submit">Confirmar</button>
         <p id="totp-error" class="error" hidden></p>
       </form>
-
-      <section id="signed-in" class="form" hidden>
-        <p class="muted">Conectado como <b id="me"></b>.</p>
-        <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
-        <form id="create-form" class="form">
-          <fieldset class="room-types">
-            <legend>Tipo de sala</legend>
-            <label class="room-type">
-              <input type="radio" name="room-type" id="type-together" value="together" checked>
-              <span class="room-type-title">Jogando juntos</span>
-              <span class="muted small">Todos falam e mostram a tela, como numa call.</span>
-            </label>
-            <label class="room-type">
-              <input type="radio" name="room-type" id="type-live" value="live">
-              <span class="room-type-title">Live</span>
-              <span class="muted small">Você apresenta; o público assiste, conversa no chat e pode pedir a palavra.</span>
-            </label>
-          </fieldset>
-          <label class="check" id="open-screens-row"><input id="open-screens" type="checkbox" checked> Qualquer um pode mostrar a tela</label>
-          <label class="check" id="require-sso-row" hidden><input id="require-sso" type="checkbox"> Exigir login da empresa para assistir</label>
-          <button type="submit">Criar sala</button>
-          <p id="create-error" class="error" hidden></p>
-        </form>
-        <div class="row-actions">
-          <a class="button secondary" href="/conta">Minha conta</a>
-          <a id="admin-link" class="button secondary" href="/admin" hidden>Administração</a>
-          <button id="logout" type="button" class="secondary">Sair</button>
-        </div>
-      </section>
     </div>
 
     <p class="muted small hint">Recebeu um link de alguém? É só abrir o link, não precisa de conta.</p>
     <p class="muted small hint"><span data-lang-switch></span></p>
   </main>
+
+  <div id="signed-in" class="app" hidden>
+    <aside class="sidebar" aria-label="Suas salas">
+      <span class="brand small-brand"><img src="/static/icon.svg" alt="" width="24" height="24">Overshoulder</span>
+      <button id="new-room-side" type="button" class="new-room">+ Criar sala</button>
+
+      <h2 class="side-title">Suas salas</h2>
+      <ul id="my-rooms" class="room-list"></ul>
+      <p id="no-rooms" class="muted small">As salas que você criar ou visitar neste navegador aparecem aqui.</p>
+
+      <section id="fixed-section" hidden>
+        <h2 class="side-title">Salas fixas</h2>
+        <ul id="fixed-rooms" class="room-list"></ul>
+      </section>
+
+      <div class="side-footer">
+        <p class="muted small">Conectado como <b id="me"></b></p>
+        <nav class="side-links">
+          <a href="/conta">Minha conta</a>
+          <a id="admin-link" href="/admin" hidden>Administração</a>
+          <button id="logout" type="button" class="link">Sair</button>
+        </nav>
+        <p class="muted small"><span data-lang-switch></span></p>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <div class="card welcome">
+        <h1>Compartilhe sua tela</h1>
+        <p class="muted">Crie uma sala, mande o link e pronto: quem recebe entra só com o nome, sem conta.</p>
+        <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
+        <button id="new-room" type="button" class="big">Criar sala</button>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="create-dialog" class="dialog" aria-labelledby="create-title">
+    <div class="dialog-head">
+      <h2 id="create-title">Criar sala</h2>
+      <button id="create-close" type="button" class="round" aria-label="Fechar">✕</button>
+    </div>
+    <div class="type-cards">
+      <button id="create-together" type="button" class="type-card" data-type="together">
+        <span class="type-emoji" aria-hidden="true">🎮</span>
+        <span class="room-type-title">Jogando juntos</span>
+        <span class="muted small">Todos falam e mostram a tela, como numa call.</span>
+      </button>
+      <button id="create-live" type="button" class="type-card" data-type="live">
+        <span class="type-emoji" aria-hidden="true">📺</span>
+        <span class="room-type-title">Live</span>
+        <span class="muted small">Você apresenta; o público assiste, conversa no chat e pode pedir a palavra.</span>
+      </button>
+    </div>
+    <details id="more-options" class="more-options">
+      <summary>Mais opções</summary>
+      <label class="check"><input id="open-screens" type="checkbox" checked> Na sala "Jogando juntos", qualquer um pode mostrar a tela</label>
+      <label class="check" id="require-sso-row" hidden><input id="require-sso" type="checkbox"> Exigir login da empresa para assistir</label>
+    </details>
+    <p id="create-error" class="error" hidden></p>
+  </dialog>
 </body>
 </html>

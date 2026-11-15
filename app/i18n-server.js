@@ -17,6 +17,7 @@ const EN = {
     'Username: 3 to 32 characters, only lowercase letters, numbers, dot, hyphen and underscore.',
   'Limite de pessoas por sala: de 2 a 5000.': 'People per room limit: from 2 to 5000.',
   'Qualidade inválida.': 'Invalid quality.',
+  'Lista de salas inválida.': 'Invalid room list.',
   'A qualidade padrão não pode passar da máxima.': 'The default quality cannot be above the maximum.',
   'Muitas tentativas nesta conta. Espere alguns minutos.': 'Too many attempts on this account. Wait a few minutes.',
   'Usuário ou senha incorretos.': 'Incorrect username or password.',

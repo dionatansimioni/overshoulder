@@ -95,8 +95,8 @@ describe('no navegador', () => {
   const hostRoom = async () => {
     const host = await newPage();
     await loginInBrowser(host, s.url);
-    await host.click('label:has(#type-live)');
-    await host.click('#create-form button');
+    await host.click('#new-room');
+    await host.click('#create-live');
     await host.waitForURL(/#k=/);
     await host.fill('#name', 'Ana');
     await host.click('#join-form button');

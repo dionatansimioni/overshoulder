@@ -1,25 +1,112 @@
 import { mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
+import { forgetRoom, getFixedKey, randomKey, recentRooms, rememberRoom, roomLink } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
 
 translatePage();
 mountLanguageSwitch();
-
-const randomKey = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
 
 let ticket = null;
 
 const showSignedIn = (user) => {
   // Servidor que exige 2FA: quem ainda não configurou vai direto para a conta
   if (user.needs2fa) return location.replace('/conta');
-  $('login-form').hidden = true;
-  $('totp-form').hidden = true;
+  $('login-view').hidden = true;
   $('signed-in').hidden = false;
   $('me').textContent = user.username;
   $('recommend-2fa').hidden = user.totp;
   $('admin-link').hidden = user.role !== 'admin';
+  renderRooms();
+  refreshStatus();
+  setInterval(refreshStatus, 15_000);
+  if (user.role === 'admin') loadFixedRooms();
+};
+
+// --- barra lateral: salas deste navegador e salas fixas ------------------------------
+
+const TYPE_LABEL = { together: 'Jogando juntos', live: 'Live' };
+const when = (ms) => new Date(ms).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+
+const roomItem = ({ href, title, detail, live, onForget }) => {
+  const li = document.createElement('li');
+  const a = Object.assign(document.createElement('a'), { href, className: 'room-link' });
+  const dot = Object.assign(document.createElement('span'), { className: `dot${live ? ' live' : ''}` });
+  dot.title = t(live ? 'Ao vivo' : 'Fora do ar');
+  const text = Object.assign(document.createElement('span'), { className: 'room-link-text' });
+  text.append(
+    Object.assign(document.createElement('b'), { textContent: title }),
+    Object.assign(document.createElement('span'), { className: 'muted small', textContent: detail }),
+  );
+  a.append(dot, text);
+  li.append(a);
+  if (onForget) {
+    const forget = Object.assign(document.createElement('button'), { type: 'button', className: 'forget', textContent: '✕' });
+    forget.setAttribute('aria-label', t('Esquecer {name}', { name: title }));
+    forget.title = t('Esquecer esta sala neste navegador');
+    forget.addEventListener('click', () => {
+      forgetRoom(onForget);
+      renderRooms();
+    });
+    li.append(forget);
+  }
+  return li;
+};
+
+let roomStatus = {};
+
+const renderRooms = () => {
+  // Salas encerradas somem da lista; as fixas e as que ainda não foram consultadas ficam
+  const list = recentRooms().filter((r) => roomStatus[r.code]?.exists !== false);
+  $('my-rooms').replaceChildren(
+    ...list.map((r) => {
+      const status = roomStatus[r.code];
+      const parts = [t(TYPE_LABEL[r.type] ?? 'Sala')];
+      parts.push(status?.online ? t('{n} pessoa(s) agora', { n: status.online }) : when(r.at));
+      if (!r.h) parts.push(t('convidado'));
+      return roomItem({
+        href: roomLink(r),
+        title: r.title ?? t(r.h ? 'Sua sala' : 'Sala de outra pessoa'),
+        detail: parts.join(' · '),
+        live: !!status?.online,
+        onForget: r.code,
+      });
+    }),
+  );
+  $('no-rooms').hidden = list.length > 0;
+};
+
+const refreshStatus = async () => {
+  const codes = recentRooms().map((r) => r.code);
+  if (!codes.length) return;
+  try {
+    roomStatus = (await api('/api/rooms/status', { codes })).status;
+  } catch {
+    return;
+  }
+  for (const [code, s] of Object.entries(roomStatus)) if (!s.exists) forgetRoom(code);
+  renderRooms();
+};
+
+// Salas fixas do admin: só as que têm a chave guardada neste navegador entram como anfitrião
+const loadFixedRooms = async () => {
+  const { rooms } = await api('/api/admin/rooms').catch(() => ({ rooms: [] }));
+  const withKey = rooms.filter((r) => getFixedKey(r.id));
+  $('fixed-section').hidden = rooms.length === 0;
+  $('fixed-rooms').replaceChildren(
+    ...withKey.map((r) =>
+      roomItem({
+        href: `/r/${r.roomId}#${new URLSearchParams({ k: getFixedKey(r.id), h: r.hostKey })}`,
+        title: r.title,
+        detail: [t(TYPE_LABEL[r.type]), r.online ? t('{n} pessoa(s) agora', { n: r.online }) : t('vazia')].join(' · '),
+        live: r.online > 0,
+      }),
+    ),
+  );
+  if (withKey.length < rooms.length) {
+    const li = document.createElement('li');
+    li.className = 'muted small';
+    li.textContent = t('{n} sala(s) com a chave em outro navegador: veja em Administração.', { n: rooms.length - withKey.length });
+    $('fixed-rooms').append(li);
+  }
 };
 
 // Mensagens de volta do login corporativo
@@ -48,6 +135,7 @@ if (!state.setupDone) {
 } else if (state.user) {
   showSignedIn(state.user);
 } else {
+  $('login-view').hidden = false;
   $('login-form').hidden = false;
 }
 if (ssoError) showError($('login-error'), t(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou));
@@ -94,31 +182,39 @@ $('totp-form').addEventListener('submit', (e) => {
   });
 });
 
-$('create-form').addEventListener('submit', (e) => {
-  e.preventDefault();
+// --- criar sala: janela com os dois tipos -------------------------------------------
+
+const dialog = $('create-dialog');
+const openCreate = () => {
   $('create-error').hidden = true;
-  busy(e.target, async () => {
+  dialog.showModal();
+};
+$('new-room').addEventListener('click', openCreate);
+$('new-room-side').addEventListener('click', openCreate);
+$('create-close').addEventListener('click', () => dialog.close());
+// Clique fora do conteúdo (no fundo escurecido) fecha a janela
+dialog.addEventListener('click', (e) => e.target === dialog && dialog.close());
+
+for (const card of dialog.querySelectorAll('.type-card')) {
+  card.addEventListener('click', async () => {
+    const type = card.dataset.type;
+    $('create-error').hidden = true;
+    for (const c of dialog.querySelectorAll('.type-card')) c.disabled = true;
     try {
-      const type = document.querySelector('input[name="room-type"]:checked').value;
       const data = await api('/api/rooms', {
         type,
         ...(type === 'together' && { openScreens: $('open-screens').checked }),
         ...(state.sso && { requireSso: $('require-sso').checked }),
       });
       // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
-      const params = new URLSearchParams({ k: randomKey(), h: data.hostKey });
-      location.href = `/r/${data.roomId}#${params}`;
+      const room = { code: data.roomId, k: randomKey(), h: data.hostKey, type };
+      rememberRoom(room);
+      location.href = roomLink(room);
     } catch (err) {
       if (err.status === 401) location.reload();
       else showError($('create-error'), err);
+      for (const c of dialog.querySelectorAll('.type-card')) c.disabled = false;
     }
-  });
-});
-
-// "Qualquer um pode mostrar a tela" só faz sentido na sala Jogando juntos
-for (const radio of document.querySelectorAll('input[name="room-type"]')) {
-  radio.addEventListener('change', () => {
-    $('open-screens-row').hidden = !$('type-together').checked;
   });
 }
 

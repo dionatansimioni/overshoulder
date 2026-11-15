@@ -42,8 +42,8 @@ describe('no navegador', () => {
     page.errors = [];
     page.on('pageerror', (e) => page.errors.push(e.message));
     await loginInBrowser(page, s.url);
-    await page.click('label:has(#type-live)');
-    await page.click('#create-form button');
+    await page.click('#new-room');
+    await page.click('#create-live');
     await page.waitForURL(/#k=/);
     await page.fill('#name', 'Ana');
     await page.click('#join-form button');

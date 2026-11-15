@@ -35,8 +35,8 @@ const newPage = async () => {
 
 const createRoomAsHost = async (page, name = 'Ana') => {
   await loginInBrowser(page, server.url);
-  await page.click('label:has(#type-live)');
-  await page.click('#create-form button');
+  await page.click('#new-room');
+  await page.click('#create-live');
   await page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=/);
   await page.fill('#name', name);
   await page.click('#join-form button');

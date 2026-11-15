@@ -15,6 +15,8 @@ import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { PRESETS, HEAVY_HEIGHT, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
+import { rememberRoom, renameRoom } from '/static/rooms-local.js';
+import { copyText } from '/static/ui.js';
 
 translatePage();
 mountLanguageSwitch();
@@ -483,6 +485,7 @@ const connect = async (name) => {
   isHost = data.role === 'host';
   token = data.token;
   if (data.quality) limitQualitySelect($('quality'), data.quality);
+  rememberRoom({ code: roomId, k: e2eeKey, h: isHost ? hostKey : undefined, type: data.room?.type, title: data.room?.title });
 
   const keyProvider = new ExternalE2EEKeyProvider();
   room = new Room({
@@ -565,6 +568,7 @@ const participantAction = async (path, extra = {}) => {
 
 // O link mudou: atualiza a barra de endereço, o convite e onde a chave de anfitrião fica guardada
 const switchRoomCode = (code, why) => {
+  renameRoom(roomId, code);
   roomId = code;
   storage.set(sessionStorage, `host:${roomId}`, hostKey);
   history.replaceState(null, '', `/r/${roomId}#k=${e2eeKey}`);
@@ -1255,6 +1259,11 @@ if (!e2eeKey) {
 } else if (!isE2EESupported()) {
   joinError(t('Seu navegador não suporta criptografia de ponta a ponta. Use Chrome, Edge, Firefox ou Safari atualizados.'));
   $('join-form').querySelector('button').disabled = true;
+} else if (hostKey) {
+  // O anfitrião já pode mandar o convite antes de entrar
+  $('join-invite-link').value = inviteLink();
+  $('join-invite').hidden = false;
+  $('join-copy').addEventListener('click', () => copyText($('join-invite-link').value, $('join-copy'), $('join-invite-link')));
 }
 
 $('join-form').addEventListener('submit', async (e) => {

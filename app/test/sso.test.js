@@ -250,8 +250,8 @@ describe('no navegador', () => {
     const host = await (await browser.newContext({ permissions: ['microphone'] })).newPage();
     await loginInBrowser(host, s.url);
     assert.ok(await host.isChecked('#require-sso'));
-    await host.click('label:has(#type-live)');
-    await host.click('#create-form button');
+    await host.click('#new-room');
+    await host.click('#create-live');
     await host.waitForURL(/#k=/);
     await host.fill('#name', 'Anfitriã');
     await host.click('#join-form button');

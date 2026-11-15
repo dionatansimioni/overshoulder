@@ -1,5 +1,6 @@
 import { t, translatePage } from '/static/i18n.js';
 import { MANY_PEOPLE, QUALITIES, QUALITY_LABELS, bandwidth } from '/static/quality.js';
+import { getFixedKey as getKey, randomKey, setFixedKey as setKey } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
 
 translatePage();
@@ -238,25 +239,6 @@ $('copy-invite').addEventListener('click', async () => {
 });
 
 // --- salas fixas ----------------------------------------------------------------
-
-// A chave E2EE de cada sala fixa nasce neste navegador e fica guardada só nele
-const randomKey = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
-const keyName = (id) => `fixed-key:${id}`;
-const getKey = (id) => {
-  try {
-    return localStorage.getItem(keyName(id));
-  } catch {
-    return null;
-  }
-};
-const setKey = (id, key) => {
-  try {
-    localStorage.setItem(keyName(id), key);
-  } catch {}
-};
 
 const roomError = (err) => showError($('fixed-error'), err);
 

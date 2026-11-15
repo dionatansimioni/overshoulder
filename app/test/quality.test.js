@@ -91,8 +91,8 @@ describe('padrões de qualidade (navegador)', () => {
     await setSettings({ defaultQuality: '720p60', maxQuality: '1080p30' });
     const host = await newPage();
     await loginInBrowser(host.page, s.url);
-    await host.page.click('label:has(#type-live)');
-    await host.page.click('#create-form button');
+    await host.page.click('#new-room');
+    await host.page.click('#create-live');
     await host.page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=/);
     await host.page.fill('#name', 'Ana');
     await host.page.click('#join-form button');

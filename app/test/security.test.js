@@ -330,8 +330,8 @@ describe('no navegador', () => {
   test('a chave E2EE nunca sai do navegador e a de anfitrião sai da barra de endereço', async () => {
     const host = await watchedPage();
     await loginInBrowser(host.page, base);
-    await host.page.click('label:has(#type-live)');
-    await host.page.click('#create-form button');
+    await host.page.click('#new-room');
+    await host.page.click('#create-live');
     await host.page.waitForURL(/#k=/);
     const key = new URLSearchParams(new URL(host.page.url()).hash.slice(1)).get('k');
     assert.ok(key && key.length >= 40);
@@ -351,8 +351,8 @@ describe('no navegador', () => {
   test('nome e mensagem com HTML aparecem como texto, sem executar', async () => {
     const host = await watchedPage();
     await loginInBrowser(host.page, base);
-    await host.page.click('label:has(#type-live)');
-    await host.page.click('#create-form button');
+    await host.page.click('#new-room');
+    await host.page.click('#create-live');
     await host.page.waitForURL(/#k=/);
     await join(host.page, 'Ana');
 
