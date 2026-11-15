@@ -155,6 +155,8 @@ let shareHintShown = false;
 let selfHidden = storage.get(localStorage, 'hide-self') === '1';
 // Último retrato do envio, para calcular a taxa a cada segundo
 let lastSend = null;
+// Tela sendo publicada de novo (troca de qualidade): não é o fim do compartilhamento
+let republishing = false;
 // Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
 let allowed = { microphone: false, screen: false };
 const audioTracks = new Set();
@@ -306,8 +308,11 @@ const renderStage = () => {
   const mic = speaker?.getTrackPublication(Track.Source.Microphone);
   $('mic-badge').hidden = !mic || mic.isMuted || isMe(speaker);
 
-  recorder?.switchVideo(screen?.mediaStreamTrack ?? (camera && !screen ? camera.mediaStreamTrack : null));
-  recorder?.switchCamera(screen && camera ? camera.mediaStreamTrack : null);
+  // Na troca de qualidade a tela some por um instante: a gravação segue na mesma parte
+  if (!republishing) {
+    recorder?.switchVideo(screen?.mediaStreamTrack ?? (camera && !screen ? camera.mediaStreamTrack : null));
+    recorder?.switchCamera(screen && camera ? camera.mediaStreamTrack : null);
+  }
   renderPeople();
 };
 
@@ -1062,7 +1067,6 @@ const startShare = async () => {
 
 // Trocar a qualidade ou o codec com a tela já sendo compartilhada: a mesma captura é publicada de
 // novo com as opções novas, sem pedir a tela outra vez. Quem assiste vê uma piscada de ~1 s.
-let republishing = false;
 const applyScreenSettings = async () => {
   const pub = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare);
   if (!pub?.track || republishing) return;

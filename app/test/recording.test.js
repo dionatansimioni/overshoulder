@@ -87,14 +87,15 @@ describe('no navegador', () => {
     assert.ok(file.length > 20_000, `${file.length} bytes`);
     assert.equal(file.subarray(4, 8).toString(), 'ftyp', 'cabeçalho MP4');
     assert.ok(file.includes(Buffer.from('avc1')), 'vídeo H.264');
-    assert.ok(file.includes(Buffer.from('Opus')), 'áudio Opus');
+    // AAC quando o navegador grava AAC (Chrome no Windows e no Mac); senão, Opus
+    assert.ok(file.includes(Buffer.from('mp4a')) || file.includes(Buffer.from('Opus')), 'áudio AAC ou Opus');
 
     await viewer.waitForSelector('#rec-badge', { state: 'hidden' });
     assert.match(await messages(host), /Gravação salva: overshoulder-.*-tela-parte1\.mp4/);
     assert.deepEqual(host.errors, []);
   });
 
-  test('com seletor de pasta: o arquivo cresce durante a gravação e cada trecho de vídeo vira uma parte', async () => {
+  test('com seletor de pasta: grava MP4 e cada trecho de vídeo vira uma parte', async () => {
     const host = await hostPage(() => {
       // Pasta falsa: registra o que seria escrito em cada arquivo
       window.__files = {};
@@ -118,9 +119,10 @@ describe('no navegador', () => {
     await share(host);
     await host.click('#record');
     await host.waitForSelector('#record.recording');
-    await host.waitForFunction(() => Object.values(window.__files)[0]?.writes >= 2, null, { timeout: 10_000 });
-    const growing = await host.evaluate(() => Object.values(window.__files)[0]);
-    assert.equal(growing.closed, false, 'ainda gravando, o arquivo já recebeu dados');
+    // O navegador só grava o arquivo final ao fechar; durante a gravação ele está aberto
+    await host.waitForFunction(() => Object.keys(window.__files).length === 1, null, { timeout: 10_000 });
+    await host.waitForTimeout(2000);
+    assert.equal(await host.evaluate(() => Object.values(window.__files)[0].closed), false, 'ainda gravando');
 
     // Parar a tela fecha a parte 1; voltar a compartilhar abre a parte 2
     await host.click('#share');
@@ -134,13 +136,13 @@ describe('no navegador', () => {
     const files = await host.evaluate(() => window.__files);
     const names = Object.keys(files).sort();
     assert.equal(names.length, 2);
-    assert.match(names[0], /-tela-parte1\.webm$/, 'na pasta grava WebM, que cresce a cada segundo');
-    assert.match(names[1], /-tela-parte2\.webm$/);
+    assert.match(names[0], /-tela-parte1\.mp4$/, 'na pasta também grava MP4, o formato que abre em mais programas');
+    assert.match(names[1], /-tela-parte2\.mp4$/);
     for (const name of names) {
       assert.ok(files[name].closed, `${name} fechado`);
       assert.ok(files[name].bytes > 5_000, `${name}: ${files[name].bytes} bytes`);
     }
-    assert.match(await messages(host), /Gravação salva na pasta escolhida: .*parte1\.webm, .*parte2\.webm/);
+    assert.match(await messages(host), /Gravação salva na pasta escolhida: .*parte1\.mp4, .*parte2\.mp4/);
     assert.deepEqual(host.errors, []);
   });
 

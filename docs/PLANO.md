@@ -160,7 +160,7 @@ Ordem de execução, um commit por item:
 6. ✅ **Qualidade para quem assiste:** "Automática" ou uma das camadas que quem transmite está enviando, nunca acima; troca na hora.
 7. ✅ **Avisos de rede para quem transmite:** quando a conexão não sustenta a qualidade escolhida (o navegador limita por banda), sugerir uma mais baixa com um clique; avisar perda de pacotes alta.
 8. **Barra lateral recolhível na sala** (como o Discord) para quem tem conta: salas, criar sala, administração e conta, sem sair da sala por engano.
-9. **Gravação gera arquivo quebrado:** investigar e corrigir, com teste que abre o arquivo gravado (ffprobe).
+9. ✅ **Gravação gera arquivo quebrado:** (resolvido: os arquivos decodificavam no ffmpeg, mas o MP4 baixado usava áudio Opus e o WebM da pasta saía sem duração, o que muitos programas não abrem. Agora a preferência é MP4 com AAC, depois MP4 com Opus, e o WebM recebe a duração ao terminar; a pasta também grava MP4, porque o navegador só grava o arquivo final ao fechar. Trocar a qualidade no meio não divide mais a gravação. O Chromium não grava AAC; o Chrome do Windows e do Mac costuma gravar, e no Linux não foi confirmado.) Pedido original: investigar e corrigir, com teste que abre o arquivo gravado (ffprobe).
 10. **Áudio do computador no Linux:** o usuário escolheu o "Monitor of …" e o áudio não funcionou. Investigar o caminho inteiro e corrigir.
 11. **Documentação em `docs/`** (decisão do usuário: pasta no repositório, não a Wiki), estilo wiki: instalar, configurar, opções do servidor, recuperar a senha, gerir usuários e salas.
 

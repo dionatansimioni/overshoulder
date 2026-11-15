@@ -3,19 +3,24 @@
 // O servidor nunca vê o conteúdo (a transmissão continua cifrada de ponta a ponta).
 // Cada canal grava em partes: quando a fonte do vídeo muda, a parte atual fecha e outra começa.
 import { t } from '/static/i18n.js';
+import { withWebmDuration } from '/static/webm.js';
 
-const MP4 = [['video/mp4;codecs=avc1,opus', 'mp4']];
-const WEBM = [
+// Do formato que abre em mais programas para o menos: MP4 com áudio AAC (players e editores em geral);
+// MP4 com áudio Opus (o Chromium de código aberto não grava AAC; VLC, mpv, Kdenlive e Shotcut abrem);
+// WebM (Firefox), que recebe a duração ao terminar. Vale também na pasta: o navegador só grava o
+// arquivo final quando a gravação termina, então não há ganho em trocar compatibilidade por pedaços.
+const FORMATS = [
+  ['video/mp4;codecs=avc1,mp4a.40.2', 'mp4'],
+  ['video/mp4;codecs=avc1,opus', 'mp4'],
   ['video/webm;codecs=vp9,opus', 'webm'],
   ['video/webm;codecs=vp8,opus', 'webm'],
   ['video/webm', 'webm'],
 ];
 
-// Gravando numa pasta, o arquivo precisa crescer a cada segundo para não se perder se o navegador
-// fechar: o WebM entrega um pedaço por segundo, o MP4 do Chrome só a cada quadro-chave (com a tela
-// parada, pode passar muito tempo sem nada salvo). Baixando no fim, o MP4 abre em mais programas.
-export const recordingFormat = (toFolder = false) =>
-  (toFolder ? [...WEBM, ...MP4] : [...MP4, ...WEBM]).find(([type]) => window.MediaRecorder?.isTypeSupported(type));
+export const recordingFormat = () => FORMATS.find(([type]) => window.MediaRecorder?.isTypeSupported(type));
+
+// Só imagem (canal da câmera): o mesmo formato, sem o codec de áudio
+const videoOnly = (mimeType) => mimeType.replace(/,(opus|mp4a\.40\.2)/, '');
 
 const stamp = () => {
   const d = new Date();
@@ -67,7 +72,7 @@ export class Recorder {
       // Chrome e Edge: grava direto numa pasta, enquanto acontece (cancelar o seletor cancela a gravação)
       this.folder = await window.showDirectoryPicker({ id: 'overshoulder-gravacoes', mode: 'readwrite', startIn: 'videos' });
     }
-    this.format = recordingFormat(!!this.folder);
+    this.format = recordingFormat();
     this.baseName = `overshoulder-${stamp()}`;
     this.parts = [];
     for (const ch of Object.values(this.channels)) ch.count = 0;
@@ -107,7 +112,7 @@ export class Recorder {
     // A tela leva o áudio da sala; a câmera vai só com imagem, para quem edita montar depois
     const withAudio = channel === 'screen';
     const recorder = new MediaRecorder(new MediaStream(withAudio ? [track, ...this.mix.stream.getAudioTracks()] : [track]), {
-      mimeType: withAudio ? mimeType : mimeType.replace(',opus', ''),
+      mimeType: withAudio ? mimeType : videoOnly(mimeType),
       videoBitsPerSecond: withAudio ? 6_000_000 : 1_500_000,
       audioBitsPerSecond: 128_000,
     });
@@ -119,11 +124,17 @@ export class Recorder {
       if (file) writing = writing.then(() => file.write(e.data));
       else chunks.push(e.data);
     };
+    const startedAt = performance.now();
     const done = new Promise((resolve) => {
       recorder.onstop = async () => {
         await writing;
         if (file) await file.close();
-        else download(new Blob(chunks, { type: mimeType }), name);
+        else {
+          let blob = new Blob(chunks, { type: mimeType });
+          // O WebM do MediaRecorder sai sem duração: sem ela, muitos players não avançam nem abrem
+          if (ext === 'webm') blob = await withWebmDuration(blob, performance.now() - startedAt).catch(() => blob);
+          download(blob, name);
+        }
         resolve();
       };
     });
