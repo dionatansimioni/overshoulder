@@ -59,6 +59,15 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Sua tela está oculta para você.': 'Your screen is hidden from you.',
+  'Quem assiste continua vendo normalmente. Assim seu computador não gasta para mostrar a própria transmissão.':
+    'Viewers still see it normally. This way your computer does not spend effort showing your own broadcast.',
+  'Mostrar minha tela': 'Show my screen',
+  'Ocultar sua tela para você': 'Hide your screen from yourself',
+  'Mostrar sua tela': 'Show your screen',
+  'Transmitindo agora em {quality}.': 'Now broadcasting at {quality}.',
+  'Não foi possível trocar a qualidade: {error}': 'Could not change the quality: {error}',
+  'Transmitindo {width}×{height} · {fps} fps · {mbps} Mbps': 'Sending {width}×{height} · {fps} fps · {mbps} Mbps',
   'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.':
     'Nobody is broadcasting. Use the screen button below to show yours.',
   'Ninguém está transmitindo agora.': 'Nobody is broadcasting right now.',

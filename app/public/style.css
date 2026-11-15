@@ -108,6 +108,15 @@ button.round.on:hover { background: var(--accent-hover); }
 /* Microfone captando: anel ciano que cresce com o volume da voz */
 #mic.on { box-shadow: 0 0 0 calc(var(--level, 0) * 7px) rgba(29, 240, 252, .6); transition: box-shadow .08s linear; }
 
+/* Própria transmissão escondida: um quadro pequeno, desfocado, no fundo */
+.self-hidden { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; background: var(--bg); }
+.self-hidden[hidden] { display: none; }
+#self-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(22px) brightness(.45); transform: scale(1.15); }
+.self-hidden-text { position: relative; max-width: 420px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.self-hidden-text p { margin: 0; }
+/* Selo da qualidade que está saindo, no canto de baixo da prévia de quem transmite */
+.badge.send { top: auto; bottom: 12px; left: 12px; background: rgba(16, 13, 22, .78); font-variant-numeric: tabular-nums; }
+
 /* Sala só de voz: quem está na sala no lugar da tela preta */
 .voice-stage {
   position: absolute;

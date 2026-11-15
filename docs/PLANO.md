@@ -156,7 +156,7 @@ Ordem de execução, um commit por item:
 3. ✅ **Sala só de voz:** quando ninguém transmite tela ou câmera, o espaço do vídeo mostra uma imagem (quem está na sala e quem está falando), não uma tela preta.
 3b. ✅ **Barra de controles reordenada** para quem transmite: à esquerda as entradas (microfone, câmera, tela ou janela); à direita volume, tela cheia, gravar, ajustes e, por último, encerrar. Resolução e taxa de bits ficam nos ajustes.
 4. ✅ **Microfone funcionando:** indicador de volume visível para quem transmite.
-5. **Prévia de quem transmite:** mostra a qualidade real enviada (resolução, fps e Mbps). Trocar a qualidade vale na hora, sem parar o compartilhamento nem recarregar a aba. Opção de esconder a própria tela (desfocada, sem reproduzir) e mostrar de novo. Observação: a prévia própria é local e não usa banda do servidor; esconder economiza processamento do computador de quem joga.
+5. ✅ **Prévia de quem transmite:** mostra a qualidade real enviada (resolução, fps e Mbps). Trocar a qualidade vale na hora, sem parar o compartilhamento nem recarregar a aba. Opção de esconder a própria tela (desfocada, sem reproduzir) e mostrar de novo. Observação: a prévia própria é local e não usa banda do servidor; esconder economiza processamento do computador de quem joga.
 6. **Qualidade para quem assiste:** "Automática" ou uma das camadas que quem transmite está enviando, nunca acima; troca na hora.
 7. **Avisos de rede para quem transmite:** quando a conexão não sustenta a qualidade escolhida (o navegador limita por banda), sugerir uma mais baixa com um clique; avisar perda de pacotes alta.
 8. **Barra lateral recolhível na sala** (como o Discord) para quem tem conta: salas, criar sala, administração e conta, sem sair da sala por engano.

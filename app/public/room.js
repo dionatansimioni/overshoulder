@@ -13,7 +13,8 @@ import {
 } from '/vendor/livekit-client.esm.mjs';
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
-import { PRESETS, HEAVY_HEIGHT, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
+import { PRESETS, HEAVY_HEIGHT, QUALITY_LABELS, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
+import { summarizeSend } from '/static/send-stats.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
@@ -149,6 +150,10 @@ let voiceTrack = null;
 let extraAudio = null;
 let cameraTrack = null;
 let shareHintShown = false;
+// Quem transmite pode esconder a própria transmissão (fica guardado no navegador)
+let selfHidden = storage.get(localStorage, 'hide-self') === '1';
+// Último retrato do envio, para calcular a taxa a cada segundo
+let lastSend = null;
 // Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
 let allowed = { microphone: false, screen: false };
 const audioTracks = new Set();
@@ -267,6 +272,13 @@ const renderStage = () => {
   let main = screen ?? camera;
   let pip = screen && camera ? camera : null;
   if (pip && pipSwapped) [main, pip] = [pip, main];
+  // A própria transmissão escondida: nada é reproduzido aqui, quem assiste continua vendo
+  const mine = !!current && isMe(current.p) && !!main;
+  const hideMine = mine && selfHidden;
+  if (hideMine) main = pip = null;
+  $('self-hidden').hidden = !hideMine;
+  $('hide-self').hidden = !mine;
+  setToggle('hide-self', selfHidden, ['Ocultar sua tela para você', 'Mostrar sua tela'], ['#i-eye', '#i-eye-off']);
   mainTrack = attach(main, video, mainTrack);
   pipTrack = attach(pipHidden ? null : pip, pipVideo, pipTrack);
   pipVideo.hidden = !pipTrack;
@@ -275,8 +287,8 @@ const renderStage = () => {
   $('pip-hide').hidden = $('pip-swap').hidden = !(screen && camera);
 
   overlay.hidden = true;
-  $('voice-stage').hidden = !!main;
-  if (!main) {
+  $('voice-stage').hidden = !!main || hideMine;
+  if (!main && !hideMine) {
     const presenting = can('screen');
     $('voice-hint').textContent = t(
       presenting ? 'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.' : 'Ninguém está transmitindo agora.',
@@ -418,7 +430,8 @@ const wireRoomEvents = () => {
     })
     .on(RoomEvent.LocalTrackUnpublished, (pub) => {
       if (pub.kind === Track.Kind.Audio && pub.track) removeRoomAudio(pub.track.mediaStreamTrack);
-      if (pub.source === Track.Source.ScreenShare) {
+      // Troca de qualidade: a tela sai e volta na hora, não é o fim do compartilhamento
+      if (pub.source === Track.Source.ScreenShare && !republishing) {
         // Também dispara quando se clica em "Parar de compartilhar" na barra do navegador
         setShareButton(false);
         stopExtraAudio();
@@ -919,7 +932,11 @@ const setupSettings = () => {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) toggle(false);
   });
   document.addEventListener('keydown', (e) => e.key === 'Escape' && toggle(false));
-  $('quality').addEventListener('change', updateQualityWarning);
+  $('quality').addEventListener('change', () => {
+    updateQualityWarning();
+    applyScreenSettings();
+  });
+  $('codec').addEventListener('change', applyScreenSettings);
 };
 
 const stopExtraAudio = async () => {
@@ -930,10 +947,23 @@ const stopExtraAudio = async () => {
   track.stop();
 };
 
-const startShare = async () => {
+// Como a tela é enviada, pela qualidade e pelo codec escolhidos nos ajustes
+const screenPublishOptions = () => {
   const p = PRESETS[$('quality').value];
   const codec = $('codec').value;
+  return {
+    videoCodec: codec,
+    // Quem não decodifica VP9/AV1 recebe H.264
+    backupCodec: codec === 'h264' ? false : { codec: 'h264' },
+    screenShareEncoding: { maxBitrate: p.bitrate, maxFramerate: p.fps },
+    screenShareSimulcastLayers: SIMULCAST_LAYERS.filter((l) => l.height < p.height),
+    degradationPreference: 'maintain-framerate',
+    dtx: false,
+  };
+};
 
+const startShare = async () => {
+  const p = PRESETS[$('quality').value];
   await room.localParticipant.setScreenShareEnabled(
     true,
     {
@@ -944,15 +974,7 @@ const startShare = async () => {
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',
     },
-    {
-      videoCodec: codec,
-      // Quem não decodifica VP9/AV1 recebe H.264
-      backupCodec: codec === 'h264' ? false : { codec: 'h264' },
-      screenShareEncoding: { maxBitrate: p.bitrate, maxFramerate: p.fps },
-      screenShareSimulcastLayers: SIMULCAST_LAYERS.filter((l) => l.height < p.height),
-      degradationPreference: 'maintain-framerate',
-      dtx: false,
-    },
+    screenPublishOptions(),
   );
 
   const deviceId = $('audio-device').value;
@@ -972,6 +994,31 @@ const startShare = async () => {
       dtx: false,
       red: false,
     });
+  }
+};
+
+// Trocar a qualidade ou o codec com a tela já sendo compartilhada: a mesma captura é publicada de
+// novo com as opções novas, sem pedir a tela outra vez. Quem assiste vê uma piscada de ~1 s.
+let republishing = false;
+const applyScreenSettings = async () => {
+  const pub = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+  if (!pub?.track || republishing) return;
+  const track = pub.track;
+  const p = PRESETS[$('quality').value];
+  republishing = true;
+  try {
+    // Reduzir a captura alivia o computador; aumentar só vai até o tamanho real da tela
+    await track.mediaStreamTrack
+      .applyConstraints({ width: { ideal: p.width }, height: { ideal: p.height }, frameRate: { ideal: p.fps } })
+      .catch(() => {});
+    await room.localParticipant.unpublishTrack(track, false);
+    await room.localParticipant.publishTrack(track, { source: Track.Source.ScreenShare, ...screenPublishOptions() });
+    lastSend = null;
+    addMessage(t('Transmitindo agora em {quality}.', { quality: QUALITY_LABELS[$('quality').value] }));
+  } catch (err) {
+    addMessage(t('Não foi possível trocar a qualidade: {error}', { error: err.message }));
+  } finally {
+    republishing = false;
   }
 };
 
@@ -1209,17 +1256,52 @@ const setupViewing = () => {
     setToggle('pip-hide', pipHidden, ['Esconder câmera', 'Mostrar câmera']);
     renderStage();
   });
+  $('hide-self').addEventListener('click', () => setSelfHidden(!selfHidden));
+  $('show-self').addEventListener('click', () => setSelfHidden(false));
+
   $('pip-swap').addEventListener('click', () => {
     pipSwapped = !pipSwapped;
     setToggle('pip-swap', pipSwapped, ['Inverter câmera e tela', 'Voltar a tela para o centro']);
     renderStage();
   });
 
-  setInterval(() => {
+  setInterval(async () => {
+    const sending = await sendSummary();
+    // Selo na prévia de quem transmite: a qualidade que está saindo de fato
+    const watchingMe = watching === room?.localParticipant.identity;
+    $('send-badge').hidden = !(sending && watchingMe);
+    if (sending) {
+      $('send-badge').textContent = t('Transmitindo {width}×{height} · {fps} fps · {mbps} Mbps', sending);
+      if (watchingMe) return ($('stats').textContent = $('send-badge').textContent);
+    }
     if (!mainTrack || !video.videoWidth) return ($('stats').textContent = '');
     const mbps = ((mainTrack.currentBitrate ?? 0) / 1e6).toFixed(1);
     $('stats').textContent = `${video.videoWidth}×${video.videoHeight} · ${mbps} Mbps`;
   }, 1000);
+};
+
+// Esconder ou mostrar a própria transmissão: ao esconder, guarda um quadro pequeno para o fundo desfocado
+const setSelfHidden = (hide) => {
+  if (hide && video.videoWidth) {
+    const frame = $('self-frame');
+    frame.width = 160;
+    frame.height = Math.round((160 * video.videoHeight) / video.videoWidth);
+    frame.getContext('2d').drawImage(video, 0, 0, frame.width, frame.height);
+  }
+  selfHidden = hide;
+  storage.set(localStorage, 'hide-self', hide ? '1' : '0');
+  renderStage();
+};
+
+// O que a tela compartilhada está enviando agora (null se não há tela)
+const sendSummary = async () => {
+  const track = room?.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track;
+  if (!track || republishing) return null;
+  const summary = summarizeSend(await track.getSenderStats().catch(() => []), lastSend);
+  lastSend = summary?.snap ?? null;
+  if (!summary?.width) return null;
+  const fmt = (n) => n.toLocaleString(lang, { maximumFractionDigits: 1 });
+  return { ...summary, mbps: fmt(summary.mbps ?? 0) };
 };
 
 // --- emojis ----------------------------------------------------------------
