@@ -444,14 +444,49 @@ const wireRoomEvents = () => {
   });
 };
 
+// Ingresso guardado no navegador: voltar à sala (recarregar, cair a rede) não gasta o convite de
+// novo nem pede senha ou sala de espera. Guardado por um resumo da chave da sala, nunca pela chave.
+const ticketKey = async () => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(e2eeKey));
+  return `ticket:${[...new Uint8Array(digest).slice(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+};
+
+let lobbyId = null;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Pede o token; na sala de espera, pergunta de novo a cada 2 s até o anfitrião decidir
+const requestToken = async (name) => {
+  const key = await ticketKey();
+  for (;;) {
+    const res = await fetch('/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': lang },
+      body: JSON.stringify({
+        roomId,
+        hostKey,
+        name,
+        ticket: hostKey ? undefined : storage.get(localStorage, key) ?? undefined,
+        password: $('invite-password').value || undefined,
+        lobbyId: lobbyId ?? undefined,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 202) {
+      lobbyId = data.lobbyId;
+      $('waiting-msg').hidden = false;
+      await pause(2000);
+      continue;
+    }
+    $('waiting-msg').hidden = true;
+    lobbyId = null;
+    if (!res.ok) throw Object.assign(new Error(data.error ?? t('Não foi possível entrar na sala.')), { code: data.code });
+    if (data.ticket) storage.set(localStorage, key, data.ticket);
+    return data;
+  }
+};
+
 const connect = async (name) => {
-  const res = await fetch('/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept-Language': lang },
-    body: JSON.stringify({ roomId, hostKey, name }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw Object.assign(new Error(data.error ?? t('Não foi possível entrar na sala.')), { code: data.code });
+  const data = await requestToken(name);
   isHost = data.role === 'host';
   token = data.token;
 
@@ -475,10 +510,11 @@ const connect = async (name) => {
 // --- estado da sala: tipo, chat, pedidos e lista de pessoas --------------------
 
 let knownRequests = new Set();
+let knownLobby = new Set();
 
 function applyMetadata() {
   try {
-    meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [], ...JSON.parse(room.metadata || '{}') };
+    meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [], lobby: [], ...JSON.parse(room.metadata || '{}') };
   } catch {}
   const input = $('chat-input');
   const blocked = !meta.chat && !isHost;
@@ -495,8 +531,12 @@ function applyMetadata() {
         addMessage(t(r.kind === 'speak' ? '{name} pediu a palavra.' : '{name} pediu para mostrar a tela.', { name: r.name }));
     }
     knownRequests = new Set(meta.requests.map((r) => `${r.identity}:${r.kind}`));
-    $('requests-count').textContent = meta.requests.length ? String(meta.requests.length) : '';
-    $('requests-count').hidden = !meta.requests.length;
+    for (const w of meta.lobby ?? []) if (!knownLobby.has(w.id)) addMessage(t('{name} está na sala de espera.', { name: w.name }));
+    knownLobby = new Set((meta.lobby ?? []).map((w) => w.id));
+    const pending = meta.requests.length + (meta.lobby ?? []).length;
+    $('requests-count').textContent = pending ? String(pending) : '';
+    $('requests-count').hidden = !pending;
+    renderLobby();
   }
   updateControls();
   renderStage();
@@ -542,6 +582,104 @@ const permitted = (p, source) => {
   if (p.identity.startsWith('h-')) return true;
   const sources = p.permissions?.canPublishSources ?? [];
   return !!p.permissions?.canPublish && (sources.length === 0 || sources.includes(SOURCE[source]));
+};
+
+// --- convites da sala e sala de espera (anfitrião) ------------------------------
+
+const linkFor = (code) => `${location.origin}/r/${code}#k=${e2eeKey}`;
+
+const describeInvite = (inv) => {
+  const parts = [inv.maxUses ? t('{used} de {max} pessoas', { used: inv.used, max: inv.maxUses }) : t('{used} pessoas', { used: inv.used })];
+  if (inv.expiresAt) parts.push(t('vale até {when}', { when: new Date(inv.expiresAt).toLocaleString(lang) }));
+  if (inv.hasPassword) parts.push(t('com senha'));
+  if (inv.revoked) parts.push(t('revogado'));
+  return parts.join(' · ');
+};
+
+async function refreshInvites() {
+  if (!isHost) return;
+  const data = await hostAction('/api/rooms/invites/list');
+  if (!data) return;
+  $('waiting-toggle').checked = data.waiting;
+  $('invites').replaceChildren(
+    ...data.invites.map((inv) => {
+      const li = el('li', 'invite-item');
+      li.dataset.invite = inv.id;
+      const info = el('div');
+      info.append(el('strong', null, inv.isDefault ? t('Convite padrão') : inv.label), el('span', 'muted small', describeInvite(inv)));
+      li.append(info);
+      if (!inv.revoked) {
+        const copy = button('secondary', t('Copiar'), async () => {
+          try {
+            await navigator.clipboard.writeText(linkFor(inv.code));
+            copy.textContent = t('Copiado!');
+          } catch {
+            prompt(t('Link do convite'), linkFor(inv.code));
+          }
+        });
+        copy.dataset.action = 'copy';
+        li.append(copy);
+      }
+      if (!inv.isDefault && !inv.revoked) {
+        const revoke = button('danger', t('Revogar'), async () => {
+          if (!confirm(t('Revogar este convite? O link deixa de funcionar e quem entrou por ele sai da sala.'))) return;
+          const r = await hostAction('/api/rooms/invites/revoke', { inviteId: inv.id });
+          if (r) addMessage(t('Convite revogado. {n} pessoa(s) saíram da sala.', { n: r.removed }));
+          refreshInvites();
+        });
+        revoke.dataset.action = 'revoke';
+        li.append(revoke);
+      }
+      return li;
+    }),
+  );
+}
+
+const setupInvites = () => {
+  $('invites-panel').hidden = false;
+  $('invites-panel').addEventListener('toggle', () => $('invites-panel').open && refreshInvites());
+  $('waiting-toggle').addEventListener('change', async (e) => {
+    const data = await hostAction('/api/rooms/waiting', { enabled: e.target.checked });
+    if (data) addMessage(t(data.waiting ? 'Sala de espera ligada: você libera cada pessoa que chegar.' : 'Sala de espera desligada.'));
+    else e.target.checked = !e.target.checked;
+  });
+  $('invite-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const max = $('invite-max').value;
+    const expiry = $('invite-expiry').value;
+    const data = await hostAction('/api/rooms/invites', {
+      label: $('invite-label').value,
+      maxUses: max ? Number(max) : null,
+      expiresInMinutes: expiry ? Number(expiry) : null,
+      password: $('invite-pass').value,
+    });
+    if (!data) return;
+    e.target.reset();
+    addMessage(t('Convite “{label}” criado.', { label: data.label }));
+    try {
+      await navigator.clipboard.writeText(linkFor(data.code));
+      addMessage(t('Link do convite copiado.'));
+    } catch {}
+    refreshInvites();
+  });
+};
+
+const renderLobby = () => {
+  const waiting = meta.lobby ?? [];
+  $('lobby').hidden = !isHost || !waiting.length;
+  if (!isHost) return;
+  $('lobby').replaceChildren(
+    ...waiting.map((w) => {
+      const li = el('li', 'request');
+      li.dataset.lobby = w.id;
+      li.append(
+        el('span', null, t('{name} está na sala de espera.', { name: w.name })),
+        button('', t('Deixar entrar'), () => hostAction('/api/rooms/lobby', { lobbyId: w.id, admit: true })),
+        button('secondary', t('Recusar'), () => hostAction('/api/rooms/lobby', { lobbyId: w.id, admit: false })),
+      );
+      return li;
+    }),
+  );
 };
 
 const renderRequests = () => {
@@ -607,7 +745,10 @@ function renderPeople() {
         const kick = button('danger', t('Remover'), async () => {
           if (!confirm(t('Remover {name} da sala? O link da sala será trocado para que essa pessoa não volte.', { name: p.name }))) return;
           const data = await hostAction('/api/rooms/kick', { identity: p.identity });
-          if (data) switchRoomCode(data.roomId, t('{name} foi removido.', { name: p.name }));
+          if (!data) return;
+          if (data.roomId !== roomId) switchRoomCode(data.roomId, t('{name} foi removido.', { name: p.name }));
+          else addMessage(t('{name} foi removido. O convite por onde a pessoa entrou ganhou um link novo.', { name: p.name }));
+          refreshInvites();
         });
         kick.dataset.action = 'kick';
         actions.append(kick);
@@ -879,6 +1020,8 @@ const setupHost = () => {
     if (data) switchRoomCode(data.roomId, t('Link da sala trocado.'));
   });
 
+  setupInvites();
+
   $('chat-toggle').addEventListener('click', async () => {
     const data = await hostAction('/api/rooms/chat', { enabled: !meta.chat });
     if (data) addMessage(t(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.'));
@@ -1121,6 +1264,10 @@ $('join-form').addEventListener('submit', async (e) => {
   } catch (err) {
     joinError(err.message);
     if (err.code === 'sso_required') $('sso-join').hidden = false;
+    if (err.code === 'password_required') {
+      $('password-row').hidden = false;
+      $('invite-password').focus();
+    }
     btn.disabled = false;
     return;
   }

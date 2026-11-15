@@ -36,7 +36,12 @@
         <label for="name">Seu nome</label>
         <input id="name" maxlength="32" autocomplete="nickname" required>
         <p id="sso-hint" class="muted small" hidden></p>
+        <div id="password-row" hidden>
+          <label for="invite-password">Senha do convite</label>
+          <input id="invite-password" type="password" maxlength="128" autocomplete="off">
+        </div>
         <button type="submit">Entrar na sala</button>
+        <p id="waiting-msg" class="notice" role="status" hidden>Aguardando o anfitrião liberar sua entrada…</p>
         <p id="join-error" class="error" hidden></p>
         <button id="sso-join" type="button" class="secondary" hidden>Entrar com login da empresa</button>
       </form>
@@ -181,8 +186,37 @@
         <button id="chat-toggle" type="button" class="secondary">Desligar chat</button>
       </div>
       <div id="people-panel" class="people-panel" hidden>
+        <ul id="lobby" class="requests" hidden></ul>
         <ul id="requests" class="requests" hidden></ul>
         <ul id="people" class="people"></ul>
+        <details id="invites-panel" class="invites-panel" hidden>
+          <summary>Convites e entrada</summary>
+          <label class="check"><input id="waiting-toggle" type="checkbox"> Sala de espera: eu libero cada pessoa</label>
+          <ul id="invites" class="invites"></ul>
+          <form id="invite-form" class="form invite-form">
+            <label for="invite-label">Nome do convite</label>
+            <input id="invite-label" maxlength="40" placeholder="Ex.: Discord do clã">
+            <div class="invite-grid">
+              <div>
+                <label for="invite-max">Limite de pessoas</label>
+                <input id="invite-max" type="number" min="1" max="10000" placeholder="Sem limite">
+              </div>
+              <div>
+                <label for="invite-expiry">Validade</label>
+                <select id="invite-expiry">
+                  <option value="">Sem validade</option>
+                  <option value="30">30 minutos</option>
+                  <option value="60">1 hora</option>
+                  <option value="1440">1 dia</option>
+                  <option value="10080">7 dias</option>
+                </select>
+              </div>
+            </div>
+            <label for="invite-pass">Senha (opcional)</label>
+            <input id="invite-pass" type="password" maxlength="128" autocomplete="new-password">
+            <button type="submit" class="secondary">Criar convite</button>
+          </form>
+        </details>
       </div>
       <ul id="messages"></ul>
       <form id="chat-form">

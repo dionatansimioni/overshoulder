@@ -514,3 +514,17 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 .room-type:has(input:checked) { border-color: var(--accent); }
 .room-type input { position: absolute; opacity: 0; pointer-events: none; }
 .room-type-title { font-weight: 700; font-size: 15px; }
+
+/* Convites da sala (anfitrião) */
+/* As listas do painel ocupam o que precisam; quem rola é o painel (a regra .chat ul é do chat) */
+.people-panel ul, .people-panel > * { flex: none; }
+.people-panel .invites { padding: 0; }
+.invites-panel { margin: 12px 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--panel-2); }
+.invites-panel summary { cursor: pointer; font-weight: 500; }
+.invites-panel .check { margin: 10px 0; font-size: 14px; }
+.invites { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.invite-item { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.invite-item div { flex: 1 1 140px; display: flex; flex-direction: column; min-width: 0; }
+.invite-item button { padding: 4px 10px; font-size: 12px; }
+.invite-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.invite-grid > div { display: flex; flex-direction: column; gap: 6px; }

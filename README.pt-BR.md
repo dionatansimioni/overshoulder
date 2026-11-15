@@ -9,6 +9,7 @@ Compartilhamento de tela self-hosted, direto no navegador: para jogar com os ami
 - **Salas de até 16 pessoas por padrão** (configurável até 500): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada espectador recebe a qualidade que a conexão dele aguenta.
 - **Dois tipos de sala:** **"Jogando juntos"**, em que todos falam (como uma call) e várias pessoas mostram a tela ao mesmo tempo; e **"Live"**, em que só quem apresenta fala e a audiência usa o chat, podendo **pedir a palavra** ou **pedir para mostrar a tela**. Com várias telas ao vivo, cada pessoa escolhe qual assistir e só recebe essa.
 - **Webcam sobre a tela:** quem apresenta liga a câmera, que aparece sobre a tela (picture-in-picture) no canto, tamanho e formato escolhidos. Quem assiste pode esconder a câmera ou inverter com a tela. Também dá para transmitir só a câmera.
+- **Convites de sala:** o link padrão não tem limite. Em *Pessoas › Convites e entrada*, o anfitrião cria convites com nome (ex.: "Discord do clã"), limite de pessoas, validade e senha opcional, e revoga um convite (o link para de funcionar e quem entrou por ele sai da sala). Quem entra guarda um **ingresso** no navegador: recarregar ou cair a rede não gasta o convite de novo, nem depois de o link mudar. A **sala de espera** opcional faz cada pessoa aguardar o anfitrião deixar entrar.
 - **Moderação:** na aba *Pessoas*, o anfitrião aprova pedidos, libera ou tira a fala e a tela de cada pessoa e remove alguém da sala. Também desliga o chat de quem assiste e gera um link novo para a sala.
 - **Gravação no navegador do anfitrião:** grava o vídeo que está na tela (inclusive de quem recebeu a vez de apresentar) e todo o áudio da sala. O servidor nunca vê o conteúdo. No Chrome e no Edge, o arquivo é gravado numa pasta escolhida, a cada segundo (WebM), e o que já foi gravado fica salvo mesmo se o navegador fechar. Nos outros navegadores, o arquivo (MP4 quando possível) é baixado ao parar. Tela (com o áudio) e câmera ficam em arquivos separados, para quem edita montar como quiser. Cada trecho de vídeo vira uma parte, e todos na sala veem o aviso **● Gravando**.
 - **Chat de texto com emojis** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
@@ -30,7 +31,7 @@ Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveK
 - **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele modera, encerra a sala e libera fala e tela.
 - **Link de quem assiste:** `/r/<sala>#k=<chave>`. Assiste e usa o chat.
 - A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
-- **Remover alguém** também troca o link da sala: quem já está assistindo continua, e quem ainda vai entrar precisa do link novo. Se a pessoa removida tentar voltar com a conexão antiga, o servidor a remove de novo em até 2 segundos.
+- **Remover alguém** também troca o link do convite por onde a pessoa entrou e invalida o ingresso dela: quem já está assistindo continua, e quem ainda vai entrar por aquele convite precisa do link novo. Se a pessoa removida tentar voltar com a conexão antiga, o servidor a remove de novo em até 2 segundos.
 
 ## Subindo no servidor
 

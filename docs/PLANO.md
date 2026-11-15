@@ -113,6 +113,13 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Webcam com picture-in-picture (posição, tamanho, formato) e modo só câmera; gravação com tela e câmera em arquivos separados.
   - Pedidos e posição da câmera passam por rotas que conferem o token do LiveKit da própria pessoa (`/api/rooms/request`, `/api/rooms/layout`). O anfitrião libera e tira por `/api/rooms/permissions`, que substituiu o antigo "passar a vez".
 
+- **Item 2 feito (16/11/2026):**
+  - Convites de sala: o padrão é ilimitado; o anfitrião cria convites nomeados com limite de pessoas, validade (até 30 dias) e senha opcional (com limite de tentativas), e revoga (o link morre, os ingressos também, e quem entrou por ele sai da sala).
+  - Ingresso no navegador (só o hash fica no servidor): voltar não gasta o convite, não pede senha nem sala de espera, e funciona mesmo depois de o link mudar.
+  - Sala de espera: quem chega espera; o anfitrião deixa entrar ou recusa (os metadados mostram só um id público, não o segredo de quem espera). Quem foi aprovado entra com o nome aprovado.
+  - Remover alguém troca só o link do convite usado por essa pessoa.
+  - Limitação: convites e ingressos ficam na memória e somem com a sala (salas fixas, no item 3, vão precisar persistir).
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

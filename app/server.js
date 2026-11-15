@@ -83,10 +83,14 @@ const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
 // derrubar quem já está assistindo.
-// Sala: { name, owner, code, type, openScreens, chat, recording, requireSso, banned,
-//         speakers (quem pode falar na Live), sharers (quem pode mostrar a tela), requests }
+// Sala: { name, owner, code (do convite padrão), type, openScreens, chat, recording, requireSso, banned,
+//         speakers (quem pode falar na Live), sharers (quem pode mostrar a tela), requests,
+//         invites, joinedBy (identidade → convite e ingresso), waiting, lobby }
 const liveRooms = new Map(); // nome interno → sala
-const roomCodes = new Map(); // código público → nome interno
+const roomCodes = new Map(); // código público de um convite → { name, inviteId }
+// Ingressos: quem entrou guarda um no navegador e volta sem gastar o convite de novo, mesmo se o
+// link tiver sido trocado depois. Só o hash fica no servidor.
+const roomTickets = new Map(); // hash do ingresso → { name, inviteId }
 const ROOM_TYPES = ['together', 'live'];
 const SCREEN_SOURCES = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO, TrackSource.CAMERA];
 const HOST_SOURCES = [TrackSource.MICROPHONE, ...SCREEN_SOURCES];
@@ -855,20 +859,67 @@ const newRoomId = () => crypto.randomBytes(16).toString('base64url');
 
 const forgetRoom = (name) => {
   const room = liveRooms.get(name);
-  if (room) roomCodes.delete(room.code);
+  if (room) for (const invite of room.invites.values()) roomCodes.delete(invite.code);
+  for (const [hash, ticket] of roomTickets) if (ticket.name === name) roomTickets.delete(hash);
   liveRooms.delete(name);
 };
 
-// Sala pelo código público do link; links trocados ou salas encerradas dão 404
+// Sala (e o convite do link) pelo código público; links trocados ou salas encerradas dão 404
 const roomByCode = async (code) => {
   if (typeof code !== 'string' || !ROOM_ID_RE.test(code)) throw new HttpError(400, 'Sala inválida.');
-  const name = roomCodes.get(code);
-  if (!name || !(await roomExists(name))) {
-    if (name) forgetRoom(name);
+  const entry = roomCodes.get(code);
+  if (!entry || !(await roomExists(entry.name))) {
+    if (entry) forgetRoom(entry.name);
     throw new HttpError(404, 'Essa sala não existe, já foi encerrada ou o link foi trocado pelo anfitrião.');
   }
-  return { name, room: liveRooms.get(name) };
+  const room = liveRooms.get(entry.name);
+  return { name: entry.name, room, invite: room.invites.get(entry.inviteId) };
 };
+
+// --- convites de sala ---------------------------------------------------------
+
+const INVITE_LIMITS = { label: 40, maxUses: 10_000, minutes: 30 * 24 * 60, password: 128 };
+
+const newInvite = (room, { label, maxUses = null, expiresAt = null, passwordHash = null, isDefault = false }) => {
+  const invite = { id: randomToken(9), code: newRoomId(), label, maxUses, used: 0, expiresAt, passwordHash, revoked: false, isDefault };
+  room.invites.set(invite.id, invite);
+  roomCodes.set(invite.code, { name: room.name, inviteId: invite.id });
+  return invite;
+};
+
+const defaultInvite = (room) => [...room.invites.values()].find((i) => i.isDefault);
+
+// Troca o código de um convite: o link antigo deixa de valer (ingressos já dados continuam)
+const rotateInvite = (room, invite) => {
+  roomCodes.delete(invite.code);
+  invite.code = newRoomId();
+  roomCodes.set(invite.code, { name: room.name, inviteId: invite.id });
+  if (invite.isDefault) room.code = invite.code;
+  return invite.code;
+};
+
+const publicInvite = (invite) => ({
+  id: invite.id,
+  code: invite.code,
+  label: invite.label,
+  maxUses: invite.maxUses,
+  used: invite.used,
+  expiresAt: invite.expiresAt && new Date(invite.expiresAt).toISOString(),
+  hasPassword: !!invite.passwordHash,
+  revoked: invite.revoked,
+  isDefault: invite.isDefault,
+});
+
+// Por que um convite não deixa entrar (ou null se deixa)
+const inviteProblem = (invite) => {
+  if (invite.revoked) return 'Este convite foi revogado.';
+  if (invite.expiresAt && invite.expiresAt <= Date.now()) return 'Este convite expirou.';
+  if (invite.maxUses !== null && invite.used >= invite.maxUses) return 'Este convite já atingiu o limite de pessoas.';
+  return null;
+};
+
+// Tentativas de senha de convite: por IP e convite
+const invitePasswordLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 
 // Ações do anfitrião: o código da sala e a chave de anfitrião precisam bater
 const hostRoom = async ({ roomId, hostKey }) => {
@@ -899,6 +950,8 @@ const metadataOf = (room) =>
     chat: room.chat,
     recording: room.recording,
     requests: [...room.requests.values()],
+    waiting: room.waiting,
+    lobby: [...room.lobby.values()].filter((e) => e.status === 'waiting').map(({ ref, name }) => ({ id: ref, name })),
   });
 
 // Aplica as permissões atuais a quem já está na sala e avisa todos pelos metadados da sala
@@ -912,17 +965,20 @@ const syncRoom = async (name, room, identities) => {
   await rooms.updateRoomMetadata(name, metadataOf(room));
 };
 
-const rotateCode = (room) => {
-  roomCodes.delete(room.code);
-  room.code = newRoomId();
-  roomCodes.set(room.code, room.name);
-  return room.code;
-};
 
 // Vigia das salas: quem foi removido e voltou com o token antigo é removido de novo, e o aviso de
 // gravação é desligado se o anfitrião saiu (aba fechada, navegador travado, rede caída)
 setInterval(async () => {
   for (const room of liveRooms.values()) {
+    // Quem desistiu de esperar na sala de espera sai da fila depois de um tempo
+    let lobbyChanged = false;
+    for (const [id, entry] of room.lobby) {
+      if (entry.expires < Date.now()) {
+        room.lobby.delete(id);
+        lobbyChanged = true;
+      }
+    }
+    if (lobbyChanged) await rooms.updateRoomMetadata(room.name, metadataOf(room)).catch(() => {});
     if (!room.banned.size && !room.recording) continue;
     try {
       const participants = await rooms.listParticipants(room.name);
@@ -958,7 +1014,7 @@ const createRoom = async (req, res) => {
   const room = {
     name,
     owner: user.id,
-    code: newRoomId(),
+    code: null,
     type,
     openScreens,
     chat: true,
@@ -968,21 +1024,86 @@ const createRoom = async (req, res) => {
     speakers: new Set(),
     sharers: new Set(),
     requests: new Map(),
+    invites: new Map(),
+    joinedBy: new Map(),
+    waiting: false,
+    lobby: new Map(),
   };
+  room.code = newInvite(room, { label: 'Convite padrão', isDefault: true }).code;
   const { maxParticipants } = settings();
   await rooms.createRoom({ name, emptyTimeout: 300, departureTimeout: 60, maxParticipants, metadata: metadataOf(room) });
   liveRooms.set(name, room);
-  roomCodes.set(room.code, name);
   log.info('sala criada', { user: user.username, tipo: type, maxParticipants, exigeLogin: requireSso });
   json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso, type, openScreens });
 };
 
-const issueToken = async (req, res) => {
-  const { roomId, hostKey, name } = await readJson(req);
-  const found = await roomByCode(roomId);
-  const isHost = typeof hostKey === 'string' && safeEqual(hostKey, hostKeyFor(found.name));
+const LOBBY_TTL_MS = 10 * 60_000;
 
-  let displayName = (typeof name === 'string' ? name.trim().slice(0, 32) : '') || (isHost ? 'Anfitrião' : 'Espectador');
+// Entrada de quem não é anfitrião: ingresso guardado no navegador, ou o convite do link (validade,
+// limite de pessoas, senha) e, com a sala de espera ligada, a aprovação do anfitrião.
+// Devolve o convite e o ingresso usados, ou responde (espera, erro) e devolve null.
+const admitViewer = async (req, res, found, body, displayName) => {
+  const { room, invite } = found;
+  if (found.ticketHash) return { inviteId: invite.id, ticketHash: found.ticketHash };
+
+  const entry = typeof body.lobbyId === 'string' && room.lobby.get(body.lobbyId);
+  const problem = inviteProblem(invite);
+  if (problem) throw new HttpError(410, problem, 'invite_closed');
+
+  // Quem já está na fila passou pela senha; os demais passam agora
+  if (!entry && invite.passwordHash) {
+    const key = `${clientIp(req)}|${invite.id}`;
+    if (invitePasswordLimiter.blocked(key)) throw new HttpError(429, 'Muitas tentativas. Espere alguns minutos.');
+    if (typeof body.password !== 'string' || !body.password)
+      throw new HttpError(401, 'Este convite pede uma senha.', 'password_required');
+    if (!(await verifyPasswordOrDummy(body.password, invite.passwordHash))) {
+      invitePasswordLimiter.fail(key);
+      log.warn('senha de convite incorreta');
+      throw new HttpError(403, 'Senha do convite incorreta.', 'password_required');
+    }
+  }
+
+  if (room.waiting) {
+    if (!entry || entry.inviteId !== invite.id) {
+      const id = randomToken(12);
+      // id: segredo de quem espera (para perguntar se já pode entrar); ref: o que o anfitrião vê
+      room.lobby.set(id, { id, ref: randomToken(9), name: displayName, inviteId: invite.id, status: 'waiting', expires: Date.now() + LOBBY_TTL_MS });
+      await rooms.updateRoomMetadata(room.name, metadataOf(room));
+      json(res, 202, { waiting: true, lobbyId: id });
+      return null;
+    }
+    if (entry.status === 'waiting') {
+      entry.expires = Date.now() + LOBBY_TTL_MS;
+      json(res, 202, { waiting: true, lobbyId: entry.id });
+      return null;
+    }
+    room.lobby.delete(entry.id);
+    if (entry.status === 'denied') throw new HttpError(403, 'O anfitrião não liberou sua entrada.', 'lobby_denied');
+  }
+
+  invite.used++;
+  const ticket = randomToken();
+  roomTickets.set(sha256(ticket), { name: room.name, inviteId: invite.id });
+  // Quem passou pela sala de espera entra com o nome que o anfitrião aprovou
+  return { inviteId: invite.id, ticketHash: sha256(ticket), ticket, name: entry?.name };
+};
+
+// Sala de quem tem um ingresso válido (o link pode ter mudado desde que a pessoa entrou)
+const roomByTicket = async (ticket) => {
+  if (typeof ticket !== 'string') return null;
+  const ticketHash = sha256(ticket);
+  const entry = roomTickets.get(ticketHash);
+  const room = entry && liveRooms.get(entry.name);
+  if (!room || !(await roomExists(entry.name))) return null;
+  return { name: entry.name, room, invite: room.invites.get(entry.inviteId), ticketHash };
+};
+
+const issueToken = async (req, res) => {
+  const body = await readJson(req);
+  const found = (!body.hostKey && (await roomByTicket(body.ticket))) || (await roomByCode(body.roomId));
+  const isHost = typeof body.hostKey === 'string' && safeEqual(body.hostKey, hostKeyFor(found.name));
+
+  let displayName = (typeof body.name === 'string' ? body.name.trim().slice(0, 32) : '') || (isHost ? 'Anfitrião' : 'Espectador');
   // Sala que exige login corporativo: só entra quem fez login, e com o nome real do provedor
   if (found.room.requireSso && !isHost) {
     const viewer = currentViewer(req);
@@ -991,7 +1112,11 @@ const issueToken = async (req, res) => {
       throw new HttpError(401, 'Esta sala exige o login da empresa para assistir.', 'sso_required');
     displayName = viewer ? viewer.name : account.username;
   }
+  const admitted = isHost ? null : await admitViewer(req, res, found, body, displayName);
+  if (!isHost && !admitted) return;
+  if (admitted?.name) displayName = admitted.name;
   const identity = `${isHost ? 'h' : 'v'}-${crypto.randomBytes(6).toString('hex')}`;
+  if (admitted) found.room.joinedBy.set(identity, admitted);
 
   const at = new AccessToken(API_KEY, API_SECRET, { identity, name: displayName, ttl: TOKEN_TTL });
   at.addGrant({
@@ -1002,7 +1127,13 @@ const issueToken = async (req, res) => {
       : viewerPermission(found.room, identity)),
   });
 
-  json(res, 200, { token: await at.toJwt(), url: PUBLIC_URL, role: isHost ? 'host' : 'viewer', identity });
+  json(res, 200, {
+    token: await at.toJwt(),
+    url: PUBLIC_URL,
+    role: isHost ? 'host' : 'viewer',
+    identity,
+    ...(admitted?.ticket && { ticket: admitted.ticket }),
+  });
 };
 
 const endRoom = async (req, res) => {
@@ -1036,11 +1167,86 @@ const setRecording = async (req, res) => {
   json(res, 200, { recording: room.recording });
 };
 
+// Novo link para o convite padrão (o antigo deixa de valer; quem tem ingresso continua entrando)
 const newLink = async (req, res) => {
   const { room } = await hostRoom(await readJson(req));
-  const code = rotateCode(room);
+  const code = rotateInvite(room, defaultInvite(room));
   log.info('link da sala trocado');
   json(res, 200, { roomId: code });
+};
+
+// --- API: convites e sala de espera (anfitrião) --------------------------------
+
+const createRoomInvite = async (req, res) => {
+  const body = await readJson(req);
+  const { room } = await hostRoom(body);
+  const label = typeof body.label === 'string' && body.label.trim() ? body.label.trim().slice(0, INVITE_LIMITS.label) : 'Convite';
+  const { maxUses = null, expiresInMinutes = null, password = '' } = body;
+  if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > INVITE_LIMITS.maxUses))
+    return json(res, 400, { error: 'Limite de pessoas do convite: de 1 a 10000, ou sem limite.' });
+  if (expiresInMinutes !== null && (!Number.isInteger(expiresInMinutes) || expiresInMinutes < 1 || expiresInMinutes > INVITE_LIMITS.minutes))
+    return json(res, 400, { error: 'Validade do convite: de 1 minuto a 30 dias, ou sem validade.' });
+  if (typeof password !== 'string' || password.length > INVITE_LIMITS.password)
+    return json(res, 400, { error: 'Senha do convite inválida.' });
+  const invite = newInvite(room, {
+    label,
+    maxUses,
+    expiresAt: expiresInMinutes && Date.now() + expiresInMinutes * 60_000,
+    passwordHash: password ? await hashPassword(password) : null,
+  });
+  log.info('convite de sala criado', { limite: maxUses, validadeMin: expiresInMinutes, senha: !!password });
+  json(res, 201, publicInvite(invite));
+};
+
+const listInvitesOfRoom = async (req, res) => {
+  const { room } = await hostRoom(await readJson(req));
+  json(res, 200, { invites: [...room.invites.values()].map(publicInvite), waiting: room.waiting });
+};
+
+// Revogar um convite desliga o link e tira da sala quem entrou por ele (os outros convites seguem)
+const revokeRoomInvite = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  const invite = room.invites.get(body.inviteId);
+  if (!invite) return json(res, 404, { error: 'Convite não encontrado.' });
+  if (invite.isDefault) return json(res, 400, { error: 'O convite padrão não pode ser revogado; gere um link novo para ele.' });
+  invite.revoked = true;
+  roomCodes.delete(invite.code);
+  let removed = 0;
+  for (const [identity, joined] of room.joinedBy) {
+    if (joined.inviteId !== invite.id) continue;
+    room.banned.add(identity);
+    removed++;
+    await rooms.removeParticipant(name, identity).catch(() => {});
+  }
+  for (const [hash, ticket] of roomTickets) if (ticket.inviteId === invite.id && ticket.name === name) roomTickets.delete(hash);
+  log.warn('convite de sala revogado', { pessoasRemovidas: removed });
+  json(res, 200, { removed });
+};
+
+const setWaiting = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  if (typeof body.enabled !== 'boolean') return json(res, 400, { error: 'enabled deve ser verdadeiro ou falso.' });
+  room.waiting = body.enabled;
+  // Desligar a sala de espera deixa entrar quem estava esperando
+  if (!room.waiting) for (const entry of room.lobby.values()) if (entry.status === 'waiting') entry.status = 'admitted';
+  await rooms.updateRoomMetadata(name, metadataOf(room));
+  log.info(room.waiting ? 'sala de espera ligada' : 'sala de espera desligada');
+  json(res, 200, { waiting: room.waiting });
+};
+
+const decideLobby = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  const entry = typeof body.lobbyId === 'string' && [...room.lobby.values()].find((e) => e.ref === body.lobbyId);
+  if (!entry || entry.status !== 'waiting') return json(res, 404, { error: 'Essa pessoa não está mais esperando.' });
+  if (typeof body.admit !== 'boolean') return json(res, 400, { error: 'admit deve ser verdadeiro ou falso.' });
+  entry.status = body.admit ? 'admitted' : 'denied';
+  entry.expires = Date.now() + LOBBY_TTL_MS;
+  await rooms.updateRoomMetadata(name, metadataOf(room));
+  log.info(body.admit ? 'entrada liberada na sala de espera' : 'entrada recusada na sala de espera');
+  json(res, 200, { ok: true });
 };
 
 const participantIn = async (name, identity) => {
@@ -1128,9 +1334,14 @@ const kick = async (req, res) => {
   room.sharers.delete(body.identity);
   for (const kind of REQUEST_KINDS) room.requests.delete(`${body.identity}:${kind}`);
   await rooms.updateRoomMetadata(name, metadataOf(room));
-  const code = rotateCode(room);
+  // O ingresso da pessoa deixa de valer, e o convite por onde ela entrou ganha um link novo
+  // (sem conta, é o único jeito de ela não voltar com o mesmo link)
+  const joined = room.joinedBy.get(body.identity);
+  if (joined) roomTickets.delete(joined.ticketHash);
+  const invite = room.invites.get(joined?.inviteId) ?? defaultInvite(room);
+  if (!invite.revoked) rotateInvite(room, invite);
   log.info('participante removido da sala');
-  json(res, 200, { roomId: code });
+  json(res, 200, { roomId: room.code, inviteRotated: invite.id });
 };
 
 // Saúde do serviço para o healthcheck do Docker: app de pé e LiveKit respondendo
@@ -1180,6 +1391,11 @@ const routes = {
   'POST /api/rooms/end': endRoom,
   'POST /api/rooms/chat': setChat,
   'POST /api/rooms/link': newLink,
+  'POST /api/rooms/invites': createRoomInvite,
+  'POST /api/rooms/invites/list': listInvitesOfRoom,
+  'POST /api/rooms/invites/revoke': revokeRoomInvite,
+  'POST /api/rooms/waiting': setWaiting,
+  'POST /api/rooms/lobby': decideLobby,
   'POST /api/rooms/recording': setRecording,
   'POST /api/rooms/permissions': setPermissions,
   'POST /api/rooms/request': requestPermission,
