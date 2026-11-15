@@ -17,6 +17,7 @@ const EN = {
     'Username: 3 to 32 characters, only lowercase letters, numbers, dot, hyphen and underscore.',
   'Limite de pessoas por sala: de 2 a 5000.': 'People per room limit: from 2 to 5000.',
   'Qualidade inválida.': 'Invalid quality.',
+  'Franquia mensal: de 0 (sem franquia) a 1000000 GB.': 'Monthly allowance: from 0 (no allowance) to 1000000 GB.',
   'updateCheck deve ser verdadeiro ou falso.': 'updateCheck must be true or false.',
   'A verificação de novas versões está desligada.': 'Checking for new versions is turned off.',
   'Verificado há pouco. Espere um minuto.': 'Checked a moment ago. Wait a minute.',

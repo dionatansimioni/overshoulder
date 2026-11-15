@@ -22,6 +22,7 @@ import { log } from './log.js';
 import { createStore } from './store.js';
 import { authorizationUrl, discover, finishLogin, forgetDiscovery, newAttempt, validIssuer } from './oidc.js';
 import { createUpdateChecker, DEFAULT_URL as UPDATE_DEFAULT_URL, INSTALL_METHODS, parseVersion } from './update-check.js';
+import { createUsageMeter } from './usage.js';
 import { newRecoveryCodes, newSecret, normalizeRecoveryCode, otpauthUri, verifyCode } from './totp.js';
 
 const env = (name, fallback) => {
@@ -58,6 +59,9 @@ const UPDATE_CHECK_OFF = process.env.UPDATE_CHECK === 'off';
 const UPDATE_CHECK_URL = env('UPDATE_CHECK_URL', UPDATE_DEFAULT_URL);
 const UPDATE_CHECK_DELAY_MS = Number(env('UPDATE_CHECK_DELAY_MS', '60000'));
 const UPDATE_CHECK_INTERVAL_MS = Number(env('UPDATE_CHECK_INTERVAL_MS', String(24 * 3600_000)));
+// Painel de uso: métricas do LiveKit (só em 127.0.0.1)
+const LIVEKIT_METRICS_URL = env('LIVEKIT_METRICS_URL', 'http://127.0.0.1:6789/metrics');
+const USAGE_POLL_MS = Number(env('USAGE_POLL_MS', '60000'));
 const UPDATE_MANUAL_GAP_MS = Number(env('UPDATE_MANUAL_GAP_MS', '60000'));
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
@@ -250,6 +254,7 @@ const settings = () => ({
   defaultQuality: '720p30',
   maxQuality: '1440p60',
   updateCheck: true,
+  monthlyQuotaGb: 0,
   ...store.state.settings,
 });
 const ssoSettings = () => ({ ...SSO_DEFAULTS, ...store.state.settings.sso });
@@ -537,8 +542,13 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   const { user } = requireUser(req, { role: 'admin' });
-  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality, updateCheck } = await readJson(req);
+  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality, updateCheck, monthlyQuotaGb } = await readJson(req);
   const changes = {};
+  if (monthlyQuotaGb !== undefined) {
+    if (typeof monthlyQuotaGb !== 'number' || !Number.isFinite(monthlyQuotaGb) || monthlyQuotaGb < 0 || monthlyQuotaGb > 1_000_000)
+      return json(res, 400, { error: 'Franquia mensal: de 0 (sem franquia) a 1000000 GB.' });
+    changes.monthlyQuotaGb = Math.round(monthlyQuotaGb * 10) / 10;
+  }
   if (updateCheck !== undefined) {
     if (typeof updateCheck !== 'boolean') return json(res, 400, { error: 'updateCheck deve ser verdadeiro ou falso.' });
     changes.updateCheck = updateCheck;
@@ -566,6 +576,20 @@ const updateSettings = async (req, res) => {
   store.update((s) => Object.assign(s.settings, changes));
   log.info('configuração alterada', { user: user.username, ...changes });
   json(res, 200, settings());
+};
+
+// --- API: painel de uso -------------------------------------------------------
+
+const usageMeter = createUsageMeter({ metricsUrl: LIVEKIT_METRICS_URL, store, quotaGb: () => settings().monthlyQuotaGb, log });
+
+const getUsage = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  let live = null;
+  try {
+    const list = await rooms.listRooms();
+    live = { rooms: list.length, participants: list.reduce((n, r) => n + (r.numParticipants ?? 0), 0) };
+  } catch {}
+  json(res, 200, { ...usageMeter.view(), live });
 };
 
 // --- API: aviso de nova versão ---------------------------------------------
@@ -1725,6 +1749,7 @@ const routes = {
   'GET /api/admin/sso': getSso,
   'POST /api/admin/sso': updateSso,
   'GET /api/admin/update': getUpdate,
+  'GET /api/admin/usage': getUsage,
   'POST /api/admin/update/check': checkUpdateNow,
   'GET /api/sso/start': ssoStart,
   'GET /api/sso/callback': ssoCallback,
@@ -1798,6 +1823,9 @@ server.listen(PORT, '127.0.0.1', () => {
   log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`);
   if (!hasAdmin()) newSetupCode();
   loadFixedRooms();
+  // A primeira leitura espera o LiveKit subir junto (na imagem, os dois começam ao mesmo tempo)
+  setTimeout(usageMeter.poll, Math.min(5000, USAGE_POLL_MS)).unref();
+  setInterval(usageMeter.poll, USAGE_POLL_MS).unref();
   const scheduledCheck = () => updateCheckActive() && updateChecker.check();
   setTimeout(scheduledCheck, UPDATE_CHECK_DELAY_MS).unref();
   setInterval(scheduledCheck, UPDATE_CHECK_INTERVAL_MS).unref();

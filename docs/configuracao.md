@@ -21,7 +21,7 @@ Passadas ao container com `-e NOME=valor` (ou no `.env` do Compose). Mudar uma v
 
 ## Painel `/admin`
 
-Só o administrador abre. O menu lateral tem cinco seções; cada uma tem endereço próprio (`/admin#salas`).
+Só o administrador abre. O menu lateral tem seis seções; cada uma tem endereço próprio (`/admin#salas`).
 
 ### Geral
 
@@ -33,6 +33,14 @@ Só o administrador abre. O menu lateral tem cinco seções; cada uma tem endere
 - **Qualidade padrão das transmissões:** começa em 720p · 30 fps.
 - **Qualidade máxima permitida:** quem transmite só vê opções até ela. É um limite da página: um navegador modificado ainda poderia enviar mais, porque o servidor de vídeo não limita a taxa por acesso.
 - **Cadastro de transmissores:** só por convite, com aprovação (padrão) ou livre. Veja [Contas](contas.md#transmissores).
+
+### Uso
+
+Quanto de vídeo e áudio o servidor enviou no mês (calendário UTC), as salas no ar e as pessoas conectadas. É o que pesa na franquia de banda do plano de hospedagem.
+
+- **Franquia mensal do plano (GB):** com ela, o painel mostra a porcentagem usada e, a partir de 80%, a página inicial do admin avisa. Os logs registram uma vez ao passar de 80% e de 100%.
+- Os meses anteriores (até 12) ficam guardados no `state.json`.
+- Os números vêm das métricas do servidor de vídeo, que só respondem dentro do container. Contam a mídia enviada, não o tráfego do site, que é pequeno.
 
 ### Salas fixas
 

@@ -75,6 +75,12 @@ token=$(echo "$token_json" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 [ "$(api -o /dev/null -w '%{http_code}' "$BASE/rtc/validate?access_token=$token")" = 200 ] || die "LiveKit pelo Caddy"
 ok "API cria sala e o LiveKit valida o token pelo Caddy"
 
+metrics=$(docker exec "$NAME" wget -qO- http://127.0.0.1:6789/metrics)
+grep -q '^livekit_room_total' <<<"$metrics" || die "métricas do LiveKit não respondem em 127.0.0.1:6789"
+listen=$(docker exec "$NAME" netstat -tln)
+grep -q '127.0.0.1:6789 ' <<<"$listen" && ! grep -qE '(0.0.0.0|:::):6789 ' <<<"$listen" || die "métricas do LiveKit deveriam ficar só em 127.0.0.1: $listen"
+ok "métricas do LiveKit (painel de uso) respondem só em 127.0.0.1"
+
 [ "$(docker exec "$NAME" id -u)" != 0 ] || die "container roda como root"
 procs=$(docker exec "$NAME" ps -o user,args)
 for proc in livekit-server supervisor.js server.js caddy; do

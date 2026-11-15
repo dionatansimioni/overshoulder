@@ -15,6 +15,7 @@ const RUN_DIR = path.join(os.tmpdir(), 'overshoulder');
 const APP_PORT = 3000;
 const LIVEKIT_PORT = 7880;
 const TURN_INTERNAL_PORT = 5349;
+const METRICS_PORT = 6789;
 
 const fail = (msg) => {
   log.error(msg);
@@ -143,6 +144,9 @@ rtc:
   tcp_port: ${config.rtcTcpPort}
   udp_port: ${config.rtcUdpPort}
   use_external_ip: ${config.nodeIp ? 'false' : 'true'}
+# Métricas para o painel de uso (só em 127.0.0.1, por causa de bind_addresses)
+prometheus:
+  port: ${METRICS_PORT}
 room:
   auto_create: false
   empty_timeout: 300
@@ -285,6 +289,7 @@ const services = {
       LIVEKIT_API_KEY: secrets.livekitApiKey,
       LIVEKIT_API_SECRET: secrets.livekitApiSecret,
       LIVEKIT_INTERNAL_URL: `http://127.0.0.1:${LIVEKIT_PORT}`,
+      LIVEKIT_METRICS_URL: `http://127.0.0.1:${METRICS_PORT}/metrics`,
       LIVEKIT_PUBLIC_URL: publicUrl,
       PUBLIC_ORIGIN: `https://${publicHost}`,
       DATA_DIR,

@@ -104,6 +104,48 @@ $('settings-form').addEventListener('submit', (e) => {
   });
 });
 
+// --- uso -------------------------------------------------------------------
+
+const gb = (bytes) => (bytes / 1e9).toLocaleString([], { maximumFractionDigits: bytes < 1e10 ? 2 : 1 });
+const monthName = (month) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString([], { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+const renderUsage = (u) => {
+  $('usage-month').textContent = `${gb(u.bytesOut)} GB`;
+  $('usage-rooms').textContent = u.live ? u.live.rooms : '–';
+  $('usage-people').textContent = u.live ? u.live.participants : '–';
+  $('usage-metrics-off').hidden = u.metrics;
+  $('usage-quota').hidden = !u.quotaGb;
+  if (u.quotaGb) {
+    $('usage-bar').value = Math.min(100, u.percent);
+    $('usage-bar').classList.toggle('warn', u.warning);
+    $('usage-quota-text').classList.toggle('warn', u.warning);
+    $('usage-quota-text').textContent = t('{percent}% da franquia de {quota} GB.', { percent: u.percent, quota: u.quotaGb });
+  }
+  $('quota').value = u.quotaGb;
+  $('usage-history').replaceChildren(...u.history.map((h) => el('li', { textContent: `${monthName(h.month)}: ${gb(h.bytesOut)} GB` })));
+  $('usage-history-empty').hidden = u.history.length > 0;
+};
+
+const loadUsage = async () => renderUsage(await api('/api/admin/usage'));
+await loadUsage();
+// Atualiza enquanto a seção estiver aberta
+setInterval(() => !$('uso').hidden && loadUsage().catch(() => {}), 30_000);
+
+$('quota-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('quota-error').hidden = true;
+  $('quota-ok').hidden = true;
+  busy(e.target, async () => {
+    try {
+      await api('/api/admin/settings', { monthlyQuotaGb: Number($('quota').value) });
+      await loadUsage();
+      $('quota-ok').hidden = false;
+    } catch (err) {
+      showError($('quota-error'), err);
+    }
+  });
+});
+
 // --- versão e aviso de atualização --------------------------------------------
 
 const IMAGE = 'ghcr.io/dionatansimioni/overshoulder';

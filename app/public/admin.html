@@ -19,6 +19,7 @@
       <span class="brand small-brand"><img src="/static/icon.svg" alt="" width="24" height="24">Administração</span>
       <nav class="admin-nav" aria-label="Seções da administração">
         <button type="button" data-page="geral">Geral</button>
+        <button type="button" data-page="uso">Uso</button>
         <button type="button" data-page="salas">Salas fixas</button>
         <button type="button" data-page="transmissores">Transmissores</button>
         <button type="button" data-page="convites">Convites</button>
@@ -74,6 +75,31 @@
           <p id="settings-error" class="error" hidden></p>
           <p id="settings-ok" class="ok" hidden>Configurações salvas.</p>
         </form>
+      </section>
+      <section id="uso" class="admin-page" hidden>
+        <h1>Uso</h1>
+        <p class="muted small">Dados de vídeo e áudio que o servidor enviou neste mês (calendário UTC). É o que pesa na franquia de banda do seu plano de hospedagem.</p>
+        <div class="usage-stats">
+          <div class="usage-stat"><span class="usage-value" id="usage-month">–</span><span class="muted small">enviados neste mês</span></div>
+          <div class="usage-stat"><span class="usage-value" id="usage-rooms">–</span><span class="muted small">salas no ar</span></div>
+          <div class="usage-stat"><span class="usage-value" id="usage-people">–</span><span class="muted small">pessoas conectadas</span></div>
+        </div>
+        <div id="usage-quota" hidden>
+          <progress id="usage-bar" max="100" value="0"></progress>
+          <p id="usage-quota-text" class="small"></p>
+        </div>
+        <p id="usage-metrics-off" class="notice" hidden>As métricas do servidor de vídeo ainda não responderam. Os números aparecem em até um minuto depois que ele subir.</p>
+        <form id="quota-form" class="form">
+          <label for="quota">Franquia mensal do plano (GB)</label>
+          <input id="quota" type="number" min="0" max="1000000" step="0.1" required>
+          <p class="muted small field-hint">0 = sem franquia. Com franquia, o painel e a página inicial avisam ao passar de 80%.</p>
+          <button type="submit">Salvar</button>
+          <p id="quota-error" class="error" hidden></p>
+          <p id="quota-ok" class="ok" hidden>Franquia salva.</p>
+        </form>
+        <h2>Meses anteriores</h2>
+        <ul id="usage-history" class="usage-history"></ul>
+        <p id="usage-history-empty" class="muted small">Ainda não há meses anteriores.</p>
       </section>
       <section id="salas" class="admin-page" hidden>
         <h1>Salas fixas</h1>

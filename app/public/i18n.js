@@ -246,6 +246,25 @@ const EN = {
   Configurações: 'Settings',
   'Exigir 2FA de todas as contas': 'Require 2FA for every account',
 
+  // --- painel de uso
+  Uso: 'Usage',
+  'Dados de vídeo e áudio que o servidor enviou neste mês (calendário UTC). É o que pesa na franquia de banda do seu plano de hospedagem.':
+    "Video and audio data the server sent this month (UTC calendar). This is what counts against your hosting plan's bandwidth allowance.",
+  'enviados neste mês': 'sent this month',
+  'salas no ar': 'rooms live',
+  'pessoas conectadas': 'people connected',
+  'As métricas do servidor de vídeo ainda não responderam. Os números aparecem em até um minuto depois que ele subir.':
+    'The video server metrics have not answered yet. The numbers show up within a minute after it starts.',
+  'Franquia mensal do plano (GB)': 'Monthly plan allowance (GB)',
+  '0 = sem franquia. Com franquia, o painel e a página inicial avisam ao passar de 80%.':
+    '0 = no allowance. With an allowance, this panel and the home page warn you past 80%.',
+  'Franquia salva.': 'Allowance saved.',
+  'Meses anteriores': 'Previous months',
+  'Ainda não há meses anteriores.': 'No previous months yet.',
+  '{percent}% da franquia de {quota} GB.': '{percent}% of the {quota} GB allowance.',
+  'Este mês o servidor já usou {percent}% da franquia de dados do plano.':
+    "This month the server has already used {percent}% of the plan's data allowance.",
+
   // --- versão e aviso de atualização
   Versão: 'Version',
   'Ver o que mudou nesta versão': 'See what changed in this version',

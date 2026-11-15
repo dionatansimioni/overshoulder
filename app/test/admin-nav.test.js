@@ -62,7 +62,7 @@ describe('administração com menu lateral', () => {
     const s = await fresh(13206);
     const { page } = await newPage();
     await loginInBrowser(page, s.url);
-    for (const section of ['geral', 'salas', 'transmissores', 'convites', 'avancado']) {
+    for (const section of ['geral', 'uso', 'salas', 'transmissores', 'convites', 'avancado']) {
       await page.goto(`${s.url}/admin#${section}`);
       await page.waitForSelector(`#${section}:not([hidden])`);
       await page.waitForLoadState('networkidle');

@@ -822,3 +822,11 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 .update-steps h3 { margin: 8px 0 0; font-size: 15px; }
 .update-steps pre { margin: 0; padding: 8px 10px; border-radius: var(--radius); background: rgba(0, 0, 0, .3); overflow-x: auto; font-size: 13px; }
 .update-box details summary { cursor: pointer; margin-top: 4px; }
+
+/* Painel de uso em /admin */
+.usage-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 12px 0; }
+.usage-stat { display: flex; flex-direction: column; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.usage-value { font-size: 24px; font-weight: 700; }
+#usage-bar { width: 100%; height: 10px; accent-color: var(--accent); }
+#usage-bar.warn { accent-color: var(--warn); }
+.usage-history { margin: 4px 0; padding-left: 20px; }

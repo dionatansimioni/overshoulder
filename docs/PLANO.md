@@ -163,6 +163,9 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - **O endereço do instalador e a imagem só funcionam com o repositório e o pacote do GHCR públicos.** Até lá, testar com `OVERSHOULDER_IMAGE` apontando para uma imagem acessível.
   - Teste das portas pelo navegador do admin (teste WebRTC na configuração) ainda não feito.
 
+- **Etapa 8 feita (15/11/2026): painel de uso.** `/admin` → Uso: GB enviados no mês (UTC), salas no ar e pessoas conectadas, franquia opcional com aviso a partir de 80% (painel, página inicial do admin e logs) e histórico de 12 meses no `state.json`. Fonte: `livekit_packet_bytes{direction="outgoing"}` do Prometheus do LiveKit (porta 6789, só em 127.0.0.1 por causa de `bind_addresses`), lido a cada minuto; o app soma as diferenças e trata o reinício do contador. Testes em `app/test/usage.test.js` (LiveKit falso) e na imagem.
+  - O mês é o do calendário (UTC). Se alguém pedir, dá para escolher o dia em que o ciclo do plano vira.
+
 - **Etapa 9 feita (15/11/2026): aviso de nova versão.** `app/update-check.js` consulta `releases/latest` do GitHub uma vez por dia (1 min depois de subir), aceita só versão semântica publicada e link das releases do próprio projeto. `/admin` → Geral mostra a versão, o aviso, as notas e os passos da forma de instalação (`INSTALL_METHOD`), com as outras recolhidas; a página inicial do admin mostra o aviso. Desliga no admin (`updateCheck`) ou com `UPDATE_CHECK=off`; versão `dev` não consulta. Testes em `app/test/update.test.js`.
   - Com o repositório privado, a consulta recebe 404 e o painel mostra "não foi possível consultar". Funciona quando o repositório abrir.
 

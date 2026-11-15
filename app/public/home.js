@@ -17,7 +17,20 @@ const showSignedIn = (user) => {
   $('recommend-2fa').hidden = user.totp;
   $('admin-link').hidden = user.role !== 'admin';
   mountRoomList({ isAdmin: user.role === 'admin' });
-  if (user.role === 'admin') showUpdateNotice();
+  if (user.role === 'admin') {
+    showUpdateNotice();
+    showUsageNotice();
+  }
+};
+
+// Franquia de dados do mês passando de 80%
+const showUsageNotice = async () => {
+  try {
+    const usage = await api('/api/admin/usage');
+    if (!usage.warning) return;
+    $('usage-notice').textContent = t('Este mês o servidor já usou {percent}% da franquia de dados do plano.', usage);
+    $('usage-notice').hidden = false;
+  } catch {}
 };
 
 // Versão nova publicada: o admin vê o aviso aqui e os passos para atualizar em /admin
