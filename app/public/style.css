@@ -223,7 +223,7 @@ code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size
   border-radius: 12px;
   overflow: hidden;
 }
-.player video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.player #video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .player:fullscreen { border-radius: 0; }
 
 .overlay {
@@ -323,7 +323,7 @@ code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size
 .tab[aria-selected="true"] { background: var(--panel-2); color: var(--text); }
 .chat-tools { padding: 8px 12px 0; }
 .chat-tools button { width: 100%; padding: 6px 10px; font-size: 13px; }
-.people { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 12px 8px; }
+.people { list-style: none; margin: 0; padding: 12px 8px; }
 .person { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
 .person:hover { background: var(--panel-2); }
 .person .avatar { grid-row: auto; flex: none; }
@@ -465,3 +465,52 @@ button.link { padding: 0; background: none; color: var(--muted); font-weight: 40
 button.link:hover { background: none; color: var(--text); }
 button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; font-weight: 600; }
 .lang-row { margin: 12px 0 0; text-align: center; }
+
+/* Telas ao vivo: quem está transmitindo, para escolher qual assistir */
+.screens { display: flex; flex-wrap: wrap; gap: 6px; }
+.screen-chip { padding: 6px 12px; font-size: 13px; background: var(--panel-2); color: var(--text); border-radius: 16px; }
+.screen-chip:hover { background: var(--hover); }
+.screen-chip[aria-selected="true"] { background: var(--accent); color: #fff; }
+
+/* Câmera sobre a tela (picture-in-picture) */
+.pip { position: absolute; z-index: 2; object-fit: cover; background: #000; border: 2px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .55); border-radius: 12px; transition: all .2s; }
+.pip { height: auto; }
+.pip-s { width: 16%; }
+.pip-m { width: 24%; }
+.pip-l { width: 34%; }
+.pip-circle { border-radius: 50%; aspect-ratio: 1; }
+.pip-rounded { aspect-ratio: 16 / 9; }
+.pip-tl { top: 16px; left: 16px; }
+.pip-tr { top: 16px; right: 16px; }
+.pip-bl { bottom: 16px; left: 16px; }
+.pip-br { bottom: 16px; right: 16px; }
+
+/* Ajustes da câmera: botões em grupo */
+.pip-layout { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0; padding: 0; border: 0; }
+.pip-layout legend { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.seg { display: flex; gap: 4px; }
+.seg button { flex: 1; padding: 6px 4px; font-size: 13px; background: var(--panel-2); color: var(--text); }
+.seg button:hover { background: var(--hover); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+/* Pedidos (mão levantada, pedir a tela) e quem está falando */
+.count-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px;
+  border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; }
+.people-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.requests { list-style: none; margin: 0; padding: 12px 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.request { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(91, 140, 255, .12); border: 1px solid rgba(91, 140, 255, .35); font-size: 14px; }
+.request span { flex: 1 1 100%; }
+.request button { padding: 4px 10px; font-size: 12px; }
+.people { flex: none; overflow: visible; }
+.avatar.speaking { box-shadow: 0 0 0 3px var(--live); }
+
+/* Escolha do tipo de sala */
+.room-types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; padding: 0; border: 0; }
+.room-types legend { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--muted); padding: 0; margin-bottom: 6px; }
+.room-type { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius); background: var(--panel-2);
+  border: 2px solid transparent; cursor: pointer; text-transform: none; font-weight: 400; color: var(--text); font-size: 14px; }
+.room-type:has(input:checked) { border-color: var(--accent); }
+.room-type input { position: absolute; opacity: 0; pointer-events: none; }
+.room-type-title { font-weight: 700; font-size: 15px; }

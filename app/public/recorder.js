@@ -1,8 +1,8 @@
-// Gravação no navegador do anfitrião: o vídeo que está na tela e todo o áudio da sala, misturado.
+// Gravação no navegador do anfitrião, em dois canais com arquivos separados:
+// "tela" (o vídeo que está na tela + todo o áudio da sala, misturado) e "camera" (só a câmera).
 // O servidor nunca vê o conteúdo (a transmissão continua cifrada de ponta a ponta).
+// Cada canal grava em partes: quando a fonte do vídeo muda, a parte atual fecha e outra começa.
 import { t } from '/static/i18n.js';
-// Grava em partes: quando a fonte do vídeo muda (outra pessoa passa a apresentar, ou a tela para),
-// a parte atual é fechada e uma nova começa quando houver vídeo de novo.
 
 const MP4 = [['video/mp4;codecs=avc1,opus', 'mp4']];
 const WEBM = [
@@ -31,19 +31,22 @@ const download = (blob, name) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
 };
 
+const CHANNELS = { screen: 'tela', camera: 'camera' };
+
 export class Recorder {
   constructor() {
     this.audio = new AudioContext();
     this.mix = this.audio.createMediaStreamDestination();
     this.sources = new Map();
     this.active = false;
-    this.current = null;
     this.parts = [];
-    // Partes encerram em sequência, mesmo quando a fonte muda várias vezes seguidas
-    this.queue = Promise.resolve();
+    // Por canal: a parte em andamento e uma fila, para as trocas de fonte acontecerem em ordem
+    this.channels = Object.fromEntries(
+      Object.keys(CHANNELS).map((c) => [c, { current: null, count: 0, queue: Promise.resolve() }]),
+    );
   }
 
-  // Áudios entram e saem da mistura a qualquer momento (voz, áudio do jogo, áudio de quem apresenta)
+  // Áudios entram e saem da mistura a qualquer momento (vozes, áudio do jogo, áudio de quem apresenta)
   addAudio(track) {
     if (!track || this.sources.has(track)) return;
     const source = this.audio.createMediaStreamSource(new MediaStream([track]));
@@ -57,7 +60,7 @@ export class Recorder {
   }
 
   // Precisa ser chamada a partir de um clique: é quando o navegador permite escolher a pasta
-  async start(videoTrack) {
+  async start({ screen = null, camera = null } = {}) {
     if (!recordingFormat()) throw new Error(t('Este navegador não consegue gravar vídeo.'));
     this.folder = null;
     if (window.showDirectoryPicker) {
@@ -67,32 +70,47 @@ export class Recorder {
     this.format = recordingFormat(!!this.folder);
     this.baseName = `overshoulder-${stamp()}`;
     this.parts = [];
+    for (const ch of Object.values(this.channels)) ch.count = 0;
     this.active = true;
     await this.audio.resume();
-    if (videoTrack) await this.switchVideo(videoTrack);
+    await Promise.all([this.switchVideo(screen), this.switchCamera(camera)]);
   }
 
-  switchVideo(videoTrack) {
-    this.queue = this.queue.then(async () => {
-      if (!this.active || this.current?.videoTrack === videoTrack) return;
-      await this.#endPart();
-      if (videoTrack) await this.#beginPart(videoTrack);
-    });
-    return this.queue;
+  switchVideo(track) {
+    return this.#switch('screen', track);
+  }
+
+  switchCamera(track) {
+    return this.#switch('camera', track);
   }
 
   async stop() {
     this.active = false;
-    this.queue = this.queue.then(() => this.#endPart());
-    await this.queue;
+    await Promise.all(Object.keys(this.channels).map((c) => this.#switch(c, null, true)));
     return { parts: [...this.parts], toFolder: !!this.folder };
   }
 
-  async #beginPart(videoTrack) {
+  #switch(channel, track, stopping = false) {
+    const ch = this.channels[channel];
+    ch.queue = ch.queue.then(async () => {
+      if (!stopping && (!this.active || ch.current?.track === track)) return;
+      await this.#endPart(ch);
+      if (track && this.active) await this.#beginPart(channel, ch, track);
+    });
+    return ch.queue;
+  }
+
+  async #beginPart(channel, ch, track) {
     const [mimeType, ext] = this.format;
-    const name = `${this.baseName}-${t('parte')}${this.parts.length + 1}.${ext}`;
-    const stream = new MediaStream([videoTrack, ...this.mix.stream.getAudioTracks()]);
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 128_000 });
+    ch.count++;
+    const name = `${this.baseName}-${t(CHANNELS[channel])}-${t('parte')}${ch.count}.${ext}`;
+    // A tela leva o áudio da sala; a câmera vai só com imagem, para quem edita montar depois
+    const withAudio = channel === 'screen';
+    const recorder = new MediaRecorder(new MediaStream(withAudio ? [track, ...this.mix.stream.getAudioTracks()] : [track]), {
+      mimeType: withAudio ? mimeType : mimeType.replace(',opus', ''),
+      videoBitsPerSecond: withAudio ? 6_000_000 : 1_500_000,
+      audioBitsPerSecond: 128_000,
+    });
     const file = this.folder && (await (await this.folder.getFileHandle(name, { create: true })).createWritable());
     const chunks = [];
     let writing = Promise.resolve();
@@ -111,14 +129,14 @@ export class Recorder {
     });
     // Um pedaço por segundo: na pasta, o arquivo cresce durante a gravação
     recorder.start(1000);
-    this.current = { recorder, done, videoTrack };
+    ch.current = { recorder, done, track };
     this.parts.push(name);
   }
 
-  async #endPart() {
-    const current = this.current;
+  async #endPart(ch) {
+    const current = ch.current;
     if (!current) return;
-    this.current = null;
+    ch.current = null;
     if (current.recorder.state !== 'inactive') current.recorder.stop();
     await current.done;
   }

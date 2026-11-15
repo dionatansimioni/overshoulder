@@ -235,6 +235,7 @@ describe('no navegador', () => {
     await bia.click('#invite-form button');
     await bia.waitForSelector('#signed-in:not([hidden])');
     assert.ok(await bia.isHidden('#admin-link'), 'transmissor não vê a administração');
+    await bia.click('label:has(#type-live)');
     await bia.click('#create-form button');
     await bia.waitForURL(/#k=/);
     await bia.fill('#name', 'Bia');

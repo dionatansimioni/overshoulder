@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, TokenVerifier, TrackSource } from 'livekit-server-sdk';
 import {
   USERNAME_RE,
   createLimiter,
@@ -83,9 +83,14 @@ const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
 // derrubar quem já está assistindo.
-const liveRooms = new Map(); // nome interno → { name, owner, code, chat, presenter, recording, requireSso, banned }
+// Sala: { name, owner, code, type, openScreens, chat, recording, requireSso, banned,
+//         speakers (quem pode falar na Live), sharers (quem pode mostrar a tela), requests }
+const liveRooms = new Map(); // nome interno → sala
 const roomCodes = new Map(); // código público → nome interno
-const PRESENTER_SOURCES = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO, TrackSource.MICROPHONE];
+const ROOM_TYPES = ['together', 'live'];
+const SCREEN_SOURCES = [TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO, TrackSource.CAMERA];
+const HOST_SOURCES = [TrackSource.MICROPHONE, ...SCREEN_SOURCES];
+const tokenVerifier = new TokenVerifier(API_KEY, API_SECRET);
 const VIEWER_ID_RE = /^v-[0-9a-f]{12}$/;
 
 // --- utilidades ---------------------------------------------------------
@@ -115,7 +120,7 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
-  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self), display-capture=(self)',
+  'Permissions-Policy': 'camera=(self), geolocation=(), microphone=(self), display-capture=(self)',
 };
 
 const send = (res, status, body, headers = {}) => {
@@ -873,18 +878,28 @@ const hostRoom = async ({ roomId, hostKey }) => {
   return found;
 };
 
-// Permissões de quem assiste: o apresentador da vez transmite; o chat pode estar desligado
+// O que cada participante pode fazer, pelo tipo da sala e pelo que o anfitrião liberou:
+// "Jogando juntos": todos falam; mostrar a tela é livre ou liberado pelo anfitrião.
+// "Live": só fala e mostra a tela quem o anfitrião liberou (mostrar a tela inclui falar).
+const canSpeak = (room, id) => room.type === 'together' || room.speakers.has(id) || room.sharers.has(id);
+const canShare = (room, id) => (room.type === 'together' && room.openScreens) || room.sharers.has(id);
+
 const viewerPermission = (room, identity) => {
-  const presenting = room.presenter === identity;
-  return {
-    canSubscribe: true,
-    canPublishData: room.chat,
-    canPublish: presenting,
-    canPublishSources: presenting ? PRESENTER_SOURCES : [],
-  };
+  const sources = [
+    ...(canSpeak(room, identity) ? [TrackSource.MICROPHONE] : []),
+    ...(canShare(room, identity) ? SCREEN_SOURCES : []),
+  ];
+  return { canSubscribe: true, canPublishData: room.chat, canPublish: sources.length > 0, canPublishSources: sources };
 };
 
-const metadataOf = (room) => JSON.stringify({ chat: room.chat, presenter: room.presenter, recording: room.recording });
+const metadataOf = (room) =>
+  JSON.stringify({
+    type: room.type,
+    openScreens: room.openScreens,
+    chat: room.chat,
+    recording: room.recording,
+    requests: [...room.requests.values()],
+  });
 
 // Aplica as permissões atuais a quem já está na sala e avisa todos pelos metadados da sala
 const syncRoom = async (name, room, identities) => {
@@ -930,17 +945,36 @@ const createRoom = async (req, res) => {
   const body = await readJson(req);
   if (body.requireSso !== undefined && typeof body.requireSso !== 'boolean')
     return json(res, 400, { error: 'requireSso deve ser verdadeiro ou falso.' });
+  // Sem tipo informado, a sala é "Live": a mais restrita
+  const type = body.type ?? 'live';
+  if (!ROOM_TYPES.includes(type)) return json(res, 400, { error: 'Tipo de sala inválido.' });
+  if (body.openScreens !== undefined && typeof body.openScreens !== 'boolean')
+    return json(res, 400, { error: 'openScreens deve ser verdadeiro ou falso.' });
+  const openScreens = type === 'together' && (body.openScreens ?? true);
   const sso = ssoSettings();
   // Sem SSO configurado, nenhuma sala exige; com "todas exigem", nenhuma fica aberta
   const requireSso = ssoReady() && (sso.forceRooms || (body.requireSso ?? sso.roomsDefault));
   const name = newRoomId();
-  const room = { name, owner: user.id, code: newRoomId(), chat: true, presenter: null, recording: false, requireSso, banned: new Set() };
+  const room = {
+    name,
+    owner: user.id,
+    code: newRoomId(),
+    type,
+    openScreens,
+    chat: true,
+    recording: false,
+    requireSso,
+    banned: new Set(),
+    speakers: new Set(),
+    sharers: new Set(),
+    requests: new Map(),
+  };
   const { maxParticipants } = settings();
   await rooms.createRoom({ name, emptyTimeout: 300, departureTimeout: 60, maxParticipants, metadata: metadataOf(room) });
   liveRooms.set(name, room);
   roomCodes.set(room.code, name);
-  log.info('sala criada', { user: user.username, maxParticipants, exigeLogin: requireSso });
-  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso });
+  log.info('sala criada', { user: user.username, tipo: type, maxParticipants, exigeLogin: requireSso });
+  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso, type, openScreens });
 };
 
 const issueToken = async (req, res) => {
@@ -964,7 +998,7 @@ const issueToken = async (req, res) => {
     room: found.name,
     roomJoin: true,
     ...(isHost
-      ? { canSubscribe: true, canPublishData: true, canPublish: true, canPublishSources: PRESENTER_SOURCES }
+      ? { canSubscribe: true, canPublishData: true, canPublish: true, canPublishSources: HOST_SOURCES }
       : viewerPermission(found.room, identity)),
   });
 
@@ -1015,16 +1049,70 @@ const participantIn = async (name, identity) => {
   if (!present) throw new HttpError(404, 'Essa pessoa não está mais na sala.');
 };
 
-// Passa a vez de apresentar para alguém da sala (identity) ou pega de volta (identity: null)
-const setPresenter = async (req, res) => {
+// O anfitrião libera ou tira de alguém a fala e a tela. Liberar atende o pedido pendente.
+const setPermissions = async (req, res) => {
   const body = await readJson(req);
   const { name, room } = await hostRoom(body);
-  if (body.identity !== null) await participantIn(name, body.identity);
-  const previous = room.presenter;
-  room.presenter = body.identity;
-  await syncRoom(name, room, [previous, room.presenter].filter(Boolean));
-  log.info(room.presenter ? 'vez de apresentar passada' : 'vez de apresentar retomada');
-  json(res, 200, { presenter: room.presenter });
+  for (const field of ['speak', 'screen']) {
+    if (body[field] !== undefined && typeof body[field] !== 'boolean')
+      return json(res, 400, { error: `${field} deve ser verdadeiro ou falso.` });
+  }
+  await participantIn(name, body.identity);
+  const id = body.identity;
+  for (const [field, set] of [['speak', room.speakers], ['screen', room.sharers]]) {
+    if (body[field] === undefined) continue;
+    if (body[field]) set.add(id);
+    else set.delete(id);
+    room.requests.delete(`${id}:${field}`);
+  }
+  await syncRoom(name, room, [id]);
+  log.info('permissões de participante alteradas', { fala: canSpeak(room, id), tela: canShare(room, id) });
+  json(res, 200, { speak: canSpeak(room, id), screen: canShare(room, id) });
+};
+
+// Pedidos e ajustes feitos por quem está na sala: a identidade vem do próprio token do LiveKit,
+// assinado pelo servidor, então ninguém age em nome de outra pessoa (e funciona com o chat desligado)
+const participantFromToken = async (token) => {
+  if (typeof token !== 'string') throw new HttpError(401, 'Token da sala ausente.');
+  let claims;
+  try {
+    claims = await tokenVerifier.verify(token);
+  } catch {
+    throw new HttpError(401, 'Token da sala inválido.');
+  }
+  const room = liveRooms.get(claims.video?.room);
+  if (!room || room.banned.has(claims.sub)) throw new HttpError(404, 'Essa sala não existe, já foi encerrada ou o link foi trocado pelo anfitrião.');
+  return { room, identity: claims.sub, name: claims.name };
+};
+
+const REQUEST_KINDS = ['speak', 'screen'];
+
+// Pedir a palavra ou para mostrar a tela (cancel: true desiste do pedido)
+const requestPermission = async (req, res) => {
+  const body = await readJson(req);
+  const { room, identity, name } = await participantFromToken(body.token);
+  if (!REQUEST_KINDS.includes(body.kind)) return json(res, 400, { error: 'Pedido inválido.' });
+  if (!identity.startsWith('v-')) return json(res, 400, { error: 'O anfitrião não precisa pedir.' });
+  const key = `${identity}:${body.kind}`;
+  if (body.cancel === true) room.requests.delete(key);
+  else if (body.kind === 'speak' ? !canSpeak(room, identity) : !canShare(room, identity))
+    room.requests.set(key, { identity, name, kind: body.kind });
+  await rooms.updateRoomMetadata(room.name, metadataOf(room));
+  json(res, 200, { pending: room.requests.has(key) });
+};
+
+const PIP = { corner: ['tl', 'tr', 'bl', 'br'], size: ['s', 'm', 'l'], shape: ['rounded', 'circle'] };
+
+// Posição e estilo da câmera sobre a tela, escolhidos por quem transmite; vão para os atributos dela
+const setLayout = async (req, res) => {
+  const body = await readJson(req);
+  const { room, identity } = await participantFromToken(body.token);
+  const pip = body.pip ?? {};
+  for (const [field, allowed] of Object.entries(PIP)) {
+    if (!allowed.includes(pip[field])) return json(res, 400, { error: 'Posição da câmera inválida.' });
+  }
+  await rooms.updateParticipant(room.name, identity, { attributes: { pip: `${pip.corner}:${pip.size}:${pip.shape}` } });
+  json(res, 200, { ok: true });
 };
 
 // Remove alguém da sala. Espectadores não têm conta, então o link também é trocado:
@@ -1036,10 +1124,10 @@ const kick = async (req, res) => {
   await participantIn(name, body.identity);
   room.banned.add(body.identity);
   await rooms.removeParticipant(name, body.identity, { revokeTokenTs: BigInt(Math.floor(Date.now() / 1000) + 1) });
-  if (room.presenter === body.identity) {
-    room.presenter = null;
-    await rooms.updateRoomMetadata(name, metadataOf(room));
-  }
+  room.speakers.delete(body.identity);
+  room.sharers.delete(body.identity);
+  for (const kind of REQUEST_KINDS) room.requests.delete(`${body.identity}:${kind}`);
+  await rooms.updateRoomMetadata(name, metadataOf(room));
   const code = rotateCode(room);
   log.info('participante removido da sala');
   json(res, 200, { roomId: code });
@@ -1093,7 +1181,9 @@ const routes = {
   'POST /api/rooms/chat': setChat,
   'POST /api/rooms/link': newLink,
   'POST /api/rooms/recording': setRecording,
-  'POST /api/rooms/presenter': setPresenter,
+  'POST /api/rooms/permissions': setPermissions,
+  'POST /api/rooms/request': requestPermission,
+  'POST /api/rooms/layout': setLayout,
   'POST /api/rooms/kick': kick,
   'GET /healthz': healthz,
 };

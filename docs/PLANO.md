@@ -106,6 +106,13 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 | Navegação e criar sala | Inspiração: Discord (barra lateral com salas, configurações com menu lateral), Google Meet (criar em 1 clique, antessala com prévia), StreamYard (ajustes com prévia), Twitch (botão de ao vivo e status claros), Whereby/Jitsi (espectador entra só com o nome). Configuração inicial em 3 passos com progresso e Voltar sem perder dados; página inicial com barra lateral e "Criar sala"; criar sala numa janela com dois cartões (Jogando juntos / Live), padrões prontos e "Mais opções" recolhidas; antessala com prévia de câmera e microfone; `/admin` com menu lateral |
 | Critérios de usabilidade (testados no navegador) | Criar e compartilhar uma sala em até 2 cliques a partir da página inicial; Voltar do navegador funciona em toda tela de configuração sem perder dados; tudo funciona pelo teclado; nada some no celular. Sem protótipo: implementar direto e ajustar no app real |
 
+### Progresso do novo foco
+- **Item 1 feito (15/11/2026):**
+  - Salas "Jogando juntos" (todos falam, telas livres ou sob pedido) e "Live" (pedir a palavra, pedir a tela). Tipo padrão da API: Live.
+  - Várias telas ao mesmo tempo com assinatura manual: quem assiste só recebe a tela escolhida (comprovado pelas estatísticas do WebRTC no teste).
+  - Webcam com picture-in-picture (posição, tamanho, formato) e modo só câmera; gravação com tela e câmera em arquivos separados.
+  - Pedidos e posição da câmera passam por rotas que conferem o token do LiveKit da própria pessoa (`/api/rooms/request`, `/api/rooms/layout`). O anfitrião libera e tira por `/api/rooms/permissions`, que substituiu o antigo "passar a vez".
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

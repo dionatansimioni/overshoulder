@@ -6,7 +6,9 @@ import {
   RoomEvent,
   Track,
   VideoPreset,
+  VideoPresets,
   createLocalAudioTrack,
+  createLocalVideoTrack,
   isE2EESupported,
 } from '/vendor/livekit-client.esm.mjs';
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
@@ -26,11 +28,14 @@ const PRESETS = {
   '1440p60': { width: 2560, height: 1440, fps: 60, bitrate: 12_000_000 },
 };
 
-// Camadas menores do simulcast: o SFU entrega a cada amigo a que a conexão dele aguenta
+// Camadas menores do simulcast: o SFU entrega a cada pessoa a que a conexão dela aguenta
 const SIMULCAST_LAYERS = [
   new VideoPreset(1280, 720, 1_500_000, 30),
   new VideoPreset(640, 360, 500_000, 15),
 ];
+
+// Fontes de mídia como o servidor as libera (TrackSource do protocolo do LiveKit)
+const SOURCE = { camera: 1, microphone: 2, screen: 3 };
 
 const storage = {
   get: (s, k) => { try { return s.getItem(k); } catch { return null; } },
@@ -64,6 +69,7 @@ const inviteLink = () => `${location.origin}/r/${roomId}#k=${e2eeKey}`;
 // --- UI helpers ------------------------------------------------------------
 
 const video = $('video');
+const pipVideo = $('pip');
 const overlay = $('overlay');
 
 const showOverlay = (text) => {
@@ -84,6 +90,13 @@ const el = (tag, className, text) => {
   if (className) e.className = className;
   if (text !== undefined) e.textContent = text;
   return e;
+};
+
+const button = (className, text, onClick) => {
+  const b = el('button', className, text);
+  b.type = 'button';
+  b.addEventListener('click', onClick);
+  return b;
 };
 
 const addMessage = (text, author) => {
@@ -111,13 +124,43 @@ const joinError = (msg) => {
   $('join-error').hidden = false;
 };
 
+// Botão redondo que liga e desliga: rótulo, ícone e estado acompanham
+const setToggle = (id, on, labels, icons) => {
+  const btn = $(id);
+  const label = t(on ? labels[1] : labels[0]);
+  btn.classList.toggle('on', on);
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', String(on));
+  if (icons) btn.querySelector('use').setAttribute('href', on ? icons[1] : icons[0]);
+};
+
 // --- sala ------------------------------------------------------------------
 
 let room;
 let isHost = false;
-let isPresenter = false;
+let token = null;
+// Estado da sala que o anfitrião controla, recebido pelos metadados da sala
+let meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [] };
 let recorder = null;
-// Todos os áudios da sala (de quem fala, do jogo, de quem apresenta), para a gravação misturar
+// De quem é a tela (ou câmera) que estou assistindo
+let watching = null;
+let mainTrack = null;
+let pipTrack = null;
+let pipHidden = false;
+let pipSwapped = false;
+let voiceTrack = null;
+let extraAudio = null;
+let cameraTrack = null;
+// Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
+let allowed = { microphone: false, screen: false };
+const audioTracks = new Set();
+
+// Nomes das faixas: voz de quem fala e áudio extra do jogo
+const VOICE_TRACK = 'voice';
+const GAME_AUDIO_TRACK = 'game-audio';
+
+// Todos os áudios da sala (vozes, jogo, de quem apresenta), para a gravação misturar
 const roomAudio = new Set();
 const addRoomAudio = (track) => {
   roomAudio.add(track);
@@ -127,33 +170,172 @@ const removeRoomAudio = (track) => {
   roomAudio.delete(track);
   recorder?.removeAudio(track);
 };
-// Estado da sala que o anfitrião controla, recebido pelos metadados da sala
-let meta = { chat: true, presenter: null };
-let videoTrack = null;
-let extraAudio = null;
-let voiceTrack = null;
-const audioTracks = new Set();
 
-// Nome da faixa de voz do anfitrião; os espectadores mostram o aviso de microfone por ela
-const VOICE_TRACK = 'voice';
+const everyone = () => [room.localParticipant, ...room.remoteParticipants.values()];
+const isMe = (p) => p === room.localParticipant;
+
+const nameOf = (identity) =>
+  identity === room.localParticipant.identity
+    ? room.localParticipant.name
+    : (room.remoteParticipants.get(identity)?.name ?? t('alguém'));
+
+// O servidor decide o que cada um publica; a interface só acompanha
+const can = (source) => {
+  const perm = room?.localParticipant.permissions;
+  if (!perm?.canPublish) return false;
+  const sources = perm.canPublishSources ?? [];
+  return sources.length === 0 || sources.includes(SOURCE[source]);
+};
 
 const updateCount = () => {
   const n = room.remoteParticipants.size + 1;
   $('count').textContent = t(n === 1 ? '{n} pessoa na sala' : '{n} pessoas na sala', { n });
 };
 
-const setVideoTrack = (track) => {
-  if (videoTrack) videoTrack.detach(video);
-  videoTrack = track;
-  recorder?.switchVideo(track?.mediaStreamTrack ?? null);
-  if (track) {
-    track.attach(video);
-    overlay.hidden = true;
-  } else {
-    showOverlay(
-      t(isHost || isPresenter ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…'),
-    );
+// --- palco: quem está transmitindo, qual tela assistir, câmera sobre a tela -------
+
+// Quem transmite vídeo agora (tela e/ou câmera)
+const broadcasters = () =>
+  everyone()
+    .map((p) => ({
+      p,
+      screen: p.getTrackPublication(Track.Source.ScreenShare),
+      camera: p.getTrackPublication(Track.Source.Camera),
+    }))
+    .filter((b) => b.screen || b.camera);
+
+// Só recebe a tela, o áudio da tela e a câmera de quem estou assistindo; as vozes, de todos
+const applySubscriptions = () => {
+  for (const p of room.remoteParticipants.values()) {
+    for (const pub of p.trackPublications.values()) {
+      const want =
+        pub.source === Track.Source.Microphone ||
+        (p.identity === watching &&
+          [Track.Source.ScreenShare, Track.Source.ScreenShareAudio, Track.Source.Camera].includes(pub.source));
+      if (pub.isSubscribed !== want) pub.setSubscribed(want);
+    }
   }
+};
+
+const attach = (track, element, current) => {
+  if (current === track) return track;
+  current?.detach(element);
+  if (track) track.attach(element);
+  else element.srcObject = null;
+  return track;
+};
+
+const PIP_DEFAULT = { corner: 'br', size: 'm', shape: 'rounded' };
+const parsePip = (value) => {
+  const [corner, size, shape] = String(value ?? '').split(':');
+  return corner && size && shape ? { corner, size, shape } : PIP_DEFAULT;
+};
+let myPip = (() => {
+  try {
+    return { ...PIP_DEFAULT, ...JSON.parse(storage.get(localStorage, 'pip') ?? '{}') };
+  } catch {
+    return PIP_DEFAULT;
+  }
+})();
+
+const renderStage = () => {
+  if (!room) return;
+  const list = broadcasters();
+  // Continua assistindo a mesma pessoa enquanto ela transmite; senão, a primeira das outras pessoas
+  if (!list.some((b) => b.p.identity === watching)) {
+    watching = (list.find((b) => !isMe(b.p)) ?? list[0])?.p.identity ?? null;
+  }
+  applySubscriptions();
+
+  $('screens').hidden = list.length < 2;
+  $('screens').replaceChildren(
+    ...list.map((b) => {
+      const label = isMe(b.p)
+        ? t('Sua transmissão')
+        : t(b.screen ? 'Tela de {name}' : 'Câmera de {name}', { name: b.p.name });
+      const chip = button('screen-chip', label, () => {
+        watching = b.p.identity;
+        renderStage();
+      });
+      chip.dataset.identity = b.p.identity;
+      chip.setAttribute('role', 'tab');
+      chip.setAttribute('aria-selected', String(b.p.identity === watching));
+      return chip;
+    }),
+  );
+
+  const current = list.find((b) => b.p.identity === watching);
+  const screen = current?.screen?.track ?? null;
+  const camera = current?.camera?.track ?? null;
+  let main = screen ?? camera;
+  let pip = screen && camera ? camera : null;
+  if (pip && pipSwapped) [main, pip] = [pip, main];
+  mainTrack = attach(main, video, mainTrack);
+  pipTrack = attach(pipHidden ? null : pip, pipVideo, pipTrack);
+  pipVideo.hidden = !pipTrack;
+  const layout = current ? (isMe(current.p) ? myPip : parsePip(current.p.attributes?.pip)) : PIP_DEFAULT;
+  pipVideo.className = `pip pip-${layout.corner} pip-${layout.size} pip-${layout.shape}`;
+  $('pip-hide').hidden = $('pip-swap').hidden = !(screen && camera);
+
+  if (main) overlay.hidden = true;
+  else {
+    const presenting = can('screen');
+    showOverlay(t(presenting ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…'));
+  }
+
+  const presenter = current && !isMe(current.p) ? current.p : null;
+  $('presenter-badge').hidden = !presenter;
+  if (presenter) $('presenter-badge').textContent = t('{name} está apresentando', { name: presenter.name });
+  // Microfone ligado de quem estou assistindo (ou do anfitrião, quando ninguém transmite)
+  const speaker = current?.p ?? everyone().find((p) => p.identity.startsWith('h-'));
+  const mic = speaker?.getTrackPublication(Track.Source.Microphone);
+  $('mic-badge').hidden = !mic || mic.isMuted || isMe(speaker);
+
+  recorder?.switchVideo(screen?.mediaStreamTrack ?? (camera && !screen ? camera.mediaStreamTrack : null));
+  recorder?.switchCamera(screen && camera ? camera.mediaStreamTrack : null);
+  renderPeople();
+};
+
+// --- controles: o que eu posso fazer agora --------------------------------------
+
+const updateControls = () => {
+  const mic = can('microphone');
+  const screen = can('screen');
+  $('mic').hidden = !mic;
+  $('share').hidden = !screen;
+  $('camera').hidden = !screen;
+  $('record').hidden = !isHost || !recordingFormat();
+  $('end').hidden = !isHost;
+  $('settings-btn').hidden = !(mic || screen);
+  $('host-controls').hidden = !(mic || screen || isHost);
+  if (screen && !navigator.mediaDevices?.getDisplayMedia) $('share').disabled = true;
+
+  // Pedidos: na Live, quem não pode falar pede a palavra; quem não pode mostrar a tela pede
+  const mine = (kind) => meta.requests.some((r) => r.identity === room.localParticipant.identity && r.kind === kind);
+  $('raise-hand').hidden = isHost || mic || meta.type !== 'live';
+  $('ask-screen').hidden = isHost || screen || (meta.type === 'together' && meta.openScreens);
+  setToggle('raise-hand', mine('speak'), ['Pedir a palavra', 'Desistir de falar']);
+  setToggle('ask-screen', mine('screen'), ['Pedir para mostrar a tela', 'Desistir de mostrar a tela']);
+
+  // O anfitrião liberou ou tirou permissões: avisa e para o que não pode mais
+  if (!isHost) {
+    if (mic !== allowed.microphone && meta.type === 'live') {
+      addMessage(t(mic ? 'O anfitrião liberou sua fala.' : 'O anfitrião encerrou sua fala.'));
+    }
+    if (screen !== allowed.screen && !(meta.type === 'together' && meta.openScreens)) {
+      addMessage(t(screen ? 'O anfitrião liberou você para mostrar a tela.' : 'O anfitrião encerrou sua permissão de mostrar a tela.'));
+    }
+  }
+  allowed = { microphone: mic, screen };
+  if (!mic && voiceTrack) toggleMic().catch(() => {});
+  if (!screen) stopVideo().catch(() => {});
+};
+
+// Para a tela, o áudio do jogo e a câmera que eu estiver transmitindo
+const stopVideo = async () => {
+  if (room.localParticipant.isScreenShareEnabled) await room.localParticipant.setScreenShareEnabled(false).catch(() => {});
+  await stopExtraAudio();
+  if (cameraTrack) await toggleCamera().catch(() => {});
 };
 
 // A mensagem de quem acabou de entrar pode chegar antes do aviso de entrada:
@@ -178,39 +360,42 @@ const participantName = (identity) => {
 
 const wireRoomEvents = () => {
   room
-    .on(RoomEvent.TrackSubscribed, (track, pub) => {
-      if (pub.trackName === VOICE_TRACK) $('mic-badge').hidden = false;
-      if (track.kind === Track.Kind.Video) {
-        setVideoTrack(track);
-      } else if (track.kind === Track.Kind.Audio) {
+    .on(RoomEvent.TrackPublished, renderStage)
+    .on(RoomEvent.TrackUnpublished, renderStage)
+    .on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === Track.Kind.Audio) {
         audioTracks.add(track);
         addRoomAudio(track.mediaStreamTrack);
         $('audio-sink').append(track.attach());
         track.setVolume(Number($('volume').value));
       }
+      renderStage();
     })
-    .on(RoomEvent.TrackUnsubscribed, (track, pub) => {
-      if (pub.trackName === VOICE_TRACK) $('mic-badge').hidden = true;
-      track.detach().forEach((el) => el !== video && el.remove());
-      audioTracks.delete(track);
-      if (track.kind === Track.Kind.Audio) removeRoomAudio(track.mediaStreamTrack);
-      if (track === videoTrack) setVideoTrack(null);
+    .on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (track.kind === Track.Kind.Audio) {
+        track.detach().forEach((e) => e.remove());
+        audioTracks.delete(track);
+        removeRoomAudio(track.mediaStreamTrack);
+      }
+      renderStage();
     })
+    .on(RoomEvent.TrackMuted, renderStage)
+    .on(RoomEvent.TrackUnmuted, renderStage)
     .on(RoomEvent.LocalTrackPublished, (pub) => {
       if (pub.kind === Track.Kind.Audio) addRoomAudio(pub.track.mediaStreamTrack);
-      if (pub.source === Track.Source.ScreenShare) {
-        setVideoTrack(pub.track);
-        setShareButton(true);
-      }
+      if (pub.source === Track.Source.ScreenShare) setShareButton(true);
+      // Quem começa a transmitir passa a ver a própria transmissão
+      if (pub.kind === Track.Kind.Video) watching = room.localParticipant.identity;
+      renderStage();
     })
     .on(RoomEvent.LocalTrackUnpublished, (pub) => {
       if (pub.kind === Track.Kind.Audio && pub.track) removeRoomAudio(pub.track.mediaStreamTrack);
       if (pub.source === Track.Source.ScreenShare) {
         // Também dispara quando se clica em "Parar de compartilhar" na barra do navegador
-        setVideoTrack(null);
         setShareButton(false);
         stopExtraAudio();
       }
+      renderStage();
     })
     .on(RoomEvent.ParticipantConnected, (p) => {
       addMessage(t('{name} entrou.', { name: p.name }));
@@ -220,20 +405,22 @@ const wireRoomEvents = () => {
     .on(RoomEvent.ParticipantDisconnected, (p) => {
       addMessage(t('{name} saiu.', { name: p.name }));
       updateCount();
-      renderPeople();
+      renderStage();
     })
+    .on(RoomEvent.ParticipantAttributesChanged, renderStage)
+    .on(RoomEvent.ActiveSpeakersChanged, renderPeople)
     .on(RoomEvent.RoomMetadataChanged, applyMetadata)
     .on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
-      // Só importa a própria permissão: o anfitrião passou ou pegou de volta a vez de apresentar
-      if (!isHost && (!participant || participant === room.localParticipant)) {
-        setPresenterMode(!!room.localParticipant.permissions?.canPublish);
-      }
+      if (!participant || isMe(participant)) updateControls();
+      renderPeople();
     })
     .on(RoomEvent.EncryptionError, () => {
       showOverlay(t('Não foi possível descriptografar a transmissão. O link está completo?'));
     })
     .on(RoomEvent.Disconnected, (reason) => {
-      setVideoTrack(null);
+      mainTrack = attach(null, video, mainTrack);
+      pipTrack = attach(null, pipVideo, pipTrack);
+      pipVideo.hidden = true;
       showOverlay(
         t(
           reason === DisconnectReason.ROOM_DELETED
@@ -245,10 +432,10 @@ const wireRoomEvents = () => {
       );
       $('chat-input').disabled = true;
       if (recorder?.active) stopRecording();
-      $('host-controls').hidden = true;
-      $('mic-badge').hidden = true;
+      for (const id of ['host-controls', 'mic-badge', 'presenter-badge', 'invite', 'screens', 'raise-hand', 'ask-screen'])
+        $(id).hidden = true;
       voiceTrack?.stop();
-      $('invite').hidden = true;
+      cameraTrack?.stop();
     });
 
   room.registerTextStreamHandler('chat', async (reader, info) => {
@@ -266,6 +453,7 @@ const connect = async (name) => {
   const data = await res.json();
   if (!res.ok) throw Object.assign(new Error(data.error ?? t('Não foi possível entrar na sala.')), { code: data.code });
   isHost = data.role === 'host';
+  token = data.token;
 
   const keyProvider = new ExternalE2EEKeyProvider();
   room = new Room({
@@ -280,19 +468,17 @@ const connect = async (name) => {
 
   await keyProvider.setKey(e2eeKey);
   await room.setE2EEEnabled(true);
-  await room.connect(data.url, data.token);
+  // Assinatura manual: cada um recebe só a tela que escolheu assistir
+  await room.connect(data.url, data.token, { autoSubscribe: false });
 };
 
-// --- estado da sala: chat, apresentador e lista de pessoas -------------------
+// --- estado da sala: tipo, chat, pedidos e lista de pessoas --------------------
 
-const nameOf = (identity) =>
-  identity === room.localParticipant.identity
-    ? room.localParticipant.name
-    : (room.remoteParticipants.get(identity)?.name ?? t('alguém'));
+let knownRequests = new Set();
 
 function applyMetadata() {
   try {
-    meta = { chat: true, presenter: null, ...JSON.parse(room.metadata || '{}') };
+    meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [], ...JSON.parse(room.metadata || '{}') };
   } catch {}
   const input = $('chat-input');
   const blocked = !meta.chat && !isHost;
@@ -301,10 +487,19 @@ function applyMetadata() {
   $('emoji-btn').disabled = blocked;
   $('chat-toggle').textContent = t(meta.chat ? 'Desligar chat' : 'Ligar chat');
   $('rec-badge').hidden = !meta.recording;
-  const badge = $('presenter-badge');
-  badge.hidden = !meta.presenter;
-  if (meta.presenter) badge.textContent = t('{name} está apresentando', { name: nameOf(meta.presenter) });
-  renderPeople();
+  // Avisa o anfitrião de cada pedido novo
+  if (isHost) {
+    for (const r of meta.requests) {
+      const key = `${r.identity}:${r.kind}`;
+      if (!knownRequests.has(key))
+        addMessage(t(r.kind === 'speak' ? '{name} pediu a palavra.' : '{name} pediu para mostrar a tela.', { name: r.name }));
+    }
+    knownRequests = new Set(meta.requests.map((r) => `${r.identity}:${r.kind}`));
+    $('requests-count').textContent = meta.requests.length ? String(meta.requests.length) : '';
+    $('requests-count').hidden = !meta.requests.length;
+  }
+  updateControls();
+  renderStage();
 }
 
 // Ação do anfitrião sobre a sala; devolve a resposta ou mostra o erro no chat
@@ -322,6 +517,18 @@ const hostAction = async (path, extra = {}) => {
   return data;
 };
 
+// Pedido de quem está na sala: o próprio token da sala prova quem pede
+const participantAction = async (path, extra = {}) => {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': lang },
+    body: JSON.stringify({ token, ...extra }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) addMessage(data.error ?? t('Não foi possível concluir a ação.'));
+  return res.ok ? data : null;
+};
+
 // O link mudou: atualiza a barra de endereço, o convite e onde a chave de anfitrião fica guardada
 const switchRoomCode = (code, why) => {
   roomId = code;
@@ -331,58 +538,91 @@ const switchRoomCode = (code, why) => {
   addMessage(t('{why} O link antigo não serve mais: envie o novo a quem ainda vai entrar.', { why }));
 };
 
-const renderPeople = () => {
+const permitted = (p, source) => {
+  if (p.identity.startsWith('h-')) return true;
+  const sources = p.permissions?.canPublishSources ?? [];
+  return !!p.permissions?.canPublish && (sources.length === 0 || sources.includes(SOURCE[source]));
+};
+
+const renderRequests = () => {
+  $('requests').hidden = !isHost || !meta.requests.length;
+  if (!isHost) return;
+  $('requests').replaceChildren(
+    ...meta.requests.map((r) => {
+      const li = el('li', 'request');
+      li.dataset.identity = r.identity;
+      li.dataset.kind = r.kind;
+      const field = r.kind === 'speak' ? 'speak' : 'screen';
+      li.append(
+        el('span', null, t(r.kind === 'speak' ? '{name} pediu a palavra.' : '{name} pediu para mostrar a tela.', { name: r.name })),
+        button('', t('Aprovar'), () => hostAction('/api/rooms/permissions', { identity: r.identity, [field]: true })),
+        button('secondary', t('Recusar'), () => hostAction('/api/rooms/permissions', { identity: r.identity, [field]: false })),
+      );
+      return li;
+    }),
+  );
+};
+
+function renderPeople() {
   if (!room) return;
-  const everyone = [room.localParticipant, ...room.remoteParticipants.values()];
+  renderRequests();
+  const speaking = new Set(room.activeSpeakers.map((p) => p.identity));
   $('people').replaceChildren(
-    ...everyone.map((p) => {
+    ...everyone().map((p) => {
       const li = el('li', 'person');
       li.dataset.identity = p.identity;
       const avatar = el('span', 'avatar', [...(p.name || '?')][0].toUpperCase());
       avatar.style.background = avatarColor(p.name || '?');
+      avatar.classList.toggle('speaking', speaking.has(p.identity));
+      const micOn = p.getTrackPublication(Track.Source.Microphone) && !p.getTrackPublication(Track.Source.Microphone).isMuted;
       const tags = [
         p.identity.startsWith('h-') ? t('anfitrião') : null,
-        meta.presenter === p.identity ? t('apresentando') : null,
-        p === room.localParticipant ? t('você') : null,
+        isMe(p) ? t('você') : null,
+        p.getTrackPublication(Track.Source.ScreenShare) ? t('mostrando a tela') : null,
+        p.getTrackPublication(Track.Source.Camera) ? t('câmera') : null,
+        micOn ? t('microfone') : null,
       ].filter(Boolean);
       const info = el('div', 'person-info');
       info.append(el('span', 'author', p.name || '?'), el('span', 'muted small', tags.join(' · ')));
       li.append(avatar, info);
       if (isHost && p.identity.startsWith('v-')) {
         const actions = el('div', 'person-actions');
-        const presenting = meta.presenter === p.identity;
-        const pass = el('button', 'secondary', t(presenting ? 'Retomar a vez' : 'Passar a vez'));
-        pass.type = 'button';
-        pass.dataset.action = 'presenter';
-        pass.addEventListener('click', () => passPresenter(presenting ? null : p.identity));
-        const kick = el('button', 'danger', t('Remover'));
-        kick.type = 'button';
-        kick.dataset.action = 'kick';
-        kick.addEventListener('click', async () => {
+        // Na Live, o anfitrião libera a fala; a tela, sempre que ela não é livre na sala
+        if (meta.type === 'live') {
+          const speaks = permitted(p, 'microphone');
+          const speak = button('secondary', t(speaks ? 'Tirar a fala' : 'Liberar a fala'), () =>
+            hostAction('/api/rooms/permissions', { identity: p.identity, speak: !speaks }),
+          );
+          speak.dataset.action = 'speak';
+          actions.append(speak);
+        }
+        if (!(meta.type === 'together' && meta.openScreens)) {
+          const shares = permitted(p, 'screen');
+          const screen = button('secondary', t(shares ? 'Tirar a tela' : 'Liberar a tela'), () =>
+            hostAction('/api/rooms/permissions', { identity: p.identity, screen: !shares }),
+          );
+          screen.dataset.action = 'screen';
+          actions.append(screen);
+        }
+        const kick = button('danger', t('Remover'), async () => {
           if (!confirm(t('Remover {name} da sala? O link da sala será trocado para que essa pessoa não volte.', { name: p.name }))) return;
           const data = await hostAction('/api/rooms/kick', { identity: p.identity });
           if (data) switchRoomCode(data.roomId, t('{name} foi removido.', { name: p.name }));
         });
-        actions.append(pass, kick);
+        kick.dataset.action = 'kick';
+        actions.append(kick);
         li.append(actions);
       }
       return li;
     }),
   );
-};
-
-const passPresenter = async (identity) => {
-  // Um apresentador por vez: o anfitrião para a própria tela e o microfone antes de passar a vez
-  if (identity) await stopPublishing();
-  const data = await hostAction('/api/rooms/presenter', { identity });
-  if (data) addMessage(identity ? t('{name} agora pode apresentar.', { name: nameOf(identity) }) : t('Você retomou a vez de apresentar.'));
-};
+}
 
 const showTab = (tab) => {
   const people = tab === 'people';
   $('tab-chat').setAttribute('aria-selected', String(!people));
   $('tab-people').setAttribute('aria-selected', String(people));
-  $('people').hidden = !people;
+  $('people-panel').hidden = !people;
   $('messages').hidden = people;
   $('chat-form').hidden = people;
   $('chat-tools').hidden = people || !isHost;
@@ -391,28 +631,13 @@ const showTab = (tab) => {
 $('tab-chat').addEventListener('click', () => showTab('chat'));
 $('tab-people').addEventListener('click', () => showTab('people'));
 
-// --- anfitrião -------------------------------------------------------------
+// --- transmitir: microfone, tela, câmera ---------------------------------------
 
-const setShareButton = (on) => {
-  const btn = $('share');
-  const label = t(on ? 'Parar de compartilhar' : 'Compartilhar tela');
-  btn.classList.toggle('on', on);
-  btn.title = label;
-  btn.setAttribute('aria-label', label);
-  btn.querySelector('use').setAttribute('href', on ? '#i-screen-off' : '#i-screen');
-};
+const setShareButton = (on) => setToggle('share', on, ['Compartilhar tela', 'Parar de compartilhar'], ['#i-screen', '#i-screen-off']);
+const setMicButton = (on) => setToggle('mic', on, ['Ligar microfone', 'Desligar microfone'], ['#i-mic-off', '#i-mic']);
+const setCameraButton = (on) => setToggle('camera', on, ['Ligar câmera', 'Desligar câmera'], ['#i-camera-off', '#i-camera']);
 
-const setMicButton = (on) => {
-  const btn = $('mic');
-  const label = t(on ? 'Desligar microfone' : 'Ligar microfone');
-  btn.classList.toggle('on', on);
-  btn.title = label;
-  btn.setAttribute('aria-label', label);
-  btn.setAttribute('aria-pressed', String(on));
-  btn.querySelector('use').setAttribute('href', on ? '#i-mic' : '#i-mic-off');
-};
-
-// Voz do anfitrião: independente da tela, com os filtros de voz do navegador ligados
+// Voz: independente da tela, com os filtros de voz do navegador ligados
 const toggleMic = async () => {
   if (voiceTrack) {
     const track = voiceTrack;
@@ -437,6 +662,30 @@ const toggleMic = async () => {
   });
   voiceTrack = track;
   setMicButton(true);
+};
+
+// Câmera de quem apresenta: pequena e leve, aparece sobre a tela no player de quem assiste
+const toggleCamera = async () => {
+  if (cameraTrack) {
+    const track = cameraTrack;
+    cameraTrack = null;
+    setCameraButton(false);
+    await room.localParticipant.unpublishTrack(track).catch(() => {});
+    track.stop();
+    return;
+  }
+  const deviceId = $('camera-device').value;
+  const track = await createLocalVideoTrack({
+    ...(deviceId && { deviceId: { exact: deviceId } }),
+    resolution: VideoPresets.h540.resolution,
+  });
+  await room.localParticipant.publishTrack(track, {
+    source: Track.Source.Camera,
+    videoEncoding: { maxBitrate: 900_000, maxFramerate: 30 },
+    simulcast: false,
+  });
+  cameraTrack = track;
+  setCameraButton(true);
 };
 
 const setupSettings = () => {
@@ -498,7 +747,7 @@ const startShare = async () => {
     });
     await room.localParticipant.publishTrack(extraAudio, {
       source: Track.Source.ScreenShareAudio,
-      name: 'game-audio',
+      name: GAME_AUDIO_TRACK,
       audioPreset: AudioPresets.musicHighQualityStereo,
       forceStereo: true,
       dtx: false,
@@ -507,40 +756,112 @@ const startShare = async () => {
   }
 };
 
-// Para tela, voz e áudio do jogo que esta pessoa estiver transmitindo
-const stopPublishing = async () => {
-  if (room.localParticipant.isScreenShareEnabled) await room.localParticipant.setScreenShareEnabled(false).catch(() => {});
-  await stopExtraAudio();
-  if (voiceTrack) await toggleMic().catch(() => {});
+// Posição, tamanho e formato da câmera sobre a tela: guardados no navegador e enviados à sala
+const renderPipLayout = () => {
+  for (const b of $('pip-layout').querySelectorAll('button')) {
+    const [field, value] = Object.entries(b.dataset)[0];
+    b.setAttribute('aria-pressed', String(myPip[field] === value));
+  }
 };
 
-// Quem recebe a vez do anfitrião ganha os controles de tela e microfone (sem encerrar a sala)
-const setPresenterMode = async (on) => {
-  if (on === isPresenter) return;
-  isPresenter = on;
-  if (on) {
-    setupPublishControls();
-    $('host-controls').hidden = false;
-    $('end').hidden = true;
-    $('record').hidden = true;
-    addMessage(t('O anfitrião passou a vez para você: compartilhe a tela ou ligue o microfone.'));
-  } else {
-    $('host-controls').hidden = true;
-    await stopPublishing();
-    setShareButton(false);
-    setMicButton(false);
-    addMessage(t('A vez de apresentar voltou para o anfitrião.'));
-  }
-  if (!videoTrack) setVideoTrack(null);
+const setupPipLayout = () => {
+  renderPipLayout();
+  $('pip-layout').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const [field, value] = Object.entries(b.dataset)[0];
+    myPip = { ...myPip, [field]: value };
+    storage.set(localStorage, 'pip', JSON.stringify(myPip));
+    renderPipLayout();
+    renderStage();
+    await participantAction('/api/rooms/layout', { pip: myPip });
+  });
 };
+
+const withButton = async (id, fn, onError) => {
+  const btn = $(id);
+  btn.disabled = true;
+  try {
+    await fn();
+  } catch (err) {
+    onError(err);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+const setupPublishControls = () => {
+  setupSettings();
+  setupPipLayout();
+
+  $('share').addEventListener('click', () =>
+    withButton(
+      'share',
+      async () => {
+        if (room.localParticipant.isScreenShareEnabled) {
+          await room.localParticipant.setScreenShareEnabled(false);
+          await stopExtraAudio();
+        } else {
+          await startShare();
+        }
+      },
+      // Cancelar o seletor de tela do navegador cai aqui; não é erro
+      (err) => err?.name !== 'NotAllowedError' && addMessage(t('Erro ao compartilhar: {error}', { error: err.message })),
+    ),
+  );
+
+  $('mic').addEventListener('click', () =>
+    withButton('mic', toggleMic, (err) =>
+      addMessage(err?.name === 'NotAllowedError' ? t('Permissão de microfone negada.') : t('Erro no microfone: {error}', { error: err.message })),
+    ),
+  );
+
+  $('camera').addEventListener('click', () =>
+    withButton('camera', toggleCamera, (err) =>
+      addMessage(err?.name === 'NotAllowedError' ? t('Permissão de câmera negada.') : t('Erro na câmera: {error}', { error: err.message })),
+    ),
+  );
+
+  // Pedir a palavra ou a tela: clicar de novo desiste do pedido
+  for (const [id, kind] of [['raise-hand', 'speak'], ['ask-screen', 'screen']]) {
+    $(id).addEventListener('click', () =>
+      withButton(id, () => participantAction('/api/rooms/request', { kind, cancel: $(id).getAttribute('aria-pressed') === 'true' }), () => {}),
+    );
+  }
+
+  $('mic-device').addEventListener('change', (e) => {
+    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar o microfone.')));
+  });
+  $('camera-device').addEventListener('change', (e) => {
+    cameraTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar a câmera.')));
+  });
+
+  $('load-devices').addEventListener('click', async () => {
+    try {
+      // Pede permissão uma vez para o navegador revelar os nomes dos dispositivos
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: can('screen') });
+      s.getTracks().forEach((track) => track.stop());
+    } catch {
+      addMessage(t('Permissão de áudio negada.'));
+      return;
+    }
+    const audioSelects = [$('mic-device'), $('audio-device')];
+    for (const select of [...audioSelects, $('camera-device')]) select.length = 1;
+    for (const d of await navigator.mediaDevices.enumerateDevices()) {
+      if (d.deviceId === 'default' || d.deviceId === 'communications') continue;
+      if (d.kind === 'audioinput') for (const select of audioSelects) select.add(new Option(d.label || d.deviceId, d.deviceId));
+      if (d.kind === 'videoinput') $('camera-device').add(new Option(d.label || d.deviceId, d.deviceId));
+    }
+    addMessage(t('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.'));
+  });
+};
+
+// --- anfitrião: convite, chat, encerrar, gravar --------------------------------
 
 const setupHost = () => {
-  setupPublishControls();
-  $('host-controls').hidden = false;
   $('invite').hidden = false;
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
-  showOverlay(t('Clique no botão de tela, embaixo, para começar a transmitir.'));
 
   $('copy').addEventListener('click', async () => {
     try {
@@ -568,17 +889,9 @@ const setupHost = () => {
     if (!(await hostAction('/api/rooms/end'))) addMessage(t('Não foi possível encerrar a sala.'));
   });
 
-  if (!recordingFormat()) $('record').hidden = true;
-  $('record').addEventListener('click', async () => {
-    const btn = $('record');
-    btn.disabled = true;
-    try {
-      if (recorder?.active) await stopRecording();
-      else await startRecording();
-    } finally {
-      btn.disabled = false;
-    }
-  });
+  $('record').addEventListener('click', () =>
+    withButton('record', () => (recorder?.active ? stopRecording() : startRecording()), () => {}),
+  );
 
   // Fechar a aba no meio da gravação: avisa a sala que ela parou (o que já foi para a pasta fica salvo)
   addEventListener('pagehide', () => {
@@ -589,19 +902,19 @@ const setupHost = () => {
 };
 
 const setRecordButton = (on) => {
-  const btn = $('record');
-  const label = t(on ? 'Parar a gravação' : 'Gravar a transmissão');
-  btn.classList.toggle('recording', on);
-  btn.title = label;
-  btn.setAttribute('aria-label', label);
-  btn.setAttribute('aria-pressed', String(on));
+  setToggle('record', on, ['Gravar a transmissão', 'Parar a gravação']);
+  $('record').classList.toggle('recording', on);
+  $('record').classList.remove('on');
 };
 
 const startRecording = async () => {
   recorder ??= new Recorder();
   for (const track of roomAudio) recorder.addAudio(track);
+  const current = broadcasters().find((b) => b.p.identity === watching);
+  const screen = current?.screen?.track?.mediaStreamTrack ?? null;
+  const camera = current?.camera?.track?.mediaStreamTrack ?? null;
   try {
-    await recorder.start(videoTrack?.mediaStreamTrack ?? null);
+    await recorder.start({ screen: screen ?? camera, camera: screen ? camera : null });
   } catch (err) {
     // Cancelar a escolha da pasta cancela a gravação; não é erro
     if (err?.name !== 'AbortError') addMessage(t('Não foi possível gravar: {error}', { error: err.message }));
@@ -626,80 +939,13 @@ const stopRecording = async () => {
   else addMessage(t(toFolder ? 'Gravação salva na pasta escolhida: {parts}' : 'Gravação salva: {parts}', { parts: parts.join(', ') }));
 };
 
-// Tela, microfone e ajustes: usados pelo anfitrião e por quem recebe a vez de apresentar
-let publishControlsReady = false;
-const setupPublishControls = () => {
-  if (publishControlsReady) return;
-  publishControlsReady = true;
-  setupSettings();
+// --- quem assiste: volume, tela cheia, câmera sobre a tela ------------------------
 
-  if (!navigator.mediaDevices?.getDisplayMedia) {
-    $('share').disabled = true;
-    showOverlay(t('Este navegador não permite compartilhar a tela. Use Chrome, Edge ou Firefox no computador.'));
-  }
-
-  $('share').addEventListener('click', async () => {
-    const btn = $('share');
-    btn.disabled = true;
-    try {
-      if (room.localParticipant.isScreenShareEnabled) {
-        await room.localParticipant.setScreenShareEnabled(false);
-        await stopExtraAudio();
-      } else {
-        await startShare();
-      }
-    } catch (err) {
-      // Cancelar o seletor de tela do navegador cai aqui; não é erro
-      if (err?.name !== 'NotAllowedError') addMessage(t('Erro ao compartilhar: {error}', { error: err.message }));
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  $('mic').addEventListener('click', async () => {
-    const btn = $('mic');
-    btn.disabled = true;
-    try {
-      await toggleMic();
-    } catch (err) {
-      addMessage(
-        err?.name === 'NotAllowedError' ? t('Permissão de microfone negada.') : t('Erro no microfone: {error}', { error: err.message }),
-      );
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  $('mic-device').addEventListener('change', (e) => {
-    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar o microfone.')));
-  });
-
-  $('load-devices').addEventListener('click', async () => {
-    try {
-      // Pede permissão uma vez para o navegador revelar os nomes dos dispositivos
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-      s.getTracks().forEach((t) => t.stop());
-    } catch {
-      addMessage(t('Permissão de áudio negada.'));
-      return;
-    }
-    const selects = [$('mic-device'), $('audio-device')];
-    for (const select of selects) select.length = 1;
-    for (const d of await navigator.mediaDevices.enumerateDevices()) {
-      if (d.kind !== 'audioinput' || d.deviceId === 'default' || d.deviceId === 'communications') continue;
-      for (const select of selects) select.add(new Option(d.label || d.deviceId, d.deviceId));
-    }
-    addMessage(t('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.'));
-  });
-};
-
-// --- espectador ------------------------------------------------------------
-
-const setupViewer = () => {
+const setupViewing = () => {
   $('viewer-controls').hidden = false;
 
   $('volume').addEventListener('input', (e) => {
-    for (const t of audioTracks) t.setVolume(Number(e.target.value));
+    for (const track of audioTracks) track.setVolume(Number(e.target.value));
   });
 
   const toggleFullscreen = () =>
@@ -707,14 +953,23 @@ const setupViewer = () => {
   $('fullscreen').addEventListener('click', toggleFullscreen);
   video.addEventListener('dblclick', toggleFullscreen);
 
+  $('pip-hide').addEventListener('click', () => {
+    pipHidden = !pipHidden;
+    setToggle('pip-hide', pipHidden, ['Esconder câmera', 'Mostrar câmera']);
+    renderStage();
+  });
+  $('pip-swap').addEventListener('click', () => {
+    pipSwapped = !pipSwapped;
+    setToggle('pip-swap', pipSwapped, ['Inverter câmera e tela', 'Voltar a tela para o centro']);
+    renderStage();
+  });
+
   setInterval(() => {
-    if (!videoTrack || !video.videoWidth) return ($('stats').textContent = '');
-    const mbps = (videoTrack.currentBitrate / 1e6).toFixed(1);
+    if (!mainTrack || !video.videoWidth) return ($('stats').textContent = '');
+    const mbps = ((mainTrack.currentBitrate ?? 0) / 1e6).toFixed(1);
     $('stats').textContent = `${video.videoWidth}×${video.videoHeight} · ${mbps} Mbps`;
   }, 1000);
 };
-
-// --- chat ------------------------------------------------------------------
 
 // --- emojis ----------------------------------------------------------------
 
@@ -784,10 +1039,10 @@ picker.querySelector('.emoji-tabs').append(
 // Clicar no seletor não tira o foco (nem a posição do cursor) do campo de mensagem
 picker.addEventListener('mousedown', (e) => e.preventDefault());
 picker.addEventListener('click', (e) => {
-  const button = e.target.closest('button');
-  if (!button) return;
-  if (button.dataset.category) showCategory(button.dataset.category);
-  else if (button.dataset.emoji) insertEmoji(button.dataset.emoji);
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.category) showCategory(b.dataset.category);
+  else if (b.dataset.emoji) insertEmoji(b.dataset.emoji);
 });
 emojiBtn.addEventListener('click', () => toggleEmojiPicker(picker.hidden));
 document.addEventListener('click', (e) => {
@@ -872,10 +1127,10 @@ $('join-form').addEventListener('submit', async (e) => {
 
   $('join').hidden = true;
   $('room').hidden = false;
+  setupViewing();
+  setupPublishControls();
   if (isHost) setupHost();
-  else setupViewer();
   applyMetadata();
-  setVideoTrack(videoTrack);
   updateCount();
   addMessage(t(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.'));
 });

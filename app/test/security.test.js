@@ -236,12 +236,12 @@ describe('tokens do LiveKit', () => {
     }
   });
 
-  test('anfitrião publica só tela, áudio da tela e microfone', async () => {
+  test('anfitrião publica só tela, áudio da tela, câmera e microfone', async () => {
     const { roomId, hostKey } = await createRoom();
     const { body } = await api(base, '/api/token', { roomId, hostKey, name: 'Ana' });
     const claims = jwtPayload(body.token);
     assert.equal(claims.video.canPublish, true);
-    assert.deepEqual([...claims.video.canPublishSources].sort(), ['microphone', 'screen_share', 'screen_share_audio']);
+    assert.deepEqual([...claims.video.canPublishSources].sort(), ['camera', 'microphone', 'screen_share', 'screen_share_audio']);
     assert.ok(!claims.video.roomAdmin);
     assert.ok(!claims.video.canUpdateOwnMetadata);
   });
@@ -330,6 +330,7 @@ describe('no navegador', () => {
   test('a chave E2EE nunca sai do navegador e a de anfitrião sai da barra de endereço', async () => {
     const host = await watchedPage();
     await loginInBrowser(host.page, base);
+    await host.page.click('label:has(#type-live)');
     await host.page.click('#create-form button');
     await host.page.waitForURL(/#k=/);
     const key = new URLSearchParams(new URL(host.page.url()).hash.slice(1)).get('k');
@@ -350,6 +351,7 @@ describe('no navegador', () => {
   test('nome e mensagem com HTML aparecem como texto, sem executar', async () => {
     const host = await watchedPage();
     await loginInBrowser(host.page, base);
+    await host.page.click('label:has(#type-live)');
     await host.page.click('#create-form button');
     await host.page.waitForURL(/#k=/);
     await join(host.page, 'Ana');

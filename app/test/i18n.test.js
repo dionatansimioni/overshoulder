@@ -16,7 +16,7 @@ const read = (file) => fs.readFileSync(file, 'utf8');
 const NEUTRAL = new Set([
   'Overshoulder', 'Client ID', 'Client secret', 'Codec', 'VP9', 'AV1', 'Volume', 'Chat', 'Emojis',
   '720p · 30 fps', '720p · 60 fps', '1080p · 30 fps', '1080p · 60 fps', '1440p · 60 fps',
-  'docker logs overshoulder', 'XXXX-XXXX-XXXX', 'https://login.microsoftonline.com/…/v2.0', '·', '.', '😊', '● Gravando',
+  'docker logs overshoulder', 'XXXX-XXXX-XXXX', 'M', '↖', '↗', '↙', '↘', 'https://login.microsoftonline.com/…/v2.0', '·', '.', '😊', '● Gravando',
 ]);
 
 const htmlTexts = (html) => {
@@ -157,6 +157,7 @@ describe('no navegador, em inglês', () => {
     }
 
     await page.goto(`${s.url}/`);
+    await page.click('label:has(#type-live)');
     await page.click('#create-form button');
     await page.waitForURL(/#k=/);
     assert.equal(await page.textContent('#join-form button[type="submit"]'), 'Join the room');

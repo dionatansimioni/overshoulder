@@ -98,7 +98,12 @@ $('create-form').addEventListener('submit', (e) => {
   $('create-error').hidden = true;
   busy(e.target, async () => {
     try {
-      const data = await api('/api/rooms', state.sso ? { requireSso: $('require-sso').checked } : {});
+      const type = document.querySelector('input[name="room-type"]:checked').value;
+      const data = await api('/api/rooms', {
+        type,
+        ...(type === 'together' && { openScreens: $('open-screens').checked }),
+        ...(state.sso && { requireSso: $('require-sso').checked }),
+      });
       // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
       const params = new URLSearchParams({ k: randomKey(), h: data.hostKey });
       location.href = `/r/${data.roomId}#${params}`;
@@ -108,6 +113,13 @@ $('create-form').addEventListener('submit', (e) => {
     }
   });
 });
+
+// "Qualquer um pode mostrar a tela" só faz sentido na sala Jogando juntos
+for (const radio of document.querySelectorAll('input[name="room-type"]')) {
+  radio.addEventListener('change', () => {
+    $('open-screens-row').hidden = !$('type-together').checked;
+  });
+}
 
 $('logout').addEventListener('click', async () => {
   await api('/api/logout', {}).catch(() => {});

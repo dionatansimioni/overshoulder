@@ -27,7 +27,7 @@ describe('API de moderação', () => {
   test('ações exigem a chave de anfitrião da própria sala', async () => {
     const a = await createRoom(s.url, admin);
     const b = await createRoom(s.url, admin);
-    for (const route of ['/api/rooms/chat', '/api/rooms/link', '/api/rooms/presenter', '/api/rooms/kick']) {
+    for (const route of ['/api/rooms/chat', '/api/rooms/link', '/api/rooms/permissions', '/api/rooms/kick']) {
       const extra = { enabled: false, identity: 'v-000000000000' };
       assert.equal((await api(s.url, route, { roomId: a.roomId, hostKey: 'chute', ...extra })).status, 403, route);
       assert.equal((await api(s.url, route, { roomId: a.roomId, hostKey: b.hostKey, ...extra })).status, 403, `${route} com chave de outra sala`);
@@ -41,10 +41,11 @@ describe('API de moderação', () => {
     const host = { roomId: r.roomId, hostKey: r.hostKey };
     for (const identity of ['h-000000000000', 'qualquer', 42, undefined]) {
       assert.equal((await api(s.url, '/api/rooms/kick', { ...host, identity })).status, 400, String(identity));
-      assert.equal((await api(s.url, '/api/rooms/presenter', { ...host, identity })).status, 400, String(identity));
+      assert.equal((await api(s.url, '/api/rooms/permissions', { ...host, identity, screen: true })).status, 400, String(identity));
     }
     assert.equal((await api(s.url, '/api/rooms/kick', { ...host, identity: 'v-0123456789ab' })).status, 404);
-    assert.equal((await api(s.url, '/api/rooms/presenter', { ...host, identity: 'v-0123456789ab' })).status, 404);
+    assert.equal((await api(s.url, '/api/rooms/permissions', { ...host, identity: 'v-0123456789ab', screen: true })).status, 404);
+    assert.equal((await api(s.url, '/api/rooms/permissions', { ...host, identity: 'v-0123456789ab', screen: 'sim' })).status, 400);
     assert.equal((await api(s.url, '/api/rooms/chat', { ...host, enabled: 'não' })).status, 400);
   });
 
@@ -69,7 +70,7 @@ describe('API de moderação', () => {
     const host = jwtPayload((await api(s.url, '/api/token', { roomId: r.roomId, hostKey: r.hostKey })).body.token);
     assert.equal(host.video.canPublishData, true, 'o anfitrião continua falando no chat');
     const room = (await livekit.listRooms([await internalName(r.roomId)]))[0];
-    assert.deepEqual(JSON.parse(room.metadata), { chat: false, presenter: null, recording: false });
+    assert.deepEqual(JSON.parse(room.metadata), { type: 'live', openScreens: false, chat: false, recording: false, requests: [] });
   });
 });
 
@@ -94,6 +95,7 @@ describe('no navegador', () => {
   const hostRoom = async () => {
     const host = await newPage();
     await loginInBrowser(host, s.url);
+    await host.click('label:has(#type-live)');
     await host.click('#create-form button');
     await host.waitForURL(/#k=/);
     await host.fill('#name', 'Ana');
@@ -186,30 +188,35 @@ describe('no navegador', () => {
     await host.waitForFunction(() => document.querySelector('#count').textContent.startsWith('3'));
   });
 
-  test('passar a vez: o espectador apresenta e o anfitrião pega de volta', async () => {
+  test('Live: o anfitrião libera a tela de alguém e depois tira', async () => {
     const host = await hostRoom();
     const link = await host.inputValue('#invite-link');
     const beto = await joinAs(link, 'Beto');
     const carla = await joinAs(link, 'Carla');
     const roomName = jwtPayload(beto.lk.token).video.room;
     assert.ok(await beto.isHidden('#host-controls'));
+    assert.ok(await beto.isVisible('#ask-screen'));
+    assert.ok(await beto.isVisible('#raise-hand'));
 
     const row = await personRow(host, beto.lk.identity);
-    await row.locator('button[data-action="presenter"]').click();
+    await row.locator('button[data-action="screen"]').click();
     await beto.waitForSelector('#host-controls:not([hidden])');
+    for (const id of ['#share', '#camera', '#mic']) assert.ok(await beto.isVisible(id), `${id} liberado`);
     assert.ok(await beto.isHidden('#end'), 'quem apresenta não encerra a sala');
+    assert.ok(await beto.isHidden('#record'), 'quem apresenta não grava');
+    assert.ok(await beto.isHidden('#ask-screen'));
     assert.equal((await permissionOf(roomName, beto.lk.identity)).canPublish, true);
     assert.equal((await permissionOf(roomName, carla.lk.identity)).canPublish, false);
-    await carla.waitForFunction(() => document.querySelector('#presenter-badge').textContent === 'Beto está apresentando');
 
     await beto.click('#mic');
     await beto.waitForSelector('#mic.on');
+    await beto.click('#share');
+    await beto.waitForSelector('#share.on');
+    await carla.waitForFunction(() => document.querySelector('#presenter-badge').textContent === 'Beto está apresentando');
     await carla.waitForSelector('#mic-badge:not([hidden])');
-    await host.waitForSelector('#mic-badge:not([hidden])');
 
-    await host.locator(`#people li[data-identity="${beto.lk.identity}"] button[data-action="presenter"]`, { hasText: 'Retomar' }).click();
+    await host.locator(`#people li[data-identity="${beto.lk.identity}"] button[data-action="screen"]`, { hasText: 'Tirar' }).click();
     await beto.waitForSelector('#host-controls', { state: 'hidden' });
-    await carla.waitForSelector('#mic-badge', { state: 'hidden' });
     await carla.waitForSelector('#presenter-badge', { state: 'hidden' });
     assert.equal((await permissionOf(roomName, beto.lk.identity)).canPublish, false);
     for (const p of [host, beto, carla]) assert.deepEqual(p.errors, []);

@@ -37,6 +37,20 @@
         <p class="muted">Conectado como <b id="me"></b>.</p>
         <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
         <form id="create-form" class="form">
+          <fieldset class="room-types">
+            <legend>Tipo de sala</legend>
+            <label class="room-type">
+              <input type="radio" name="room-type" id="type-together" value="together" checked>
+              <span class="room-type-title">Jogando juntos</span>
+              <span class="muted small">Todos falam e mostram a tela, como numa call.</span>
+            </label>
+            <label class="room-type">
+              <input type="radio" name="room-type" id="type-live" value="live">
+              <span class="room-type-title">Live</span>
+              <span class="muted small">Você apresenta; o público assiste, conversa no chat e pode pedir a palavra.</span>
+            </label>
+          </fieldset>
+          <label class="check" id="open-screens-row"><input id="open-screens" type="checkbox" checked> Qualquer um pode mostrar a tela</label>
           <label class="check" id="require-sso-row" hidden><input id="require-sso" type="checkbox"> Exigir login da empresa para assistir</label>
           <button type="submit">Criar sala</button>
           <p id="create-error" class="error" hidden></p>

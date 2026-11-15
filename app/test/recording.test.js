@@ -42,6 +42,7 @@ describe('no navegador', () => {
     page.errors = [];
     page.on('pageerror', (e) => page.errors.push(e.message));
     await loginInBrowser(page, s.url);
+    await page.click('label:has(#type-live)');
     await page.click('#create-form button');
     await page.waitForURL(/#k=/);
     await page.fill('#name', 'Ana');
@@ -81,7 +82,7 @@ describe('no navegador', () => {
     await host.waitForTimeout(3000);
 
     const [download] = await Promise.all([host.waitForEvent('download'), host.click('#record')]);
-    assert.match(download.suggestedFilename(), /^overshoulder-\d{4}-\d{2}-\d{2}-\d{4}-parte1\.mp4$/);
+    assert.match(download.suggestedFilename(), /^overshoulder-\d{4}-\d{2}-\d{2}-\d{4}-tela-parte1\.mp4$/);
     const file = fs.readFileSync(await download.path());
     assert.ok(file.length > 20_000, `${file.length} bytes`);
     assert.equal(file.subarray(4, 8).toString(), 'ftyp', 'cabeçalho MP4');
@@ -89,7 +90,7 @@ describe('no navegador', () => {
     assert.ok(file.includes(Buffer.from('Opus')), 'áudio Opus');
 
     await viewer.waitForSelector('#rec-badge', { state: 'hidden' });
-    assert.match(await messages(host), /Gravação salva: overshoulder-.*-parte1\.mp4/);
+    assert.match(await messages(host), /Gravação salva: overshoulder-.*-tela-parte1\.mp4/);
     assert.deepEqual(host.errors, []);
   });
 
@@ -133,8 +134,8 @@ describe('no navegador', () => {
     const files = await host.evaluate(() => window.__files);
     const names = Object.keys(files).sort();
     assert.equal(names.length, 2);
-    assert.match(names[0], /-parte1\.webm$/, 'na pasta grava WebM, que cresce a cada segundo');
-    assert.match(names[1], /-parte2\.webm$/);
+    assert.match(names[0], /-tela-parte1\.webm$/, 'na pasta grava WebM, que cresce a cada segundo');
+    assert.match(names[1], /-tela-parte2\.webm$/);
     for (const name of names) {
       assert.ok(files[name].closed, `${name} fechado`);
       assert.ok(files[name].bytes > 5_000, `${name}: ${files[name].bytes} bytes`);
@@ -187,7 +188,7 @@ describe('no navegador', () => {
     const host = await hostPage();
     const viewer = await viewerPage(await host.inputValue('#invite-link'));
     await host.click('#tab-people');
-    await host.locator('#people li button[data-action="presenter"]').first().click();
+    await host.locator('#people li button[data-action="screen"]').first().click();
     await viewer.waitForSelector('#host-controls:not([hidden])');
     assert.ok(await viewer.isHidden('#record'));
   });

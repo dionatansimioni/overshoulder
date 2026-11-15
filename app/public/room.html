@@ -21,6 +21,10 @@
     <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
     <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
     <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3"/></symbol>
+    <symbol id="i-camera-off" viewBox="0 0 24 24"><path d="M16 10.5l5-3v9l-5-3M10 6h4a2 2 0 0 1 2 2v4M16 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2M3 3l18 18"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11.5V6a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7h-.5a6 6 0 0 1-5-2.7L3 15.5a1.6 1.6 0 0 1 2.6-1.8L8 16"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
   </svg>
 
@@ -52,8 +56,11 @@
         </div>
       </header>
 
+      <div id="screens" class="screens" role="tablist" aria-label="Telas ao vivo" hidden></div>
+
       <div id="player" class="player">
         <video id="video" playsinline autoplay muted></video>
+        <video id="pip" class="pip pip-br pip-m" playsinline autoplay muted hidden></video>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
         <div id="mic-badge" class="badge" hidden>
           <svg class="icon"><use href="#i-mic"/></svg>
@@ -72,6 +79,18 @@
           <button id="fullscreen" type="button" class="round" title="Tela cheia" aria-label="Tela cheia">
             <svg class="icon"><use href="#i-fullscreen"/></svg>
           </button>
+          <button id="pip-hide" type="button" class="round" title="Esconder câmera" aria-label="Esconder câmera" aria-pressed="false" hidden>
+            <svg class="icon"><use href="#i-camera-off"/></svg>
+          </button>
+          <button id="pip-swap" type="button" class="round" title="Inverter câmera e tela" aria-label="Inverter câmera e tela" aria-pressed="false" hidden>
+            <svg class="icon"><use href="#i-swap"/></svg>
+          </button>
+          <button id="raise-hand" type="button" class="round" title="Pedir a palavra" aria-label="Pedir a palavra" aria-pressed="false" hidden>
+            <svg class="icon"><use href="#i-hand"/></svg>
+          </button>
+          <button id="ask-screen" type="button" class="round" title="Pedir para mostrar a tela" aria-label="Pedir para mostrar a tela" aria-pressed="false" hidden>
+            <svg class="icon"><use href="#i-screen"/></svg>
+          </button>
           <span id="stats" class="muted small"></span>
         </div>
 
@@ -81,6 +100,9 @@
           </button>
           <button id="share" type="button" class="round" title="Compartilhar tela" aria-label="Compartilhar tela">
             <svg class="icon"><use href="#i-screen"/></svg>
+          </button>
+          <button id="camera" type="button" class="round" title="Ligar câmera" aria-label="Ligar câmera" aria-pressed="false">
+            <svg class="icon"><use href="#i-camera-off"/></svg>
           </button>
           <button id="record" type="button" class="round" title="Gravar a transmissão" aria-label="Gravar a transmissão" aria-pressed="false">
             <svg class="icon"><use href="#i-record"/></svg>
@@ -112,6 +134,28 @@
             <select id="mic-device">
               <option value="">Padrão do sistema</option>
             </select>
+            <label for="camera-device">Câmera</label>
+            <select id="camera-device">
+              <option value="">Padrão do sistema</option>
+            </select>
+            <fieldset id="pip-layout" class="pip-layout">
+              <legend>Câmera sobre a tela</legend>
+              <div class="seg" role="group" aria-label="Posição">
+                <button type="button" data-corner="tl" title="Canto superior esquerdo" aria-label="Canto superior esquerdo">↖</button>
+                <button type="button" data-corner="tr" title="Canto superior direito" aria-label="Canto superior direito">↗</button>
+                <button type="button" data-corner="bl" title="Canto inferior esquerdo" aria-label="Canto inferior esquerdo">↙</button>
+                <button type="button" data-corner="br" title="Canto inferior direito" aria-label="Canto inferior direito">↘</button>
+              </div>
+              <div class="seg" role="group" aria-label="Tamanho">
+                <button type="button" data-size="s">P</button>
+                <button type="button" data-size="m">M</button>
+                <button type="button" data-size="l">G</button>
+              </div>
+              <div class="seg" role="group" aria-label="Formato">
+                <button type="button" data-shape="rounded">Retângulo</button>
+                <button type="button" data-shape="circle">Círculo</button>
+              </div>
+            </fieldset>
             <label for="audio-device">Áudio do jogo</label>
             <div class="row">
               <select id="audio-device">
@@ -129,14 +173,17 @@
       <header class="chat-header">
         <div class="tabs" role="tablist">
           <button id="tab-chat" type="button" class="tab" role="tab" aria-selected="true">Chat</button>
-          <button id="tab-people" type="button" class="tab" role="tab" aria-selected="false">Pessoas</button>
+          <button id="tab-people" type="button" class="tab" role="tab" aria-selected="false">Pessoas <span id="requests-count" class="count-badge" hidden></span></button>
         </div>
         <span id="count" class="muted small"></span>
       </header>
       <div id="chat-tools" class="chat-tools" hidden>
         <button id="chat-toggle" type="button" class="secondary">Desligar chat</button>
       </div>
-      <ul id="people" class="people" hidden></ul>
+      <div id="people-panel" class="people-panel" hidden>
+        <ul id="requests" class="requests" hidden></ul>
+        <ul id="people" class="people"></ul>
+      </div>
       <ul id="messages"></ul>
       <form id="chat-form">
         <div id="emoji-picker" class="emoji-picker" hidden>

@@ -7,9 +7,10 @@ Self-hosted screen sharing, right in the browser: for playing games with friends
 - **Low latency:** WebRTC through [LiveKit](https://livekit.io) (self-hosted SFU).
 - **End-to-end encryption:** the room key is created in the browser and lives only in the link's `#` fragment, so it never reaches the server. The server forwards encrypted video it cannot open itself.
 - **Rooms of up to 16 people by default** (configurable up to 500): the presenter uploads a single copy and the server distributes it. With simulcast, each viewer gets the quality their connection can handle.
-- **Presenter microphone:** voice turns on with one button, with or without screen sharing, and viewers see a “Microphone on” notice.
-- **Moderation:** in the *People* tab, the host removes someone from the room or **hands over the presenter role** (screen and microphone) to someone else and takes it back. The host can also turn the chat off for viewers and create a new room link.
-- **Recording in the host's browser:** records the video on screen (including whoever holds the presenter role) and all of the room's audio. The server never sees the content. In Chrome and Edge, the file is written to a chosen folder every second (WebM), so what was already recorded survives a browser crash. In other browsers, the file (MP4 when possible) is downloaded when recording stops. Each stretch of video becomes a separate part, and everyone in the room sees a **● Recording** notice.
+- **Two room types:** **"Playing together"**, where everyone talks (like a call) and several people can share their screens at once; and **"Live"**, where only presenters talk and the audience uses the chat, able to **ask to speak** or **ask to share their screen**. With several screens live, each person picks which one to watch and only receives that one.
+- **Webcam over the screen:** presenters turn their camera on and it shows over the screen (picture-in-picture) in the corner, size and shape they pick. Viewers can hide the camera or swap it with the screen. Camera-only broadcasts work too.
+- **Moderation:** in the *People* tab, the host approves requests, grants or removes each person's voice and screen, and removes someone from the room. The host can also turn the chat off for viewers and create a new room link.
+- **Recording in the host's browser:** records the video on screen (including whoever holds the presenter role) and all of the room's audio. The server never sees the content. In Chrome and Edge, the file is written to a chosen folder every second (WebM), so what was already recorded survives a browser crash. In other browsers, the file (MP4 when possible) is downloaded when recording stops. Screen (with audio) and camera are saved as separate files, so editors can compose them as they like. Each stretch of video becomes a separate part, and everyone in the room sees a **● Recording** notice.
 - **Text chat with emojis** in the room. It goes through the server over TLS and is *not* end-to-end encrypted.
 - **Accounts with 2FA, invited broadcasters and company sign-in (SSO)**, described below.
 - **Interface in English and Portuguese**, picked from the browser's language (switchable at the bottom of the page).
@@ -26,7 +27,7 @@ Browser (presenter) ──1 encrypted copy──▶ server: LiveKit ──▶ vi
 Everything runs in a **single Docker image**. Inside it, a supervisor starts LiveKit, the app and Caddy, restarts whatever crashes or hangs, and keeps internal secrets in the `/data` volume.
 
 - **Creating a room** requires signing in (administrator or broadcaster), so outsiders cannot use your server.
-- **Host link:** `/r/<room>#k=<key>&h=<host-key>`. Only the host moderates, ends the room and hands over the presenter role.
+- **Host link:** `/r/<room>#k=<key>&h=<host-key>`. Only the host moderates, ends the room and grants voice and screen.
 - **Viewer link:** `/r/<room>#k=<key>`. Watch and chat.
 - A room disappears 5 minutes after it becomes empty, or right away with "End room".
 - **Removing someone** also changes the room link: people already watching stay, and anyone still joining needs the new link. If the removed person tries to come back with their old connection, the server removes them again within 2 seconds.

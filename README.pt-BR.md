@@ -7,9 +7,10 @@ Compartilhamento de tela self-hosted, direto no navegador: para jogar com os ami
 - **Baixa latência:** WebRTC via [LiveKit](https://livekit.io) (SFU self-hosted).
 - **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. O servidor repassa vídeo cifrado que ele mesmo não consegue abrir.
 - **Salas de até 16 pessoas por padrão** (configurável até 500): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada espectador recebe a qualidade que a conexão dele aguenta.
-- **Microfone de quem transmite:** a voz liga com um botão, com ou sem a tela compartilhada, e os espectadores veem o aviso “Microfone ligado”.
-- **Moderação:** na aba *Pessoas*, o anfitrião remove alguém da sala ou **passa a vez de apresentar** (tela e microfone) para outra pessoa e pega de volta. Também desliga o chat de quem assiste e gera um link novo para a sala.
-- **Gravação no navegador do anfitrião:** grava o vídeo que está na tela (inclusive de quem recebeu a vez de apresentar) e todo o áudio da sala. O servidor nunca vê o conteúdo. No Chrome e no Edge, o arquivo é gravado numa pasta escolhida, a cada segundo (WebM), e o que já foi gravado fica salvo mesmo se o navegador fechar. Nos outros navegadores, o arquivo (MP4 quando possível) é baixado ao parar. Cada trecho de vídeo vira uma parte, e todos na sala veem o aviso **● Gravando**.
+- **Dois tipos de sala:** **"Jogando juntos"**, em que todos falam (como uma call) e várias pessoas mostram a tela ao mesmo tempo; e **"Live"**, em que só quem apresenta fala e a audiência usa o chat, podendo **pedir a palavra** ou **pedir para mostrar a tela**. Com várias telas ao vivo, cada pessoa escolhe qual assistir e só recebe essa.
+- **Webcam sobre a tela:** quem apresenta liga a câmera, que aparece sobre a tela (picture-in-picture) no canto, tamanho e formato escolhidos. Quem assiste pode esconder a câmera ou inverter com a tela. Também dá para transmitir só a câmera.
+- **Moderação:** na aba *Pessoas*, o anfitrião aprova pedidos, libera ou tira a fala e a tela de cada pessoa e remove alguém da sala. Também desliga o chat de quem assiste e gera um link novo para a sala.
+- **Gravação no navegador do anfitrião:** grava o vídeo que está na tela (inclusive de quem recebeu a vez de apresentar) e todo o áudio da sala. O servidor nunca vê o conteúdo. No Chrome e no Edge, o arquivo é gravado numa pasta escolhida, a cada segundo (WebM), e o que já foi gravado fica salvo mesmo se o navegador fechar. Nos outros navegadores, o arquivo (MP4 quando possível) é baixado ao parar. Tela (com o áudio) e câmera ficam em arquivos separados, para quem edita montar como quiser. Cada trecho de vídeo vira uma parte, e todos na sala veem o aviso **● Gravando**.
 - **Chat de texto com emojis** na sala. Ele passa pelo servidor com TLS e *não* tem E2EE.
 - **Contas com 2FA, transmissores convidados e login da empresa (SSO)**, descritos abaixo.
 - **Interface em português e inglês**, escolhida pelo idioma do navegador (dá para trocar no rodapé).
@@ -26,7 +27,7 @@ Navegador (quem apresenta) ──1 cópia cifrada──▶ servidor: LiveKit ─
 Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveKit, o app e o Caddy, reinicia quem cair ou travar e guarda os segredos internos no volume `/data`.
 
 - **Criar sala:** exige login (administrador ou transmissor), para que ninguém de fora use o seu servidor.
-- **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele modera, encerra a sala e passa a vez de apresentar.
+- **Link do anfitrião:** `/r/<sala>#k=<chave>&h=<chave-de-anfitrião>`. Só ele modera, encerra a sala e libera fala e tela.
 - **Link de quem assiste:** `/r/<sala>#k=<chave>`. Assiste e usa o chat.
 - A sala some 5 minutos depois de ficar vazia, ou na hora, em "Encerrar sala".
 - **Remover alguém** também troca o link da sala: quem já está assistindo continua, e quem ainda vai entrar precisa do link novo. Se a pessoa removida tentar voltar com a conexão antiga, o servidor a remove de novo em até 2 segundos.
