@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
+import { CONNECTION_LABELS, connectionType } from '../public/connection-type.js';
 import { launchBrowser, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 let s;
@@ -149,5 +150,32 @@ describe('microfone e sala só de voz', () => {
     await viewer.page.waitForSelector('#voice-stage', { state: 'hidden' });
     assert.deepEqual(host.errors, []);
     assert.deepEqual(viewer.errors, []);
+  });
+});
+
+describe('tipo de conexão', () => {
+  test('lê UDP, TCP e TURN das estatísticas do WebRTC', () => {
+    const stats = (local, extra = {}) => [
+      { id: 'T', type: 'transport', selectedCandidatePairId: 'P' },
+      { id: 'P', type: 'candidate-pair', localCandidateId: 'L', ...extra },
+      { id: 'L', type: 'local-candidate', ...local },
+    ];
+    assert.equal(connectionType(stats({ candidateType: 'host', protocol: 'udp' })), 'udp');
+    assert.equal(connectionType(stats({ candidateType: 'srflx', protocol: 'tcp' })), 'tcp');
+    assert.equal(connectionType(stats({ candidateType: 'relay', protocol: 'udp' })), 'turn');
+    assert.equal(connectionType([]), null);
+    // Sem o transporte, vale o par marcado como selecionado
+    assert.equal(connectionType(stats({ protocol: 'tcp' }, { selected: true }).slice(1)), 'tcp');
+  });
+
+  test('anfitrião e espectador veem nos ajustes que o vídeo vai por UDP', async () => {
+    const host = await hostRoom();
+    const link = await host.page.inputValue('#invite-link');
+    const viewer = await join(link);
+    for (const { page, errors } of [host, viewer]) {
+      await page.waitForFunction((text) => document.querySelector('#conn-type').textContent === text, CONNECTION_LABELS.udp, { timeout: 15000 });
+      assert.deepEqual(errors, []);
+    }
+    assert.doesNotMatch(await viewer.page.textContent('#messages'), /UDP/);
   });
 });

@@ -15,6 +15,7 @@ import {
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { PRESETS, HEAVY_HEIGHT, QUALITY_LABELS, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
+import { CONNECTION_LABELS, connectionType } from '/static/connection-type.js';
 import { createNetworkWatch, summarizeSend } from '/static/send-stats.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
@@ -628,7 +629,32 @@ const connect = async (name) => {
   await room.setE2EEEnabled(true);
   // Assinatura manual: cada um recebe só a tela que escolheu assistir
   await room.connect(data.url, data.token, { autoSubscribe: false });
+  watchConnection();
 };
+
+// Mostra nos ajustes se o vídeo passa por UDP, TCP ou TURN; avisa no chat uma vez quando não é UDP
+let connectionTimer;
+function watchConnection() {
+  clearInterval(connectionTimer);
+  let warned = false;
+  const check = async () => {
+    const pcs = room.engine?.pcManager;
+    for (const transport of [pcs?.subscriber, pcs?.publisher]) {
+      const stats = await transport?.getStats?.().catch(() => null);
+      const type = stats && connectionType(stats.values());
+      if (!type) continue;
+      $('conn-type').textContent = t(CONNECTION_LABELS[type]);
+      $('conn-type').classList.toggle('warn', type !== 'udp');
+      if (type !== 'udp' && !warned) {
+        warned = true;
+        addMessage(t('Sua rede não deixa o vídeo passar por UDP: ele está indo por {type} e pode atrasar mais.', { type: type.toUpperCase() }));
+      }
+      return;
+    }
+  };
+  check();
+  connectionTimer = setInterval(check, 5000);
+}
 
 // --- estado da sala: tipo, chat, pedidos e lista de pessoas --------------------
 

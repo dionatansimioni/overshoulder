@@ -163,6 +163,8 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - **O endereço do instalador e a imagem só funcionam com o repositório e o pacote do GHCR públicos.** Até lá, testar com `OVERSHOULDER_IMAGE` apontando para uma imagem acessível.
   - Teste das portas pelo navegador do admin (teste WebRTC na configuração) ainda não feito.
 
+- **Tipo de conexão na sala (15/11/2026):** os ajustes mostram se o vídeo passa por UDP, TCP ou TURN (estatísticas do WebRTC do par de candidatos escolhido, `public/connection-type.js`), e o chat avisa uma vez quando não é UDP. Serve de teste das portas para quem administra. Lê `room.engine.pcManager` (interno do livekit-client): conferir ao atualizar a biblioteca.
+
 - **Etapa 8 feita (15/11/2026): painel de uso.** `/admin` → Uso: GB enviados no mês (UTC), salas no ar e pessoas conectadas, franquia opcional com aviso a partir de 80% (painel, página inicial do admin e logs) e histórico de 12 meses no `state.json`. Fonte: `livekit_packet_bytes{direction="outgoing"}` do Prometheus do LiveKit (porta 6789, só em 127.0.0.1 por causa de `bind_addresses`), lido a cada minuto; o app soma as diferenças e trata o reinício do contador. Testes em `app/test/usage.test.js` (LiveKit falso) e na imagem.
   - O mês é o do calendário (UTC). Se alguém pedir, dá para escolher o dia em que o ciclo do plano vira.
 
@@ -198,7 +200,7 @@ Ordem de execução, um commit por item:
 8. **Validação numa VPS real** antes de divulgar (TURN, SSO com provedor real, certificado no IP).
 
 ### Lacunas encontradas ao documentar (15/11/2026)
-- O admin não troca a senha de um transmissor que a esqueceu: hoje só exclui a conta e manda outro convite. Avaliar um link de redefinição gerado pelo admin, como o `reset-admin`.
+- ✅ (15/11/2026) O admin gera um **link de nova senha** para o transmissor (uso único, 24 h, `/nova-senha`); o 2FA continua e a página não abre sessão. Testes em `app/test/password-reset.test.js`.
 - A documentação em `docs/` está só em português; o README tem versão em inglês.
 
 ## Decisões tomadas
