@@ -148,6 +148,7 @@ let pipSwapped = false;
 let voiceTrack = null;
 let extraAudio = null;
 let cameraTrack = null;
+let shareHintShown = false;
 // Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
 let allowed = { microphone: false, screen: false };
 const audioTracks = new Set();
@@ -304,7 +305,14 @@ const updateControls = () => {
   $('end').hidden = !isHost;
   $('settings-btn').hidden = !(mic || screen);
   $('host-controls').hidden = !(mic || screen || isHost);
-  if (screen && !navigator.mediaDevices?.getDisplayMedia) $('share').disabled = true;
+  if (screen && !navigator.mediaDevices?.getDisplayMedia) {
+    $('share').disabled = true;
+    // Celulares não compartilham a tela: avisa uma vez e aponta o guia
+    if (!shareHintShown) {
+      shareHintShown = true;
+      addMessage(t('Este navegador não compartilha a tela. Dá para transmitir com a câmera; para jogos de celular, veja o guia em {url}', { url: `${location.origin}/celular` }));
+    }
+  }
 
   // Pedidos: na Live, quem não pode falar pede a palavra; quem não pode mostrar a tela pede
   const mine = (kind) => meta.requests.some((r) => r.identity === room.localParticipant.identity && r.kind === kind);
@@ -1115,8 +1123,13 @@ const setupViewing = () => {
     for (const track of audioTracks) track.setVolume(Number(e.target.value));
   });
 
-  const toggleFullscreen = () =>
-    document.fullscreenElement ? document.exitFullscreen() : $('player').requestFullscreen();
+  // No iPhone só o <video> entra em tela cheia (webkitEnterFullscreen); no Android, deita a tela
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) return document.exitFullscreen();
+    if (!$('player').requestFullscreen) return video.webkitEnterFullscreen?.();
+    await $('player').requestFullscreen();
+    await window.screen.orientation?.lock?.('landscape').catch(() => {});
+  };
   $('fullscreen').addEventListener('click', toggleFullscreen);
   video.addEventListener('dblclick', toggleFullscreen);
 

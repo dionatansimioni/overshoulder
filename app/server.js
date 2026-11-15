@@ -71,7 +71,10 @@ const PAGES = {
   '/convite': 'invite.html',
   '/cadastro': 'invite.html',
   '/redefinir': 'reset.html',
+  '/celular': 'mobile.html',
 };
+// Arquivos do app instalável (PWA): o service worker precisa estar na raiz para valer no site todo
+const ROOT_FILES = { '/manifest.webmanifest': 'manifest.webmanifest', '/sw.js': 'sw.js' };
 
 const rooms = new RoomServiceClient(INTERNAL_URL, API_KEY, API_SECRET);
 const store = createStore(DATA_DIR);
@@ -198,6 +201,7 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const serveFile = async (res, file) => {
@@ -1682,6 +1686,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Método não permitido.' });
 
     if (PAGES[p]) return await serveFile(res, path.join(PUBLIC_DIR, PAGES[p]));
+    if (ROOT_FILES[p]) return await serveFile(res, path.join(PUBLIC_DIR, ROOT_FILES[p]));
     if (/^\/r\/[A-Za-z0-9_-]{22}$/.test(p)) return await serveFile(res, path.join(PUBLIC_DIR, 'room.html'));
     if (p.startsWith('/vendor/')) {
       const name = p.slice('/vendor/'.length);

@@ -21,6 +21,9 @@ export const api = async (path, body) => {
 
 export const $ = (id) => document.getElementById(id);
 
+// App instalável: o service worker só mostra uma página própria quando o servidor não responde
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
 export const showError = (el, err) => {
   el.textContent = err?.message ?? t(String(err));
   el.hidden = false;

@@ -59,6 +59,40 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Este navegador não compartilha a tela. Dá para transmitir com a câmera; para jogos de celular, veja o guia em {url}':
+    'This browser cannot share the screen. You can broadcast with the camera; for phone games, see the guide at {url}',
+  'Overshoulder · Celular': 'Overshoulder · Phone',
+  'Overshoulder · Sem conexão': 'Overshoulder · Offline',
+  'Sem conexão': 'No connection',
+  'Não foi possível falar com o servidor. Confira a internet e tente de novo.':
+    'Could not reach the server. Check your internet connection and try again.',
+  'Tentar de novo': 'Try again',
+  'Overshoulder no celular': 'Overshoulder on your phone',
+  'Instalar na tela inicial': 'Install on the home screen',
+  'Android (Chrome):': 'Android (Chrome):',
+  'menu ⋮ e depois "Instalar app" ou "Adicionar à tela inicial".': 'menu ⋮, then "Install app" or "Add to Home screen".',
+  'iPhone (Safari):': 'iPhone (Safari):',
+  'botão Compartilhar e depois "Adicionar à Tela de Início".': 'Share button, then "Add to Home Screen".',
+  'O Overshoulder abre como um app, em tela cheia, sem a barra do navegador.':
+    'Overshoulder opens like an app, full screen, without the browser bar.',
+  Assistir: 'Watch',
+  'Abra o link da sala e entre só com o nome. Deite o celular e toque em tela cheia para ver o jogo maior.':
+    'Open the room link and join with just a name. Turn the phone sideways and tap full screen to see the game bigger.',
+  'Transmitir pelo celular': 'Broadcast from your phone',
+  'Os navegadores de celular não compartilham a tela. Pelo celular dá para fazer uma live só com a câmera: crie a sala e ligue a câmera.':
+    'Phone browsers cannot share the screen. From the phone you can do a camera-only live: create the room and turn on the camera.',
+  'Transmitir um jogo de celular': 'Broadcast a phone game',
+  'Mostre a tela do celular no computador e transmita pelo computador:': 'Show the phone screen on a computer and broadcast from the computer:',
+  'Android:': 'Android:',
+  'instale o': 'install',
+  'no computador, ligue a depuração USB no celular e conecte o cabo. A tela do celular aparece numa janela; no Overshoulder, compartilhe essa janela.':
+    'on the computer, turn on USB debugging on the phone and plug in the cable. The phone screen shows up in a window; in Overshoulder, share that window.',
+  'iPhone:': 'iPhone:',
+  'espelhe a tela por AirPlay num Mac (Central de Controle, Espelhar Tela) ou, no Windows e no Linux, num receptor AirPlay, e compartilhe a janela do espelhamento.':
+    'mirror the screen over AirPlay to a Mac (Control Center, Screen Mirroring) or, on Windows and Linux, to an AirPlay receiver, and share the mirroring window.',
+  'Para o som do jogo, compartilhe o áudio do sistema ou escolha o áudio do jogo nos ajustes da transmissão.':
+    'For the game sound, share the system audio or pick the game audio in the broadcast settings.',
+  scrcpy: 'scrcpy',
   'Prévia de câmera e microfone': 'Camera and microphone preview',
   'Câmera desligada': 'Camera off',
   'Teste a câmera e o microfone antes de entrar. O que estiver ligado aqui entra ligado na sala, se você puder falar ou aparecer.':
