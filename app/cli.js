@@ -7,6 +7,7 @@ const DATA_DIR = process.env.DATA_DIR ?? '/data';
 const RESET_TTL_MS = Number(process.env.ADMIN_RESET_TTL_MS ?? 15 * 60_000);
 
 const commands = {
+  version: () => console.log(process.env.APP_VERSION || 'dev'),
   // Gera um link de uso único, válido por 15 minutos, para redefinir a senha do admin e remover o 2FA dele
   'reset-admin': () => {
     const stateFile = path.join(DATA_DIR, 'state.json');

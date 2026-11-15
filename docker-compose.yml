@@ -18,6 +18,8 @@ services:
       NODE_IP: ${NODE_IP:-}
       TURN_DOMAIN: ${TURN_DOMAIN:-}
       MAX_PARTICIPANTS: ${MAX_PARTICIPANTS:-16}
+      # Faz o aviso de nova versão mostrar como atualizar este compose (compila o código)
+      INSTALL_METHOD: compose-build
     volumes:
       - data:/data
 

@@ -8,9 +8,39 @@
 - De preferência, um **domínio ou subdomínio** apontando para o IP do servidor (por exemplo, `live.seudominio.com`). Sem domínio também funciona: veja [Sem domínio](#sem-domínio). O HTTPS é obrigatório: os navegadores só compartilham tela e usam criptografia em sites HTTPS.
 - **Banda de saída:** o servidor envia uma cópia do vídeo para cada pessoa. Em 720p são ~3 Mbps por espectador; em 1080p60, ~7 Mbps. Com 10 pessoas em 1080p60, ~70 Mbps e quase 30 GB por hora. Confira a franquia do seu plano.
 
+## Instalador de um comando
+
+Em Ubuntu ou Debian (amd64 ou arm64), com o domínio já apontando para o servidor:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh | sudo bash
+```
+
+O instalador:
+
+1. confere o sistema e instala o Docker, se faltar;
+2. pergunta como as pessoas vão chegar ao servidor: com domínio, sem domínio (certificado no IP), só pela rede local, ou atrás de um proxy que já existe (se as portas 80 e 443 estiverem ocupadas, ele sugere essa opção; no Coolify, ele indica o [guia do Coolify](proxy.md#coolify));
+3. libera as portas no ufw ou no firewalld;
+4. sobe o container com Docker Compose em `/opt/overshoulder` (a configuração fica no `.env` dessa pasta);
+5. mostra o endereço, o código da primeira configuração e as portas a liberar no painel do provedor.
+
+Depois, o comando `overshoulder` cuida do dia a dia:
+
+| Comando | O que faz |
+|---|---|
+| `sudo overshoulder update` | Baixa a versão nova e reinicia, mantendo os dados |
+| `overshoulder status` | Mostra se está rodando, a saúde e a versão |
+| `overshoulder logs` | Acompanha os logs |
+| `overshoulder config-code` | Mostra o código da primeira configuração |
+| `overshoulder reset-admin` | Gera um link para redefinir a senha do admin |
+| `overshoulder backup` | Salva os dados num arquivo na pasta atual |
+| `sudo overshoulder uninstall` | Remove o Overshoulder; com `--purge`, apaga também os dados |
+
+Para instalar sem perguntas (automação), passe as respostas pelo ambiente: `MODE=domain DOMAIN=live.seudominio.com OVERSHOULDER_YES=1`. Os modos são `domain`, `ip`, `lan` e `proxy` (com `PROXY_PORT`, padrão 8080).
+
 ## Subir com Docker
 
-A imagem é única: LiveKit (vídeo), o app e o Caddy (HTTPS automático) no mesmo container.
+Sem o instalador: a imagem é única, com LiveKit (vídeo), o app e o Caddy (HTTPS automático) no mesmo container.
 
 ```bash
 git clone https://github.com/dionatansimioni/overshoulder.git
@@ -49,15 +79,17 @@ Libere também no painel do provedor (Hostinger, Oracle etc.): o firewall de lá
 
 ## Atualizar
 
-```bash
-cd overshoulder
-git pull
-docker build -t overshoulder .
-docker rm -f overshoulder
-docker run -d --name overshoulder ... # o mesmo comando da instalação
-```
+Antes, leia as notas da versão nova (na página de releases do projeto) e faça um backup. Os dados ficam no volume e sobrevivem à troca do container. O painel `/admin` avisa quando sai uma versão nova e mostra estes mesmos passos.
 
-Os dados ficam no volume `overshoulder-data` e sobrevivem à troca do container. Com o Compose: `git pull` e `docker compose up -d --build`.
+| Como foi instalado | Como atualizar |
+|---|---|
+| Instalador de um comando | `sudo overshoulder update` |
+| Docker Compose com a imagem pronta | Na pasta do `compose.yml`: `docker compose pull` e depois `docker compose up -d` |
+| Docker Compose compilando o código | Na pasta do projeto: `git pull` e depois `docker compose up -d --build` |
+| `docker run` | `docker pull ghcr.io/dionatansimioni/overshoulder:latest`, `docker rm -f overshoulder` e o mesmo `docker run` da instalação |
+| Coolify, Dokploy, EasyPanel | **Redeploy** do serviço. Com a tag `latest`, a imagem nova é baixada; com uma versão fixa (ex.: `:0.2.0`), troque a tag antes |
+
+Para fixar uma versão em vez de seguir a `latest`: no instalador, troque `OVERSHOULDER_VERSION` no `/opt/overshoulder/.env` e rode `sudo overshoulder update`.
 
 ## Backup
 

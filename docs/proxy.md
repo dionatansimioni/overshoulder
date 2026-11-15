@@ -24,6 +24,8 @@ Por padrão, o Overshoulder usa as portas 80 e 443 e cuida sozinho do HTTPS. Se 
        environment:
          DOMAIN: live.seudominio.com
          TLS: proxy
+         # Faz o aviso de nova versão mostrar como atualizar no Coolify
+         INSTALL_METHOD: coolify
        volumes:
          - data:/data
    volumes:

@@ -40,7 +40,9 @@ COPY app/public ./public
 RUN printf '#!/bin/sh\nexec node /app/cli.js "$@"\n' > /usr/local/bin/overshoulder \
  && chmod 755 /usr/local/bin/overshoulder
 
-ENV DATA_DIR=/data NODE_ENV=production
+# A versão vem da tag da publicação (release.yml); compilações locais ficam como "dev"
+ARG APP_VERSION=dev
+ENV DATA_DIR=/data NODE_ENV=production APP_VERSION=$APP_VERSION
 USER node
 VOLUME /data
 EXPOSE 80 443 7881 7882/udp

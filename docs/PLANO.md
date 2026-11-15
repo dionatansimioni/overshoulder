@@ -155,6 +155,14 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Etapa 6 (sem domínio): com `DOMAIN` sendo um IP e `TLS=acme`, o Caddy pede o certificado do IP pelo perfil `shortlived`. Testado só a configuração gerada; **falta confirmar a emissão numa VPS real**. nip.io documentado como reserva.
   - Guias em `docs/instalacao.md`: sem domínio, certificado da empresa, sem internet (`docker save`/`load`, `NODE_IP` obrigatório) e homelab (upload, CGNAT, IP de casa exposto).
 
+- **Item 7 feito (15/11/2026), sem o botão da Hostinger (decisão do usuário: fica para depois):**
+  - `install.sh` na raiz (`curl … | sudo bash`): confere sistema e arquitetura, instala o Docker pelo get.docker.com se faltar, pergunta o modo (domínio, IP sem domínio, rede local, atrás de proxy; sugere o proxy se 80/443 estiverem ocupadas e aponta o guia se achar o `coolify-proxy`), confere o DNS do domínio, abre ufw/firewalld, gera `/opt/overshoulder/compose.yml` e `.env` (600) com a imagem do GHCR, sobe e mostra endereço, código e portas do painel do provedor. Sem perguntas com `MODE`/`DOMAIN`/`OVERSHOULDER_YES=1`.
+  - Comando `overshoulder` do servidor: `update`, `status`, `logs`, `config-code`, `reset-admin`, `backup`, `uninstall [--purge]`.
+  - A imagem informa a versão (`APP_VERSION`, da tag; local = `dev`) e o `INSTALL_METHOD` de cada caminho (installer, compose-build, coolify).
+  - Teste em `scripts/test-installer.sh`: instala de verdade a partir de um registro local, atualiza para uma imagem nova e desinstala.
+  - **O endereço do instalador e a imagem só funcionam com o repositório e o pacote do GHCR públicos.** Até lá, testar com `OVERSHOULDER_IMAGE` apontando para uma imagem acessível.
+  - Teste das portas pelo navegador do admin (teste WebRTC na configuração) ainda não feito.
+
 - **Sala privada (15/11/2026, pedido do usuário):** opção em "Mais opções" ao criar sala. A sala privada não fica guardada no navegador (a chave de anfitrião fica só na aba) e acaba quando o anfitrião sai por mais de 30 s (`PRIVATE_GRACE_MS`), tolerância para recarregar a página ou a rede cair. Ao fechar a aba, o anfitrião avisa o servidor (`POST /api/rooms/host-left`, com a chave de anfitrião), porque o LiveKit leva ~22 s para notar a queda. Antes de o anfitrião entrar pela primeira vez, a sala não acaba. Na página inicial, "Ao sair, esquecer as salas deste navegador". Testes em `app/test/home.test.js`.
 
 ### Lapidações pedidas em 15/11/2026 (testes do usuário)

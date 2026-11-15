@@ -38,7 +38,15 @@ Everything runs in a **single Docker image**. Inside it, a supervisor starts Liv
 
 ## Running on a server
 
-Requirements: Docker and a domain (or subdomain) pointing at the server's IP.
+The easiest way, on Ubuntu or Debian:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh | sudo bash
+```
+
+The installer asks whether you have a domain, opens the firewall, starts the container and installs the `overshoulder` command (`update`, `status`, `logs`, `backup`…). Details (in Portuguese) in [docs/instalacao.md](docs/instalacao.md). For Coolify, Dokploy, EasyPanel or an existing proxy, see [docs/proxy.md](docs/proxy.md).
+
+Without the installer, with Docker and a domain (or subdomain) pointing at the server's IP:
 
 ```bash
 docker build -t overshoulder .

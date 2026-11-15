@@ -38,7 +38,15 @@ Tudo roda numa **imagem Docker única**. Dentro dela, um supervisor sobe o LiveK
 
 ## Subindo no servidor
 
-Requisitos: Docker e um domínio (ou subdomínio) apontando para o IP do servidor.
+O jeito mais fácil, em Ubuntu ou Debian:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh | sudo bash
+```
+
+O instalador pergunta se há domínio, abre o firewall, sobe o container e instala o comando `overshoulder` (`update`, `status`, `logs`, `backup`…). Detalhes em [docs/instalacao.md](docs/instalacao.md). Para Coolify, Dokploy, EasyPanel ou outro proxy já existente, veja [docs/proxy.md](docs/proxy.md).
+
+Sem o instalador, com Docker e um domínio (ou subdomínio) apontando para o IP do servidor:
 
 ```bash
 docker build -t overshoulder .
