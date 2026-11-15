@@ -18,6 +18,11 @@ const EN = {
   'Limite de pessoas por sala: de 2 a 5000.': 'People per room limit: from 2 to 5000.',
   'Qualidade inválida.': 'Invalid quality.',
   'Franquia mensal: de 0 (sem franquia) a 1000000 GB.': 'Monthly allowance: from 0 (no allowance) to 1000000 GB.',
+  'Para a conta de administrador, use o comando reset-admin no servidor.':
+    'For the administrator account, use the reset-admin command on the server.',
+  'Essa conta entra pelo login da empresa e não tem senha aqui.': 'This account signs in with the company login and has no password here.',
+  'Reative ou aprove a conta antes.': 'Reactivate or approve the account first.',
+  'Link inválido, já usado ou expirado. Peça outro ao administrador.': 'Invalid, used or expired link. Ask the administrator for a new one.',
   'updateCheck deve ser verdadeiro ou falso.': 'updateCheck must be true or false.',
   'A verificação de novas versões está desligada.': 'Checking for new versions is turned off.',
   'Verificado há pouco. Espere um minuto.': 'Checked a moment ago. Wait a minute.',

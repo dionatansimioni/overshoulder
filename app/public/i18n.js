@@ -246,6 +246,27 @@ const EN = {
   Configurações: 'Settings',
   'Exigir 2FA de todas as contas': 'Require 2FA for every account',
 
+  // --- tipo de conexão na sala
+  'Conexão: UDP, direta (a melhor)': 'Connection: UDP, direct (the best)',
+  'Conexão: TCP (a rede bloqueia UDP; o vídeo pode atrasar mais)': 'Connection: TCP (the network blocks UDP; video may lag more)',
+  'Conexão: TURN pela porta 443 (a rede só libera a 443; o vídeo pode atrasar mais)':
+    'Connection: TURN over port 443 (the network only allows 443; video may lag more)',
+  'Sua rede não deixa o vídeo passar por UDP: ele está indo por {type} e pode atrasar mais.':
+    'Your network does not let video through over UDP: it is going over {type} and may lag more.',
+
+  // --- nova senha de transmissor
+  'Overshoulder · Nova senha': 'Overshoulder · New password',
+  'Escolher uma nova senha': 'Choose a new password',
+  'Este link foi gerado pelo administrador e vale uma vez. As sessões abertas da conta serão encerradas; o 2FA continua como estava.':
+    "This link was created by the administrator and works once. The account's open sessions will be ended; 2FA stays as it was.",
+  'Trocar a senha': 'Change password',
+  'Senha trocada. Entre com a senha nova.': 'Password changed. Sign in with the new password.',
+  'Link incompleto. Peça outro ao administrador.': 'Incomplete link. Ask the administrator for a new one.',
+  'Link de nova senha': 'New password link',
+  'Link de nova senha para': 'New password link for',
+  '. Vale uma vez, por 24 horas; entregue por um canal seguro. O 2FA da conta continua.':
+    '. Works once, for 24 hours; send it over a safe channel. The account keeps its 2FA.',
+
   // --- painel de uso
   Uso: 'Usage',
   'Dados de vídeo e áudio que o servidor enviou neste mês (calendário UTC). É o que pesa na franquia de banda do seu plano de hospedagem.':

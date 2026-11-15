@@ -32,9 +32,9 @@ Cada pessoa ativa em `/conta`, com um app autenticador (Google Authenticator, Ae
 
 ## Recuperar o acesso
 
-- **Admin perdeu a senha ou o 2FA:** no servidor, rode `docker exec overshoulder overshoulder reset-admin`. Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin. Todas as sessões dele são encerradas.
+- **Admin perdeu a senha ou o 2FA:** no servidor, rode `sudo overshoulder reset-admin` (instalador) ou `docker exec overshoulder overshoulder reset-admin`. Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin. Todas as sessões dele são encerradas.
 - **Transmissor perdeu o celular do 2FA:** ele entra com um código de recuperação. Sem códigos, o admin, em `/admin` › Transmissores, remove o 2FA da conta ou gera códigos novos (e entrega por um canal seguro).
-- **Transmissor esqueceu a senha:** hoje o admin não troca a senha de outra conta. O caminho é excluir a conta e mandar um convite novo (ou, no modo com aprovação, a pessoa pede de novo em `/cadastro`).
+- **Transmissor esqueceu a senha:** em `/admin` › Transmissores, clique em **Link de nova senha** e mande o link à pessoa por um canal seguro. Ele vale uma vez, por 24 horas; gerar outro invalida o anterior. A pessoa escolhe a senha nova em `/nova-senha`, as sessões abertas dela são encerradas e o 2FA continua como estava (se ela perdeu também o celular, use **Remover 2FA**). Não vale para contas revogadas, pendentes ou do login da empresa.
 - **Trocar a própria senha:** em `/conta`.
 
 ## Login da empresa (SSO)

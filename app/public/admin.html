@@ -125,6 +125,13 @@
           <p class="notice">Novos códigos de recuperação de <b id="codes-for"></b>. Entregue por um canal seguro; os antigos deixaram de valer.</p>
           <ol id="codes" class="codes"></ol>
         </div>
+        <div id="user-reset" hidden>
+          <p class="notice">Link de nova senha para <b id="reset-for"></b>. Vale uma vez, por 24 horas; entregue por um canal seguro. O 2FA da conta continua.</p>
+          <div class="invite-box">
+            <input id="reset-link" readonly aria-label="Link de nova senha">
+            <button id="copy-reset" type="button" class="secondary">Copiar</button>
+          </div>
+        </div>
         <p id="users-error" class="error" hidden></p>
       </section>
       <section id="convites" class="admin-page" hidden>

@@ -304,6 +304,17 @@ const loadUsers = async () => {
           }),
         );
       }
+      if (u.role !== 'admin' && !u.sso && !u.pending && !u.disabled) {
+        actions.append(
+          action('Link de nova senha', async () => {
+            const { path } = await api('/api/admin/users/reset-link', { username: u.username });
+            $('reset-for').textContent = u.username;
+            $('reset-link').value = `${location.origin}${path}`;
+            $('copy-reset').textContent = t('Copiar');
+            $('user-reset').hidden = false;
+          }),
+        );
+      }
       if (u.pending) {
         actions.append(
           action(
@@ -383,6 +394,11 @@ $('new-invite').addEventListener('click', async () => {
 $('copy-invite').addEventListener('click', async () => {
   await navigator.clipboard.writeText($('invite-link').value).catch(() => $('invite-link').select());
   $('copy-invite').textContent = t('Copiado!');
+});
+
+$('copy-reset').addEventListener('click', async () => {
+  await navigator.clipboard.writeText($('reset-link').value).catch(() => $('reset-link').select());
+  $('copy-reset').textContent = t('Copiado!');
 });
 
 // --- salas fixas ----------------------------------------------------------------

@@ -44,6 +44,8 @@ const DEFAULT_MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
 const TURN_DOMAIN = process.env.TURN_DOMAIN ?? '';
 const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
 const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
+// Link de nova senha que o admin gera para um transmissor
+const PASSWORD_RESET_TTL_MS = Number(env('PASSWORD_RESET_TTL_MS', String(24 * 3600_000)));
 const INVITE_TTL_MS = Number(env('INVITE_TTL_MS', String(48 * 3600_000)));
 const BAN_CHECK_MS = Number(env('BAN_CHECK_MS', '2000'));
 // Sala privada: quanto tempo ela espera o anfitrião voltar (recarregar a página, rede caída) antes de acabar
@@ -87,6 +89,7 @@ const PAGES = {
   '/convite': 'invite.html',
   '/cadastro': 'invite.html',
   '/redefinir': 'reset.html',
+  '/nova-senha': 'newpassword.html',
   '/celular': 'mobile.html',
 };
 // Arquivos do app instalável (PWA): o service worker precisa estar na raiz para valer no site todo
@@ -834,6 +837,49 @@ const deleteUser = async (req, res) => {
   const ended = await endRoomsOf(target.id);
   log.warn('transmissor excluído', { user: user.username, conta: target.username, salasEncerradas: ended });
   json(res, 200, { ok: true, endedRooms: ended });
+};
+
+// Transmissor esqueceu a senha: o admin gera um link de uso único (24 h) e entrega à pessoa.
+// Gerar outro invalida o anterior. O 2FA continua: a pessoa entra depois pelo login normal.
+const passwordResetLink = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = targetUser((await readJson(req)).username);
+  if (target.role === 'admin') return json(res, 400, { error: 'Para a conta de administrador, use o comando reset-admin no servidor.' });
+  if (target.sso) return json(res, 400, { error: 'Essa conta entra pelo login da empresa e não tem senha aqui.' });
+  if (target.disabled || target.pending) return json(res, 400, { error: 'Reative ou aprove a conta antes.' });
+  const token = randomToken();
+  const expiresAt = Date.now() + PASSWORD_RESET_TTL_MS;
+  store.update((st) => {
+    st.passwordResets = (st.passwordResets ?? []).filter((r) => r.userId !== target.id && r.expiresAt > Date.now());
+    st.passwordResets.push({ hash: sha256(token), userId: target.id, expiresAt });
+  });
+  log.warn('link de nova senha gerado', { user: user.username, conta: target.username });
+  json(res, 200, { path: `/nova-senha#${token}`, expiresAt: new Date(expiresAt).toISOString() });
+};
+
+const passwordReset = async (req, res) => {
+  const ip = clientIp(req);
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { token, password } = await readJson(req);
+  const hash = typeof token === 'string' && token.length <= 100 ? sha256(token) : null;
+  const entry = hash && (store.state.passwordResets ?? []).find((r) => safeEqual(r.hash, hash) && r.expiresAt > Date.now());
+  const target = entry && findUser((u) => u.id === entry.userId);
+  if (!target || target.role === 'admin' || target.disabled || target.pending || target.sso) {
+    ipLimiter.fail(ip);
+    log.warn('link de nova senha inválido');
+    return json(res, 401, { error: 'Link inválido, já usado ou expirado. Peça outro ao administrador.' });
+  }
+  const problem = passwordProblem(password, target.username);
+  if (problem) return json(res, 400, { error: problem });
+  const passwordHash = await hashPassword(password);
+  store.update((st) => {
+    target.passwordHash = passwordHash;
+    st.passwordResets = st.passwordResets.filter((r) => r.userId !== target.id);
+  });
+  sessions.destroyUser(target.id);
+  accountLimiter.reset(target.username);
+  log.warn('senha trocada pelo link do admin', { user: target.username });
+  json(res, 200, { ok: true });
 };
 
 // --- API: login corporativo (OIDC) -----------------------------------------
@@ -1736,6 +1782,8 @@ const routes = {
   'POST /api/admin/users/revoke': revokeUser,
   'POST /api/admin/users/restore': restoreUser,
   'POST /api/admin/users/delete': deleteUser,
+  'POST /api/admin/users/reset-link': passwordResetLink,
+  'POST /api/password-reset': passwordReset,
   'GET /api/admin/invites': listInvites,
   'POST /api/admin/invites': createInvite,
   'POST /api/admin/invites/cancel': cancelInvite,
