@@ -18,7 +18,7 @@ after(() => servers.forEach((s) => s.stop()));
 describe('configuração inicial', () => {
   test('antes de configurar, nada funciona sem o código dos logs', async () => {
     const s = await fresh(13030);
-    assert.deepEqual((await get(s.url, '/api/state')).body, { setupDone: false, require2fa: false, sso: null, user: null, viewer: null });
+    assert.deepEqual((await get(s.url, '/api/state')).body, { setupDone: false, require2fa: false, signup: 'approval', sso: null, user: null, viewer: null });
     assert.equal((await api(s.url, '/api/rooms', {})).status, 401);
     assert.equal((await api(s.url, '/api/login', ADMIN)).status, 401);
     const wrong = await api(s.url, '/api/setup', { code: 'AAAA-BBBB-CCCC', ...ADMIN });
@@ -57,6 +57,7 @@ describe('configuração inicial', () => {
     assert.deepEqual((await get(s.url, '/api/state', session)).body, {
       setupDone: true,
       require2fa: false,
+      signup: 'approval',
       sso: null,
       user: { username: 'admin', role: 'admin', totp: false, needs2fa: false },
       viewer: null,

@@ -14,7 +14,11 @@
     <div class="card">
       <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
       <h2>Criar conta de transmissor</h2>
-      <p class="muted small">Você foi convidado para transmitir por este servidor. Escolha seu usuário e senha.</p>
+      <p id="intro-invite" class="muted small">Você foi convidado para transmitir por este servidor. Escolha seu usuário e senha.</p>
+      <p id="intro-approval" class="muted small" hidden>Crie sua conta para transmitir por este servidor. O administrador precisa aprovar antes do primeiro login.</p>
+      <p id="intro-open" class="muted small" hidden>Crie sua conta para transmitir por este servidor.</p>
+      <p id="signup-done" class="notice" hidden>Conta criada! Ela aguarda a aprovação do administrador; depois disso, é só entrar com seu usuário e senha.</p>
+      <p id="signup-closed" class="error" hidden>Este servidor só aceita transmissores convidados pelo administrador.</p>
       <form id="invite-form" class="form">
         <label for="username">Usuário</label>
         <input id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
@@ -26,6 +30,7 @@
         <button type="submit">Criar conta</button>
         <p id="invite-error" class="error" hidden></p>
       </form>
+      <p class="muted small"><a href="/">Já tenho conta</a></p>
     </div>
   </main>
 </body>

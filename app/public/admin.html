@@ -22,10 +22,34 @@
           <p class="muted small field-hint">Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.</p>
           <label for="max">Limite de pessoas por sala</label>
           <input id="max" type="number" min="2" max="500" required>
+          <label for="signup-mode">Cadastro de transmissores</label>
+          <select id="signup-mode">
+            <option value="invite">Só por convite</option>
+            <option value="approval">Qualquer um pede; eu aprovo</option>
+            <option value="open">Livre: qualquer um cria conta e transmite</option>
+          </select>
+          <p class="muted small field-hint">Com cadastro aberto, a página de entrada mostra "Criar conta" (endereço /cadastro).</p>
           <button type="submit">Salvar</button>
           <p id="settings-error" class="error" hidden></p>
           <p id="settings-ok" class="ok" hidden>Configurações salvas.</p>
         </form>
+      </section>
+
+      <section class="section">
+        <h2>Salas fixas</h2>
+        <p class="muted small">Salas que não somem: o link continua o mesmo, com os mesmos convites. Boa para o canal da comunidade ou a live semanal. A chave de criptografia é criada neste navegador e fica só nos links; o servidor nunca a vê.</p>
+        <form id="fixed-form" class="form">
+          <label for="fixed-title">Nome da sala</label>
+          <input id="fixed-title" maxlength="60" placeholder="Ex.: Sala do clã" required>
+          <label for="fixed-type">Tipo</label>
+          <select id="fixed-type">
+            <option value="together">Jogando juntos</option>
+            <option value="live">Live</option>
+          </select>
+          <button type="submit">Criar sala fixa</button>
+          <p id="fixed-error" class="error" hidden></p>
+        </form>
+        <ul id="fixed-rooms" class="list"></ul>
       </section>
 
       <section class="section">

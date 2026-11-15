@@ -120,6 +120,13 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Remover alguém troca só o link do convite usado por essa pessoa.
   - Limitação: convites e ingressos ficam na memória e somem com a sala (salas fixas, no item 3, vão precisar persistir).
 
+- **Item 3 feito (16/11/2026):**
+  - Modo de cadastro de transmissores: só convite, com aprovação (padrão) ou livre, em `/cadastro`. Limite de 5 cadastros por IP por hora e no máximo 50 contas esperando aprovação. Conta pendente não ganha sessão, e o login avisa da pendência só com a senha certa.
+  - Salas fixas do admin: configuração, convites (com usos e senhas em hash) e ingressos (em hash) persistem no `state.json`; a sala volta ao ar sozinha quando alguém entra, com o estado do ar zerado. A chave E2EE fica só no navegador do admin (`localStorage`); em outro navegador ele precisa do link ou de uma chave nova.
+  - Corrigido: a página da sala apagava o nome digitado antes de o script carregar.
+  - Atenção: servidores já instalados passam a aceitar pedidos de cadastro (modo padrão "com aprovação"); quem quiser o comportamento antigo escolhe "Só por convite" em `/admin`.
+  - Pendente para o item 5: recolher SSO e TURN em "opções avançadas" no admin.
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

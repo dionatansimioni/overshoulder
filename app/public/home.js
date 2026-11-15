@@ -37,6 +37,7 @@ if (ssoError) history.replaceState(null, '', '/');
 
 const state = await api('/api/state');
 $('sso-login').hidden = !state.sso;
+$('signup-link').hidden = state.signup === 'invite';
 if (state.sso) {
   $('require-sso-row').hidden = false;
   $('require-sso').checked = state.sso.forceRooms || state.sso.roomsDefault;

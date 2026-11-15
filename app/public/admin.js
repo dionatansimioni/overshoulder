@@ -35,6 +35,7 @@ const formatDate = (iso) => new Date(iso).toLocaleString([], { dateStyle: 'short
 const settings = await api('/api/admin/settings');
 $('require2fa').checked = settings.require2fa;
 $('max').value = settings.maxParticipants;
+$('signup-mode').value = settings.signup;
 
 $('settings-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -42,7 +43,11 @@ $('settings-form').addEventListener('submit', (e) => {
   $('settings-ok').hidden = true;
   busy(e.target, async () => {
     try {
-      await api('/api/admin/settings', { require2fa: $('require2fa').checked, maxParticipants: Number($('max').value) });
+      await api('/api/admin/settings', {
+        require2fa: $('require2fa').checked,
+        maxParticipants: Number($('max').value),
+        signup: $('signup-mode').value,
+      });
       // A regra vale para o próprio admin: sem 2FA, ele precisa configurar antes de continuar
       if ($('require2fa').checked && !state.user.totp) return location.replace('/conta');
       $('settings-ok').hidden = false;
@@ -112,6 +117,7 @@ const loadUsers = async () => {
         u.sso ? t('login da empresa ({email})', { email: u.email }) : null,
         t(u.totp ? '2FA ativo' : 'sem 2FA'),
         u.disabled ? t('revogado') : null,
+        u.pending ? t('aguardando aprovação') : null,
         u.liveRooms ? t('{n} sala(s) ao vivo', { n: u.liveRooms }) : null,
       ].filter(Boolean);
       const actions = el('div', { className: 'actions' });
@@ -125,9 +131,23 @@ const loadUsers = async () => {
           }),
         );
       }
+      if (u.pending) {
+        actions.append(
+          action(
+            'Aprovar',
+            async () => {
+              await api('/api/admin/users/approve', { username: u.username });
+              await loadUsers();
+            },
+            '',
+          ),
+        );
+      }
       if (u.role !== 'admin') {
         actions.append(
-          u.disabled
+          u.pending
+            ? ''
+            : u.disabled
             ? action('Reativar', async () => {
                 await api('/api/admin/users/restore', { username: u.username });
                 await loadUsers();
@@ -153,7 +173,7 @@ const loadUsers = async () => {
           ),
         );
       }
-      const li = el('li', { className: u.disabled ? 'disabled' : '' }, el('div', {}, el('b', { textContent: u.username }), el('span', { className: 'muted small', textContent: ` · ${status.join(' · ')}` })), actions);
+      const li = el('li', { className: u.disabled ? 'disabled' : u.pending ? 'pending' : '' }, el('div', {}, el('b', { textContent: u.username }), el('span', { className: 'muted small', textContent: ` · ${status.join(' · ')}` })), actions);
       li.dataset.username = u.username;
       return li;
     }),
@@ -192,4 +212,98 @@ $('copy-invite').addEventListener('click', async () => {
   $('copy-invite').textContent = t('Copiado!');
 });
 
-await Promise.all([loadUsers(), loadInvites()]);
+// --- salas fixas ----------------------------------------------------------------
+
+// A chave E2EE de cada sala fixa nasce neste navegador e fica guardada só nele
+const randomKey = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const keyName = (id) => `fixed-key:${id}`;
+const getKey = (id) => {
+  try {
+    return localStorage.getItem(keyName(id));
+  } catch {
+    return null;
+  }
+};
+const setKey = (id, key) => {
+  try {
+    localStorage.setItem(keyName(id), key);
+  } catch {}
+};
+
+const roomError = (err) => showError($('fixed-error'), err);
+
+const copyButton = (label, text) => {
+  const b = el('button', { type: 'button', className: 'secondary', textContent: t(label) });
+  b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text());
+      b.textContent = t('Copiado!');
+    } catch {
+      prompt(t(label), text());
+    }
+  });
+  return b;
+};
+
+const loadFixedRooms = async () => {
+  const { rooms } = await api('/api/admin/rooms');
+  $('fixed-rooms').replaceChildren(
+    ...rooms.map((r) => {
+      const key = getKey(r.id);
+      const viewerLink = () => `${location.origin}/r/${r.roomId}#k=${getKey(r.id)}`;
+      const status = [
+        t(r.type === 'together' ? 'Jogando juntos' : 'Live'),
+        r.online ? t('{n} pessoa(s) agora', { n: r.online }) : t('vazia'),
+        key ? null : t('chave em outro navegador'),
+      ].filter(Boolean);
+      const actions = el('div', { className: 'actions' });
+      if (key) {
+        const enter = el('a', { className: 'button', textContent: t('Entrar como anfitrião') });
+        enter.href = `/r/${r.roomId}#${new URLSearchParams({ k: key, h: r.hostKey })}`;
+        enter.dataset.action = 'enter';
+        const copy = copyButton('Copiar convite', viewerLink);
+        copy.dataset.action = 'copy';
+        actions.append(enter, copy);
+      }
+      actions.append(
+        action(key ? 'Nova chave' : 'Criar chave', async () => {
+          if (key && !confirm(t('Criar uma chave nova? Os links atuais param de funcionar: quem entrar com eles não verá nem ouvirá nada.'))) return;
+          setKey(r.id, randomKey());
+          await loadFixedRooms();
+        }),
+        action(
+          'Excluir',
+          async () => {
+            if (!confirm(t('Excluir a sala fixa {name}? Quem estiver nela sai agora.', { name: r.title }))) return;
+            await api('/api/admin/rooms/delete', { id: r.id });
+            await loadFixedRooms();
+          },
+          'danger',
+        ),
+      );
+      const li = el('li', {}, el('div', {}, el('b', { textContent: r.title }), el('span', { className: 'muted small', textContent: ` · ${status.join(' · ')}` })), actions);
+      li.dataset.room = r.id;
+      return li;
+    }),
+  );
+};
+
+$('fixed-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('fixed-error').hidden = true;
+  busy(e.target, async () => {
+    try {
+      const room = await api('/api/admin/rooms', { title: $('fixed-title').value, type: $('fixed-type').value });
+      setKey(room.id, randomKey());
+      e.target.reset();
+      await loadFixedRooms();
+    } catch (err) {
+      roomError(err);
+    }
+  });
+});
+
+await Promise.all([loadUsers(), loadInvites(), loadFixedRooms()]);

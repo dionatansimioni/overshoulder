@@ -1212,7 +1212,8 @@ $('chat-form').addEventListener('submit', async (e) => {
 
 // --- entrada ---------------------------------------------------------------
 
-$('name').value = storage.get(localStorage, 'name') ?? '';
+// Sugere o último nome usado, sem apagar o que a pessoa já tenha digitado antes de o script carregar
+if (!$('name').value) $('name').value = storage.get(localStorage, 'name') ?? '';
 
 // Quem já fez o login corporativo entra com o nome real, que vem do provedor
 const SSO_ERRORS = {

@@ -67,6 +67,7 @@ const PAGES = {
   '/conta': 'account.html',
   '/admin': 'admin.html',
   '/convite': 'invite.html',
+  '/cadastro': 'invite.html',
   '/redefinir': 'reset.html',
 };
 
@@ -79,6 +80,10 @@ const ssoAttempts = new Map(); // hash do state → { attempt, next, expires }
 // Tentativas erradas: por IP e por conta, 10 a cada 10 minutos
 const ipLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
+// Cadastro aberto: poucas contas novas por IP, e um teto de contas esperando aprovação
+const signupLimiter = createLimiter({ max: 5, windowMs: 60 * 60_000 });
+const MAX_PENDING = 50;
+const SIGNUP_MODES = ['invite', 'approval', 'open'];
 
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
@@ -215,7 +220,7 @@ const SSO_DEFAULTS = {
   roomsDefault: true,
   forceRooms: false,
 };
-const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, require2fa: false, ...store.state.settings });
+const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, require2fa: false, signup: 'approval', ...store.state.settings });
 const ssoSettings = () => ({ ...SSO_DEFAULTS, ...store.state.settings.sso });
 const ssoReady = () => {
   const sso = ssoSettings();
@@ -240,7 +245,7 @@ const currentSession = (req) => {
   const session = sessions.get(id);
   if (!session) return null;
   const user = findUser((u) => u.id === session.userId);
-  if (!user || user.disabled) {
+  if (!user || user.disabled || user.pending) {
     sessions.destroy(id);
     return null;
   }
@@ -292,6 +297,7 @@ const getState = async (req, res) => {
   json(res, 200, {
     setupDone: hasAdmin(),
     require2fa: settings().require2fa,
+    signup: settings().signup,
     sso: ssoReady() ? { roomsDefault: sso.roomsDefault, forceRooms: sso.forceRooms } : null,
     user: current && publicUser(current.user),
     viewer: viewer ? { name: viewer.name, email: viewer.email } : null,
@@ -353,6 +359,10 @@ const login = async (req, res) => {
     return json(res, 401, { error: 'Usuário ou senha incorretos.' });
   }
   accountLimiter.reset(name);
+  if (user.pending) {
+    log.info('login de conta aguardando aprovação', { user: user.username });
+    return json(res, 403, { error: 'Sua conta aguarda a aprovação do administrador.', code: 'pending' });
+  }
   if (user.totp) {
     const ticket = randomToken();
     for (const [key, t] of loginTickets) if (t.expires < Date.now()) loginTickets.delete(key);
@@ -483,8 +493,12 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   const { user } = requireUser(req, { role: 'admin' });
-  const { require2fa, maxParticipants } = await readJson(req);
+  const { require2fa, maxParticipants, signup } = await readJson(req);
   const changes = {};
+  if (signup !== undefined) {
+    if (!SIGNUP_MODES.includes(signup)) return json(res, 400, { error: 'Modo de cadastro inválido.' });
+    changes.signup = signup;
+  }
   if (require2fa !== undefined) {
     if (typeof require2fa !== 'boolean') return json(res, 400, { error: 'require2fa deve ser verdadeiro ou falso.' });
     changes.require2fa = require2fa;
@@ -537,6 +551,7 @@ const publicAccount = (u) => ({
   totp: !!u.totp,
   ...(u.sso && { sso: true, email: u.email }),
   disabled: !!u.disabled,
+  pending: !!u.pending,
   createdAt: u.createdAt,
   liveRooms: [...liveRooms.values()].filter((r) => r.owner === u.id).length,
 });
@@ -617,6 +632,49 @@ const acceptInvite = async (req, res) => {
   });
   log.info('transmissor cadastrado', { user: user.username, convidadoPor: invite.createdBy });
   json(res, 201, { user: publicUser(user) }, startSession(req, user));
+};
+
+// Cadastro sem convite, conforme o modo escolhido pelo admin: com aprovação (a conta nasce pendente)
+// ou livre (a conta já pode transmitir)
+const signup = async (req, res) => {
+  const mode = settings().signup;
+  if (mode === 'invite') return json(res, 403, { error: 'Este servidor só aceita transmissores convidados pelo administrador.' });
+  const ip = clientIp(req);
+  if (signupLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { username, password } = await readJson(req);
+  const name = typeof username === 'string' ? username.trim().toLowerCase() : '';
+  if (!USERNAME_RE.test(name))
+    return json(res, 400, { error: 'Usuário: de 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen e sublinhado.' });
+  const problem = passwordProblem(password, name);
+  if (problem) return json(res, 400, { error: problem });
+  if (findUser((u) => u.username === name)) return json(res, 409, { error: 'Esse usuário já existe. Escolha outro.' });
+  if (mode === 'approval' && store.state.users.filter((u) => u.pending).length >= MAX_PENDING)
+    return json(res, 503, { error: 'Muitos cadastros esperando aprovação. Tente mais tarde.' });
+  signupLimiter.fail(ip);
+  const user = {
+    id: randomToken(12),
+    username: name,
+    role: 'broadcaster',
+    passwordHash: await hashPassword(password),
+    createdAt: new Date().toISOString(),
+    ...(mode === 'approval' && { pending: true }),
+  };
+  if (findUser((u) => u.username === name)) return json(res, 409, { error: 'Esse usuário já existe. Escolha outro.' });
+  store.update((st) => st.users.push(user));
+  log.info(mode === 'approval' ? 'cadastro aguardando aprovação' : 'transmissor cadastrado', { user: user.username });
+  if (mode === 'approval') return json(res, 201, { pending: true });
+  json(res, 201, { user: publicUser(user) }, startSession(req, user));
+};
+
+const approveUser = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const target = broadcasterTarget((await readJson(req)).username);
+  if (!target.pending) return json(res, 400, { error: 'Essa conta não está aguardando aprovação.' });
+  store.update(() => {
+    delete target.pending;
+  });
+  log.info('cadastro aprovado', { user: user.username, conta: target.username });
+  json(res, 200, { ok: true });
 };
 
 // Encerra na hora as salas que a conta criou (quem estiver assistindo é desconectado)
@@ -857,6 +915,87 @@ const adminReset = async (req, res) => {
 
 const newRoomId = () => crypto.randomBytes(16).toString('base64url');
 
+// Estado de uma sala que vale só enquanto ela está no ar (zerado quando uma sala fixa volta)
+const freshRoomState = () => ({
+  chat: true,
+  recording: false,
+  banned: new Set(),
+  speakers: new Set(),
+  sharers: new Set(),
+  requests: new Map(),
+  joinedBy: new Map(),
+  lobby: new Map(),
+});
+
+const newRoomState = ({ name, owner, type, openScreens, requireSso, fixed = false, title = null }) => ({
+  name,
+  owner,
+  code: null,
+  type,
+  openScreens,
+  requireSso,
+  fixed,
+  title,
+  invites: new Map(),
+  waiting: false,
+  ...freshRoomState(),
+});
+
+// Salas fixas ficam no state.json: tipo, convites (com usos e senhas em hash) e ingressos (em hash)
+const persistRoom = (room) => {
+  if (!room.fixed) return;
+  const record = {
+    name: room.name,
+    title: room.title,
+    owner: room.owner,
+    type: room.type,
+    openScreens: room.openScreens,
+    requireSso: room.requireSso,
+    waiting: room.waiting,
+    createdAt: room.createdAt,
+    invites: [...room.invites.values()],
+    tickets: Object.fromEntries([...roomTickets].filter(([, t]) => t.name === room.name).map(([hash, t]) => [hash, t.inviteId])),
+  };
+  store.update((st) => {
+    st.rooms = (st.rooms ?? []).filter((r) => r.name !== room.name);
+    st.rooms.push(record);
+  });
+};
+
+const loadFixedRooms = () => {
+  for (const r of store.state.rooms ?? []) {
+    const room = newRoomState({ ...r, fixed: true });
+    room.waiting = !!r.waiting;
+    room.createdAt = r.createdAt;
+    for (const invite of r.invites) {
+      room.invites.set(invite.id, invite);
+      if (!invite.revoked) roomCodes.set(invite.code, { name: r.name, inviteId: invite.id });
+      if (invite.isDefault) room.code = invite.code;
+    }
+    for (const [hash, inviteId] of Object.entries(r.tickets ?? {})) roomTickets.set(hash, { name: r.name, inviteId });
+    liveRooms.set(r.name, room);
+  }
+};
+
+const createLiveKitRoom = (room) =>
+  rooms.createRoom({
+    name: room.name,
+    emptyTimeout: 300,
+    departureTimeout: 60,
+    maxParticipants: settings().maxParticipants,
+    metadata: metadataOf(room),
+  });
+
+// Uma sala fixa fora do ar volta quando alguém entra, com o estado do ar zerado
+const ensureLive = async (room) => {
+  if (await roomExists(room.name)) return true;
+  if (!room.fixed) return false;
+  Object.assign(room, freshRoomState());
+  await createLiveKitRoom(room);
+  log.info('sala fixa de volta ao ar');
+  return true;
+};
+
 const forgetRoom = (name) => {
   const room = liveRooms.get(name);
   if (room) for (const invite of room.invites.values()) roomCodes.delete(invite.code);
@@ -868,7 +1007,7 @@ const forgetRoom = (name) => {
 const roomByCode = async (code) => {
   if (typeof code !== 'string' || !ROOM_ID_RE.test(code)) throw new HttpError(400, 'Sala inválida.');
   const entry = roomCodes.get(code);
-  if (!entry || !(await roomExists(entry.name))) {
+  if (!entry || !(await ensureLive(liveRooms.get(entry.name)))) {
     if (entry) forgetRoom(entry.name);
     throw new HttpError(404, 'Essa sala não existe, já foi encerrada ou o link foi trocado pelo anfitrião.');
   }
@@ -996,42 +1135,30 @@ setInterval(async () => {
   }
 }, BAN_CHECK_MS).unref();
 
-const createRoom = async (req, res) => {
-  const { user } = requireUser(req);
-  const body = await readJson(req);
+// Tipo, telas livres e login da empresa de uma sala nova (rápida ou fixa)
+const roomOptions = (body) => {
   if (body.requireSso !== undefined && typeof body.requireSso !== 'boolean')
-    return json(res, 400, { error: 'requireSso deve ser verdadeiro ou falso.' });
+    throw new HttpError(400, 'requireSso deve ser verdadeiro ou falso.');
   // Sem tipo informado, a sala é "Live": a mais restrita
   const type = body.type ?? 'live';
-  if (!ROOM_TYPES.includes(type)) return json(res, 400, { error: 'Tipo de sala inválido.' });
+  if (!ROOM_TYPES.includes(type)) throw new HttpError(400, 'Tipo de sala inválido.');
   if (body.openScreens !== undefined && typeof body.openScreens !== 'boolean')
-    return json(res, 400, { error: 'openScreens deve ser verdadeiro ou falso.' });
+    throw new HttpError(400, 'openScreens deve ser verdadeiro ou falso.');
   const openScreens = type === 'together' && (body.openScreens ?? true);
   const sso = ssoSettings();
   // Sem SSO configurado, nenhuma sala exige; com "todas exigem", nenhuma fica aberta
   const requireSso = ssoReady() && (sso.forceRooms || (body.requireSso ?? sso.roomsDefault));
+  return { type, openScreens, requireSso };
+};
+
+const createRoom = async (req, res) => {
+  const { user } = requireUser(req);
+  const { type, openScreens, requireSso } = roomOptions(await readJson(req));
   const name = newRoomId();
-  const room = {
-    name,
-    owner: user.id,
-    code: null,
-    type,
-    openScreens,
-    chat: true,
-    recording: false,
-    requireSso,
-    banned: new Set(),
-    speakers: new Set(),
-    sharers: new Set(),
-    requests: new Map(),
-    invites: new Map(),
-    joinedBy: new Map(),
-    waiting: false,
-    lobby: new Map(),
-  };
+  const room = newRoomState({ name, owner: user.id, type, openScreens, requireSso });
   room.code = newInvite(room, { label: 'Convite padrão', isDefault: true }).code;
   const { maxParticipants } = settings();
-  await rooms.createRoom({ name, emptyTimeout: 300, departureTimeout: 60, maxParticipants, metadata: metadataOf(room) });
+  await createLiveKitRoom(room);
   liveRooms.set(name, room);
   log.info('sala criada', { user: user.username, tipo: type, maxParticipants, exigeLogin: requireSso });
   json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso, type, openScreens });
@@ -1084,6 +1211,7 @@ const admitViewer = async (req, res, found, body, displayName) => {
   invite.used++;
   const ticket = randomToken();
   roomTickets.set(sha256(ticket), { name: room.name, inviteId: invite.id });
+  persistRoom(room);
   // Quem passou pela sala de espera entra com o nome que o anfitrião aprovou
   return { inviteId: invite.id, ticketHash: sha256(ticket), ticket, name: entry?.name };
 };
@@ -1094,7 +1222,7 @@ const roomByTicket = async (ticket) => {
   const ticketHash = sha256(ticket);
   const entry = roomTickets.get(ticketHash);
   const room = entry && liveRooms.get(entry.name);
-  if (!room || !(await roomExists(entry.name))) return null;
+  if (!room || !(await ensureLive(room))) return null;
   return { name: entry.name, room, invite: room.invites.get(entry.inviteId), ticketHash };
 };
 
@@ -1136,10 +1264,11 @@ const issueToken = async (req, res) => {
   });
 };
 
+// Encerrar tira todos da sala. A sala rápida some; a fixa só sai do ar e volta quando alguém entrar.
 const endRoom = async (req, res) => {
-  const { name } = await hostRoom(await readJson(req));
+  const { name, room } = await hostRoom(await readJson(req));
   await rooms.deleteRoom(name).catch(() => {});
-  forgetRoom(name);
+  if (!room.fixed) forgetRoom(name);
   log.info('sala encerrada');
   json(res, 200, { ok: true });
 };
@@ -1171,8 +1300,60 @@ const setRecording = async (req, res) => {
 const newLink = async (req, res) => {
   const { room } = await hostRoom(await readJson(req));
   const code = rotateInvite(room, defaultInvite(room));
+  persistRoom(room);
   log.info('link da sala trocado');
   json(res, 200, { roomId: code });
+};
+
+// --- API: salas fixas (admin) ------------------------------------------------------
+
+const TITLE_MAX = 60;
+
+const publicFixedRoom = async (room) => ({
+  id: room.name,
+  title: room.title,
+  type: room.type,
+  openScreens: room.openScreens,
+  requireSso: room.requireSso,
+  roomId: room.code,
+  hostKey: hostKeyFor(room.name),
+  online: (await rooms.listParticipants(room.name).catch(() => [])).length,
+});
+
+const fixedRooms = () => [...liveRooms.values()].filter((r) => r.fixed);
+
+const listFixedRooms = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  json(res, 200, { rooms: await Promise.all(fixedRooms().map(publicFixedRoom)) });
+};
+
+const createFixedRoom = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const body = await readJson(req);
+  const title = typeof body.title === 'string' ? body.title.trim().slice(0, TITLE_MAX) : '';
+  if (!title) return json(res, 400, { error: 'Dê um nome à sala.' });
+  if (fixedRooms().some((r) => r.title.toLowerCase() === title.toLowerCase()))
+    return json(res, 409, { error: 'Já existe uma sala fixa com esse nome.' });
+  const options = roomOptions(body);
+  const room = newRoomState({ name: newRoomId(), owner: user.id, ...options, fixed: true, title });
+  room.createdAt = new Date().toISOString();
+  room.code = newInvite(room, { label: 'Convite padrão', isDefault: true }).code;
+  liveRooms.set(room.name, room);
+  persistRoom(room);
+  log.info('sala fixa criada', { user: user.username, tipo: options.type });
+  json(res, 201, await publicFixedRoom(room));
+};
+
+const deleteFixedRoom = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const { id } = await readJson(req);
+  const room = typeof id === 'string' && liveRooms.get(id);
+  if (!room?.fixed) return json(res, 404, { error: 'Sala não encontrada.' });
+  await rooms.deleteRoom(room.name).catch(() => {});
+  forgetRoom(room.name);
+  store.update((st) => (st.rooms = (st.rooms ?? []).filter((r) => r.name !== room.name)));
+  log.warn('sala fixa excluída', { user: user.username });
+  json(res, 200, { ok: true });
 };
 
 // --- API: convites e sala de espera (anfitrião) --------------------------------
@@ -1194,6 +1375,7 @@ const createRoomInvite = async (req, res) => {
     expiresAt: expiresInMinutes && Date.now() + expiresInMinutes * 60_000,
     passwordHash: password ? await hashPassword(password) : null,
   });
+  persistRoom(room);
   log.info('convite de sala criado', { limite: maxUses, validadeMin: expiresInMinutes, senha: !!password });
   json(res, 201, publicInvite(invite));
 };
@@ -1220,6 +1402,7 @@ const revokeRoomInvite = async (req, res) => {
     await rooms.removeParticipant(name, identity).catch(() => {});
   }
   for (const [hash, ticket] of roomTickets) if (ticket.inviteId === invite.id && ticket.name === name) roomTickets.delete(hash);
+  persistRoom(room);
   log.warn('convite de sala revogado', { pessoasRemovidas: removed });
   json(res, 200, { removed });
 };
@@ -1231,6 +1414,7 @@ const setWaiting = async (req, res) => {
   room.waiting = body.enabled;
   // Desligar a sala de espera deixa entrar quem estava esperando
   if (!room.waiting) for (const entry of room.lobby.values()) if (entry.status === 'waiting') entry.status = 'admitted';
+  persistRoom(room);
   await rooms.updateRoomMetadata(name, metadataOf(room));
   log.info(room.waiting ? 'sala de espera ligada' : 'sala de espera desligada');
   json(res, 200, { waiting: room.waiting });
@@ -1340,6 +1524,7 @@ const kick = async (req, res) => {
   if (joined) roomTickets.delete(joined.ticketHash);
   const invite = room.invites.get(joined?.inviteId) ?? defaultInvite(room);
   if (!invite.revoked) rotateInvite(room, invite);
+  persistRoom(room);
   log.info('participante removido da sala');
   json(res, 200, { roomId: room.code, inviteRotated: invite.id });
 };
@@ -1379,6 +1564,11 @@ const routes = {
   'POST /api/admin/invites': createInvite,
   'POST /api/admin/invites/cancel': cancelInvite,
   'POST /api/invites/accept': acceptInvite,
+  'POST /api/signup': signup,
+  'POST /api/admin/users/approve': approveUser,
+  'GET /api/admin/rooms': listFixedRooms,
+  'POST /api/admin/rooms': createFixedRoom,
+  'POST /api/admin/rooms/delete': deleteFixedRoom,
   'POST /api/admin-reset': adminReset,
   'GET /api/admin/sso': getSso,
   'POST /api/admin/sso': updateSso,
@@ -1450,4 +1640,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`);
   if (!hasAdmin()) newSetupCode();
+  loadFixedRooms();
 });
