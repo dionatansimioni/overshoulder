@@ -63,8 +63,21 @@ const EN = {
     'At least 12 characters. A long phrase is easier to remember and more secure.',
   'Confirme a senha': 'Confirm the password',
   'Limite de pessoas por sala': 'People per room limit',
-  'Cada espectador em 1080p usa cerca de 7 Mbps de saída do servidor.':
-    'Each viewer at 1080p uses about 7 Mbps of server upload.',
+  'Cada espectador em 720p usa cerca de 3 Mbps de saída do servidor; em 1080p, até 7 Mbps.':
+    'Each viewer at 720p uses about 3 Mbps of server upload; at 1080p, up to 7 Mbps.',
+  'Qualidade padrão das transmissões': 'Default broadcast quality',
+  'Qualidade máxima permitida': 'Maximum allowed quality',
+  'Quem transmite pode escolher até a qualidade máxima. Acima de 720p, a sala mostra quanto de banda cada pessoa consome.':
+    'Broadcasters can choose up to the maximum quality. Above 720p, the room shows how much bandwidth each person uses.',
+  'Sala cheia em {quality}: o servidor envia cerca de {mbps} Mbps ({gb} GB por hora).':
+    'Full room at {quality}: the server sends about {mbps} Mbps ({gb} GB per hour).',
+  'Cada pessoa recebe até {mbps} Mbps.': 'Each person receives up to {mbps} Mbps.',
+  'Confira a banda e a franquia do servidor antes de subir a qualidade.':
+    "Check the server's bandwidth and data cap before raising the quality.",
+  'Com 1 pessoa assistindo, o servidor envia cerca de {mbps} Mbps ({gb} GB por hora).':
+    'With 1 person watching, the server sends about {mbps} Mbps ({gb} GB per hour).',
+  'Com {people} pessoas assistindo, o servidor envia cerca de {mbps} Mbps ({gb} GB por hora).':
+    'With {people} people watching, the server sends about {mbps} Mbps ({gb} GB per hour).',
   'Criar administrador': 'Create administrator',
   'As senhas não são iguais.': 'The passwords do not match.',
 

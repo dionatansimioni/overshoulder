@@ -12,6 +12,7 @@
   --danger: #e5484d;
   --danger-hover: #cc3a3f;
   --live: #2fb37a;
+  --warn: #f0b232;
   --radius: 8px;
   color-scheme: dark;
 }
@@ -141,6 +142,7 @@ button.round.danger:hover { background: var(--danger-hover); }
 a { color: var(--accent); }
 a.notice:hover { background: rgba(91, 140, 255, .2); }
 .ok { color: var(--live); margin: 0; font-size: 14px; }
+.warn { color: var(--warn); }
 .qr { align-self: center; width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
 .codes { columns: 2; margin: 8px 0; padding-left: 24px; font-family: ui-monospace, monospace; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; }

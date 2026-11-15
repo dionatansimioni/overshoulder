@@ -84,6 +84,11 @@ const accountLimiter = createLimiter({ max: 10, windowMs: 10 * 60_000 });
 const signupLimiter = createLimiter({ max: 5, windowMs: 60 * 60_000 });
 const MAX_PENDING = 50;
 const SIGNUP_MODES = ['invite', 'approval', 'open'];
+// Qualidades de transmissão, da mais leve à mais pesada (os detalhes de cada uma ficam em public/room.js)
+const QUALITIES = ['720p30', '720p60', '1080p30', '1080p60', '1440p60'];
+// Sem teto baixo: o admin decide, e o painel avisa da banda acima de algumas centenas de pessoas
+const MAX_PEOPLE = 5000;
+const validPeople = (n) => Number.isInteger(n) && n >= 2 && n <= MAX_PEOPLE;
 
 // Salas abertas (só na memória: as salas também são efêmeras). O link público (/r/<código>) é
 // separado do nome interno da sala no LiveKit: trocar o código invalida o link antigo sem
@@ -220,7 +225,14 @@ const SSO_DEFAULTS = {
   roomsDefault: true,
   forceRooms: false,
 };
-const settings = () => ({ maxParticipants: DEFAULT_MAX_PARTICIPANTS, require2fa: false, signup: 'approval', ...store.state.settings });
+const settings = () => ({
+  maxParticipants: DEFAULT_MAX_PARTICIPANTS,
+  require2fa: false,
+  signup: 'approval',
+  defaultQuality: '720p30',
+  maxQuality: '1440p60',
+  ...store.state.settings,
+});
 const ssoSettings = () => ({ ...SSO_DEFAULTS, ...store.state.settings.sso });
 const ssoReady = () => {
   const sso = ssoSettings();
@@ -321,8 +333,7 @@ const setup = async (req, res) => {
   const problem = passwordProblem(password, name);
   if (problem) return json(res, 400, { error: problem });
   const limit = maxParticipants === undefined ? DEFAULT_MAX_PARTICIPANTS : maxParticipants;
-  if (!Number.isInteger(limit) || limit < 2 || limit > 500)
-    return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 500.' });
+  if (!validPeople(limit)) return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 5000.' });
 
   const user = {
     id: randomToken(12),
@@ -493,7 +504,7 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   const { user } = requireUser(req, { role: 'admin' });
-  const { require2fa, maxParticipants, signup } = await readJson(req);
+  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality } = await readJson(req);
   const changes = {};
   if (signup !== undefined) {
     if (!SIGNUP_MODES.includes(signup)) return json(res, 400, { error: 'Modo de cadastro inválido.' });
@@ -504,10 +515,17 @@ const updateSettings = async (req, res) => {
     changes.require2fa = require2fa;
   }
   if (maxParticipants !== undefined) {
-    if (!Number.isInteger(maxParticipants) || maxParticipants < 2 || maxParticipants > 500)
-      return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 500.' });
+    if (!validPeople(maxParticipants)) return json(res, 400, { error: 'Limite de pessoas por sala: de 2 a 5000.' });
     changes.maxParticipants = maxParticipants;
   }
+  for (const [field, value] of Object.entries({ defaultQuality, maxQuality })) {
+    if (value === undefined) continue;
+    if (!QUALITIES.includes(value)) return json(res, 400, { error: 'Qualidade inválida.' });
+    changes[field] = value;
+  }
+  const merged = { ...settings(), ...changes };
+  if (QUALITIES.indexOf(merged.defaultQuality) > QUALITIES.indexOf(merged.maxQuality))
+    return json(res, 400, { error: 'A qualidade padrão não pode passar da máxima.' });
   store.update((s) => Object.assign(s.settings, changes));
   log.info('configuração alterada', { user: user.username, ...changes });
   json(res, 200, settings());
@@ -1260,6 +1278,8 @@ const issueToken = async (req, res) => {
     url: PUBLIC_URL,
     role: isHost ? 'host' : 'viewer',
     identity,
+    // A página só oferece qualidades até a máxima do servidor (limite da interface, não do LiveKit)
+    quality: { default: settings().defaultQuality, max: settings().maxQuality },
     ...(admitted?.ticket && { ticket: admitted.ticket }),
   });
 };

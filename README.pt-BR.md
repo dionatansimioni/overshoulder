@@ -6,7 +6,7 @@ Compartilhamento de tela self-hosted, direto no navegador: para jogar com os ami
 
 - **Baixa latência:** WebRTC via [LiveKit](https://livekit.io) (SFU self-hosted).
 - **Criptografia de ponta a ponta:** a chave da sala é gerada no navegador e fica só no `#` do link, então nunca chega ao servidor. O servidor repassa vídeo cifrado que ele mesmo não consegue abrir.
-- **Salas de até 16 pessoas por padrão** (configurável até 500): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada espectador recebe a qualidade que a conexão dele aguenta.
+- **Salas de até 16 pessoas por padrão** (configurável até 5000): quem transmite envia uma única cópia e o servidor distribui. Com simulcast, cada espectador recebe a qualidade que a conexão dele aguenta.
 - **Dois tipos de sala:** **"Jogando juntos"**, em que todos falam (como uma call) e várias pessoas mostram a tela ao mesmo tempo; e **"Live"**, em que só quem apresenta fala e a audiência usa o chat, podendo **pedir a palavra** ou **pedir para mostrar a tela**. Com várias telas ao vivo, cada pessoa escolhe qual assistir e só recebe essa.
 - **Webcam sobre a tela:** quem apresenta liga a câmera, que aparece sobre a tela (picture-in-picture) no canto, tamanho e formato escolhidos. Quem assiste pode esconder a câmera ou inverter com a tela. Também dá para transmitir só a câmera.
 - **Convites de sala:** o link padrão não tem limite. Em *Pessoas › Convites e entrada*, o anfitrião cria convites com nome (ex.: "Discord do clã"), limite de pessoas, validade e senha opcional, e revoga um convite (o link para de funcionar e quem entrou por ele sai da sala). Quem entra guarda um **ingresso** no navegador: recarregar ou cair a rede não gasta o convite de novo, nem depois de o link mudar. A **sala de espera** opcional faz cada pessoa aguardar o anfitrião deixar entrar.
@@ -57,7 +57,7 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 | `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
 | `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor |
-| `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 500) |
+| `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 5000) |
 
 ### Contas
 
@@ -80,7 +80,7 @@ Libere no firewall:
 
 **Redes corporativas (TURN, experimental):** algumas empresas só liberam a porta 443, e aí o vídeo não passa pelas portas 7881/7882. Com `TURN_DOMAIN`, a própria porta 443 atende também `turn.<domínio>`, sem abrir nada além dela: o Caddy separa as conexões pelo nome e entrega as do TURN ao LiveKit. Os testes comprovam a divisão da porta, o certificado e a autenticação do TURN; a passagem do vídeo inteiro pelo TURN ainda precisa ser confirmada num servidor real.
 
-**Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 espectadores, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano.
+**Banda:** o servidor envia aproximadamente `bitrate × espectadores`. Em 1080p60 (cerca de 7 Mbps) com 10 espectadores, são uns 70 Mbps de saída, perto de 30 GB por hora. Vale conferir a franquia do seu plano. As transmissões começam em **720p** (cerca de 3 Mbps por espectador); em `/admin`, o administrador escolhe a qualidade padrão e a máxima permitida. Acima de 720p, a sala mostra a banda estimada, e o painel destaca a estimativa de salas com muitas pessoas.
 
 **Saúde e logs:** `GET /healthz` responde `{"status":"ok"}` e alimenta o healthcheck do Docker. `docker logs overshoulder` mostra os logs em JSON, um por linha, sem senhas nem IDs de sala. Eventos de segurança das contas (login, falha de login, senha alterada) registram o nome de usuário, para investigar acessos indevidos; espectadores nunca aparecem nos logs.
 

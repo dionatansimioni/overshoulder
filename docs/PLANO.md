@@ -127,6 +127,14 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Atenção: servidores já instalados passam a aceitar pedidos de cadastro (modo padrão "com aprovação"); quem quiser o comportamento antigo escolhe "Só por convite" em `/admin`.
   - Pendente para o item 5: recolher SSO e TURN em "opções avançadas" no admin.
 
+- **Item 4 feito (15/11/2026):**
+  - Qualidade padrão **720p30** e máxima **1440p60** (sem restrição) em servidores novos e nos já instalados. O admin escolhe as duas em `/admin`; a padrão não pode passar da máxima.
+  - O token da sala leva `quality: { default, max }`: a sala só oferece qualidades até a máxima e começa na padrão. É um limite da interface: um cliente modificado ainda poderia enviar mais, porque o LiveKit não limita o bitrate por token.
+  - Acima de 720p, os ajustes da transmissão mostram quanto cada pessoa recebe e, com gente na sala, quanto o servidor envia (Mbps e GB por hora).
+  - Limite de pessoas por sala de 2 a **5000** (antes 500). O painel mostra a banda da sala cheia na qualidade padrão e destaca a estimativa a partir de 200 pessoas.
+  - Bitrates e nomes das qualidades ficam em `public/quality.js`, usado pela sala e pelo painel (a lista `QUALITIES` do `server.js` precisa seguir a mesma ordem).
+  - Testes em `app/test/quality.test.js`.
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

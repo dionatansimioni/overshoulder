@@ -1,4 +1,5 @@
 import { t, translatePage } from '/static/i18n.js';
+import { MANY_PEOPLE, QUALITIES, QUALITY_LABELS, bandwidth } from '/static/quality.js';
 import { $, api, busy, showError } from '/static/ui.js';
 
 translatePage();
@@ -35,6 +36,28 @@ const formatDate = (iso) => new Date(iso).toLocaleString([], { dateStyle: 'short
 const settings = await api('/api/admin/settings');
 $('require2fa').checked = settings.require2fa;
 $('max').value = settings.maxParticipants;
+for (const id of ['default-quality', 'max-quality']) {
+  for (const q of QUALITIES) $(id).append(new Option(QUALITY_LABELS[q], q));
+}
+$('default-quality').value = settings.defaultQuality;
+$('max-quality').value = settings.maxQuality;
+
+// Estimativa de banda com a sala cheia na qualidade padrão; destacada a partir de algumas centenas
+const updateMaxHint = () => {
+  const people = Number($('max').value);
+  const hint = $('max-hint');
+  if (!Number.isInteger(people) || people < 2) return (hint.textContent = '');
+  const many = people >= MANY_PEOPLE;
+  hint.classList.toggle('warn', many);
+  hint.classList.toggle('muted', !many);
+  hint.textContent = t('Sala cheia em {quality}: o servidor envia cerca de {mbps} Mbps ({gb} GB por hora).', {
+    quality: QUALITY_LABELS[$('default-quality').value],
+    ...bandwidth($('default-quality').value, people - 1),
+  });
+};
+updateMaxHint();
+$('max').addEventListener('input', updateMaxHint);
+$('default-quality').addEventListener('change', updateMaxHint);
 $('signup-mode').value = settings.signup;
 
 $('settings-form').addEventListener('submit', (e) => {
@@ -47,6 +70,8 @@ $('settings-form').addEventListener('submit', (e) => {
         require2fa: $('require2fa').checked,
         maxParticipants: Number($('max').value),
         signup: $('signup-mode').value,
+        defaultQuality: $('default-quality').value,
+        maxQuality: $('max-quality').value,
       });
       // A regra vale para o próprio admin: sem 2FA, ele precisa configurar antes de continuar
       if ($('require2fa').checked && !state.user.totp) return location.replace('/conta');

@@ -280,6 +280,6 @@ describe('no navegador', () => {
     await p.waitForURL(`${s.url}/conta`);
     assert.ok(await p.isVisible('#required-2fa'));
     const saved = JSON.parse(fs.readFileSync(path.join(s.dataDir, 'state.json'), 'utf8')).settings;
-    assert.deepEqual(saved, { maxParticipants: 150, signup: 'approval', require2fa: true });
+    assert.deepEqual(saved, { maxParticipants: 150, signup: 'approval', require2fa: true, defaultQuality: '720p30', maxQuality: '1440p60' });
   });
 });

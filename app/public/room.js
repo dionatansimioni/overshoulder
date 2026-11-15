@@ -13,20 +13,13 @@ import {
 } from '/vendor/livekit-client.esm.mjs';
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
+import { PRESETS, HEAVY_HEIGHT, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
 
 translatePage();
 mountLanguageSwitch();
 
 const $ = (id) => document.getElementById(id);
-
-const PRESETS = {
-  '720p30': { width: 1280, height: 720, fps: 30, bitrate: 3_000_000 },
-  '720p60': { width: 1280, height: 720, fps: 60, bitrate: 4_500_000 },
-  '1080p30': { width: 1920, height: 1080, fps: 30, bitrate: 4_500_000 },
-  '1080p60': { width: 1920, height: 1080, fps: 60, bitrate: 7_000_000 },
-  '1440p60': { width: 2560, height: 1440, fps: 60, bitrate: 12_000_000 },
-};
 
 // Camadas menores do simulcast: o SFU entrega a cada pessoa a que a conexão dela aguenta
 const SIMULCAST_LAYERS = [
@@ -489,6 +482,7 @@ const connect = async (name) => {
   const data = await requestToken(name);
   isHost = data.role === 'host';
   token = data.token;
+  if (data.quality) limitQualitySelect($('quality'), data.quality);
 
   const keyProvider = new ExternalE2EEKeyProvider();
   room = new Room({
@@ -829,10 +823,19 @@ const toggleCamera = async () => {
   setCameraButton(true);
 };
 
+// Acima de 720p, avisa quanto cada pessoa recebe e quanto o servidor envia com quem está na sala
+const updateQualityWarning = () => {
+  const quality = $('quality').value;
+  const heavy = PRESETS[quality].height > HEAVY_HEIGHT;
+  $('quality-warning').hidden = !heavy;
+  if (heavy) $('quality-warning').textContent = bandwidthWarning(quality, room?.remoteParticipants.size ?? 0);
+};
+
 const setupSettings = () => {
   const btn = $('settings-btn');
   const panel = $('settings');
   const toggle = (open) => {
+    if (open) updateQualityWarning();
     panel.hidden = !open;
     btn.classList.toggle('on', open);
     btn.setAttribute('aria-expanded', String(open));
@@ -842,6 +845,7 @@ const setupSettings = () => {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) toggle(false);
   });
   document.addEventListener('keydown', (e) => e.key === 'Escape' && toggle(false));
+  $('quality').addEventListener('change', updateQualityWarning);
 };
 
 const stopExtraAudio = async () => {

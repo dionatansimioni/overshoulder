@@ -21,7 +21,13 @@
           <label class="check"><input id="require2fa" type="checkbox"> Exigir 2FA de todas as contas</label>
           <p class="muted small field-hint">Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.</p>
           <label for="max">Limite de pessoas por sala</label>
-          <input id="max" type="number" min="2" max="500" required>
+          <input id="max" type="number" min="2" max="5000" required>
+          <p id="max-hint" class="muted small field-hint"></p>
+          <label for="default-quality">Qualidade padrão das transmissões</label>
+          <select id="default-quality"></select>
+          <label for="max-quality">Qualidade máxima permitida</label>
+          <select id="max-quality"></select>
+          <p class="muted small field-hint">Quem transmite pode escolher até a qualidade máxima. Acima de 720p, a sala mostra quanto de banda cada pessoa consome.</p>
           <label for="signup-mode">Cadastro de transmissores</label>
           <select id="signup-mode">
             <option value="invite">Só por convite</option>

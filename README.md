@@ -6,7 +6,7 @@ Self-hosted screen sharing, right in the browser: for playing games with friends
 
 - **Low latency:** WebRTC through [LiveKit](https://livekit.io) (self-hosted SFU).
 - **End-to-end encryption:** the room key is created in the browser and lives only in the link's `#` fragment, so it never reaches the server. The server forwards encrypted video it cannot open itself.
-- **Rooms of up to 16 people by default** (configurable up to 500): the presenter uploads a single copy and the server distributes it. With simulcast, each viewer gets the quality their connection can handle.
+- **Rooms of up to 16 people by default** (configurable up to 5000): the presenter uploads a single copy and the server distributes it. With simulcast, each viewer gets the quality their connection can handle.
 - **Two room types:** **"Playing together"**, where everyone talks (like a call) and several people can share their screens at once; and **"Live"**, where only presenters talk and the audience uses the chat, able to **ask to speak** or **ask to share their screen**. With several screens live, each person picks which one to watch and only receives that one.
 - **Webcam over the screen:** presenters turn their camera on and it shows over the screen (picture-in-picture) in the corner, size and shape they pick. Viewers can hide the camera or swap it with the screen. Camera-only broadcasts work too.
 - **Room invitations:** the default link has no limit. In *People › Invitations and entry*, the host creates named invitations (e.g. "clan Discord") with a people limit, expiry and optional password, and can revoke one (the link stops working and everyone who joined through it leaves). Whoever joins keeps a **ticket** in the browser: reloading or a dropped connection does not use the invitation again, even after the link changes. The optional **waiting room** makes each person wait until the host lets them in.
@@ -57,7 +57,7 @@ Or with Compose: `./setup.sh` writes the `.env` and `docker compose up -d --buil
 | `NODE_IP` | auto-detected | IP that WebRTC announces to browsers (use it on a local network) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones with `-p` |
 | `TURN_DOMAIN` | off | **Experimental.** Subdomain for TURN (e.g. `turn.live.yourdomain.com`), for networks that only allow port 443. Requires `HTTPS_PORT=443` and the subdomain pointing at the server |
-| `MAX_PARTICIPANTS` | `16` | Initial people per room limit, suggested during setup (2 to 500) |
+| `MAX_PARTICIPANTS` | `16` | Initial people per room limit, suggested during setup (2 to 5000) |
 
 ### Accounts
 
@@ -80,7 +80,7 @@ Open these in the firewall:
 
 **Corporate networks (TURN, experimental):** some companies only allow port 443, and then video cannot use ports 7881/7882. With `TURN_DOMAIN`, port 443 itself also serves `turn.<domain>`, without opening anything else: Caddy tells connections apart by name and hands the TURN ones to LiveKit. The tests prove the port split, the certificate and TURN authentication; full video through TURN still needs to be confirmed on a real server.
 
-**Bandwidth:** the server uploads roughly `bitrate × viewers`. At 1080p60 (about 7 Mbps) with 10 viewers, that is around 70 Mbps of upload, close to 30 GB per hour. Check your plan's data allowance.
+**Bandwidth:** the server uploads roughly `bitrate × viewers`. At 1080p60 (about 7 Mbps) with 10 viewers, that is around 70 Mbps of upload, close to 30 GB per hour. Check your plan's data allowance. Broadcasts start at **720p** (about 3 Mbps per viewer); in `/admin`, the administrator picks the default quality and the maximum allowed. Above 720p, the room shows the estimated bandwidth, and the panel highlights the estimate for rooms with many people.
 
 **Health and logs:** `GET /healthz` answers `{"status":"ok"}` and feeds Docker's healthcheck. `docker logs overshoulder` shows JSON logs, one per line, without passwords or room IDs. Account security events (sign-in, failed sign-in, password change) record the username, to investigate unwanted access; viewers never appear in the logs. Logs and the `reset-admin` command are in Portuguese for now.
 

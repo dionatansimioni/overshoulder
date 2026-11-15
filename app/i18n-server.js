@@ -15,7 +15,9 @@ const EN = {
     'Wrong setup code. Check the current code in the server logs.',
   'Usuário: de 3 a 32 caracteres, só letras minúsculas, números, ponto, hífen e sublinhado.':
     'Username: 3 to 32 characters, only lowercase letters, numbers, dot, hyphen and underscore.',
-  'Limite de pessoas por sala: de 2 a 500.': 'People per room limit: from 2 to 500.',
+  'Limite de pessoas por sala: de 2 a 5000.': 'People per room limit: from 2 to 5000.',
+  'Qualidade inválida.': 'Invalid quality.',
+  'A qualidade padrão não pode passar da máxima.': 'The default quality cannot be above the maximum.',
   'Muitas tentativas nesta conta. Espere alguns minutos.': 'Too many attempts on this account. Wait a few minutes.',
   'Usuário ou senha incorretos.': 'Incorrect username or password.',
   'O login expirou. Entre com a senha de novo.': 'The sign-in expired. Enter your password again.',

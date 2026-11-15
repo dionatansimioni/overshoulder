@@ -37,7 +37,7 @@ describe('configuração inicial', () => {
       assert.equal(r.status, 400, `senha ${password}`);
       assert.match(r.body.error, /senha|Senha/);
     }
-    for (const maxParticipants of [1, 501, 2.5, '16']) {
+    for (const maxParticipants of [1, 5001, 2.5, '16']) {
       assert.equal((await attempt({ maxParticipants })).status, 400, `limite ${maxParticipants}`);
     }
     assert.equal((await get(s.url, '/api/state')).body.setupDone, false);

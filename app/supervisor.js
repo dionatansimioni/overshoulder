@@ -52,8 +52,8 @@ if (config.turnDomain && (!HOST_RE.test(config.turnDomain) || /^[\d.]+$/.test(co
 if (config.turnDomain && config.httpsPort !== 443) fail('TURN_DOMAIN exige HTTPS_PORT=443: o TURN é anunciado na porta 443.');
 if (!['acme', 'local'].includes(config.tls)) fail('TLS inválido: use "acme" (Let\'s Encrypt) ou "local".');
 if (config.nodeIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(config.nodeIp)) fail('NODE_IP inválido: informe um IPv4.');
-if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 500)
-  fail('MAX_PARTICIPANTS inválido: use um número entre 2 e 500.');
+if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 5000)
+  fail('MAX_PARTICIPANTS inválido: use um número entre 2 e 5000.');
 
 // --- segredos --------------------------------------------------------------
 
