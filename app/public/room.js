@@ -274,10 +274,14 @@ const renderStage = () => {
   pipVideo.className = `pip pip-${layout.corner} pip-${layout.size} pip-${layout.shape}`;
   $('pip-hide').hidden = $('pip-swap').hidden = !(screen && camera);
 
-  if (main) overlay.hidden = true;
-  else {
+  overlay.hidden = true;
+  $('voice-stage').hidden = !!main;
+  if (!main) {
     const presenting = can('screen');
-    showOverlay(t(presenting ? 'Clique no botão de tela, embaixo, para começar a transmitir.' : 'Aguardando a transmissão começar…'));
+    $('voice-hint').textContent = t(
+      presenting ? 'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.' : 'Ninguém está transmitindo agora.',
+    );
+    renderVoiceStage();
   }
 
   const presenter = current && !isMe(current.p) ? current.p : null;
@@ -293,6 +297,24 @@ const renderStage = () => {
   renderPeople();
 };
 
+// Sala só de voz: um cartão por pessoa, com destaque em quem está falando
+const renderVoiceStage = () => {
+  if (!room || $('voice-stage').hidden) return;
+  $('voice-people').replaceChildren(
+    ...everyone().map((p) => {
+      const name = p.name || '?';
+      const li = el('li', `voice-person${p.isSpeaking ? ' speaking' : ''}`);
+      const avatar = el('span', 'avatar big-avatar', [...name][0].toUpperCase());
+      avatar.style.background = avatarColor(name);
+      const muted = !p.getTrackPublication(Track.Source.Microphone) || p.getTrackPublication(Track.Source.Microphone).isMuted;
+      li.append(avatar, el('span', 'voice-name', isMe(p) ? t('{name} (você)', { name }) : name));
+      if (muted) li.classList.add('muted-mic');
+      li.dataset.identity = p.identity;
+      return li;
+    }),
+  );
+};
+
 // --- controles: o que eu posso fazer agora --------------------------------------
 
 const updateControls = () => {
@@ -303,8 +325,9 @@ const updateControls = () => {
   $('camera').hidden = !screen;
   $('record').hidden = !isHost || !recordingFormat();
   $('end').hidden = !isHost;
-  $('settings-btn').hidden = !(mic || screen);
-  $('host-controls').hidden = !(mic || screen || isHost);
+  // Ajustes valem para todos (o que se recebe); os da transmissão, só para quem pode transmitir
+  $('broadcast-settings').hidden = !(mic || screen);
+  $('host-controls').hidden = !(mic || screen);
   if (screen && !navigator.mediaDevices?.getDisplayMedia) {
     $('share').disabled = true;
     // Celulares não compartilham a tela: avisa uma vez e aponta o guia
@@ -318,6 +341,7 @@ const updateControls = () => {
   const mine = (kind) => meta.requests.some((r) => r.identity === room.localParticipant.identity && r.kind === kind);
   $('raise-hand').hidden = isHost || mic || meta.type !== 'live';
   $('ask-screen').hidden = isHost || screen || (meta.type === 'together' && meta.openScreens);
+  $('request-controls').hidden = $('raise-hand').hidden && $('ask-screen').hidden;
   setToggle('raise-hand', mine('speak'), ['Pedir a palavra', 'Desistir de falar']);
   setToggle('ask-screen', mine('screen'), ['Pedir para mostrar a tela', 'Desistir de mostrar a tela']);
 
@@ -429,6 +453,7 @@ const wireRoomEvents = () => {
       mainTrack = attach(null, video, mainTrack);
       pipTrack = attach(null, pipVideo, pipTrack);
       pipVideo.hidden = true;
+      $('voice-stage').hidden = true;
       showOverlay(
         t(
           reason === DisconnectReason.ROOM_DELETED
@@ -438,7 +463,7 @@ const wireRoomEvents = () => {
       );
       $('chat-input').disabled = true;
       if (recorder?.active) stopRecording();
-      for (const id of ['host-controls', 'mic-badge', 'presenter-badge', 'invite', 'screens', 'raise-hand', 'ask-screen'])
+      for (const id of ['host-controls', 'request-controls', 'mic-badge', 'presenter-badge', 'invite', 'screens', 'raise-hand', 'ask-screen'])
         $(id).hidden = true;
       voiceTrack?.stop();
       cameraTrack?.stop();
@@ -713,6 +738,8 @@ const renderRequests = () => {
 
 function renderPeople() {
   if (!room) return;
+  // A tela de voz mostra as mesmas pessoas: entra, sai e quem fala atualizam as duas
+  renderVoiceStage();
   renderRequests();
   const speaking = new Set(room.activeSpeakers.map((p) => p.identity));
   $('people').replaceChildren(
@@ -788,11 +815,41 @@ const setShareButton = (on) => setToggle('share', on, ['Compartilhar tela', 'Par
 const setMicButton = (on) => setToggle('mic', on, ['Ligar microfone', 'Desligar microfone'], ['#i-mic-off', '#i-mic']);
 const setCameraButton = (on) => setToggle('camera', on, ['Ligar câmera', 'Desligar câmera'], ['#i-camera-off', '#i-camera']);
 
+// Indicador de que o microfone está captando: um anel no botão que cresce com a voz
+let stopMicMeter = null;
+const startMicMeter = (track) => {
+  stopMicMeter?.();
+  const context = new AudioContext();
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 512;
+  context.createMediaStreamSource(new MediaStream([track.mediaStreamTrack])).connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  let frame = 0;
+  const tick = () => {
+    analyser.getByteTimeDomainData(data);
+    let peak = 0;
+    for (const v of data) peak = Math.max(peak, Math.abs(v - 128));
+    const level = Math.min(1, (peak / 128) * 2.5);
+    $('mic').style.setProperty('--level', level.toFixed(2));
+    $('mic').classList.toggle('speaking', level > 0.1);
+    frame = requestAnimationFrame(tick);
+  };
+  tick();
+  stopMicMeter = () => {
+    cancelAnimationFrame(frame);
+    context.close().catch(() => {});
+    $('mic').style.removeProperty('--level');
+    $('mic').classList.remove('speaking');
+    stopMicMeter = null;
+  };
+};
+
 // Voz: independente da tela, com os filtros de voz do navegador ligados
 const toggleMic = async () => {
   if (voiceTrack) {
     const track = voiceTrack;
     voiceTrack = null;
+    stopMicMeter?.();
     setMicButton(false);
     await room.localParticipant.unpublishTrack(track).catch(() => {});
     track.stop();
@@ -813,6 +870,7 @@ const toggleMic = async () => {
   });
   voiceTrack = track;
   setMicButton(true);
+  startMicMeter(track);
 };
 
 // Câmera de quem apresenta: pequena e leve, aparece sobre a tela no player de quem assiste
@@ -1006,7 +1064,10 @@ const setupPublishControls = () => {
   }
 
   $('mic-device').addEventListener('change', (e) => {
-    voiceTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar o microfone.')));
+    voiceTrack
+      ?.setDeviceId(e.target.value || 'default')
+      .then(() => voiceTrack && startMicMeter(voiceTrack))
+      .catch(() => addMessage(t('Não foi possível trocar o microfone.')));
   });
   $('camera-device').addEventListener('change', (e) => {
     cameraTrack?.setDeviceId(e.target.value || 'default').catch(() => addMessage(t('Não foi possível trocar a câmera.')));

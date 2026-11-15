@@ -286,6 +286,7 @@ describe('no navegador', () => {
     await beto.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
     assert.ok(await beto.isHidden('#pip'));
     assert.ok(await beto.isHidden('#overlay'));
+    assert.ok(await beto.isHidden('#voice-stage'), 'com câmera, a tela de voz some');
   });
 
   test('gravação com câmera: tela e câmera em arquivos separados', async () => {

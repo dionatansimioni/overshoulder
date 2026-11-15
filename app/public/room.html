@@ -111,6 +111,11 @@
       <div id="player" class="player">
         <video id="video" playsinline autoplay muted></video>
         <video id="pip" class="pip pip-br pip-m" playsinline autoplay muted hidden></video>
+        <!-- Ninguém transmitindo (sala só de voz): quem está na sala, com destaque para quem fala -->
+        <div id="voice-stage" class="voice-stage" hidden>
+          <ul id="voice-people" class="voice-people"></ul>
+          <p id="voice-hint" class="muted"></p>
+        </div>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
         <div id="mic-badge" class="badge" hidden>
           <svg class="icon"><use href="#i-mic"/></svg>
@@ -120,7 +125,30 @@
         <div id="rec-badge" class="badge rec" hidden>● Gravando</div>
       </div>
 
+      <!-- À esquerda, as entradas de quem transmite (e os pedidos de quem assiste); à direita, o resto -->
       <div class="dock">
+        <div class="dock-group">
+          <div id="host-controls" class="controls" hidden>
+            <button id="mic" type="button" class="round" title="Ligar microfone" aria-label="Ligar microfone" aria-pressed="false">
+              <svg class="icon"><use href="#i-mic-off"/></svg>
+            </button>
+            <button id="camera" type="button" class="round" title="Ligar câmera" aria-label="Ligar câmera" aria-pressed="false">
+              <svg class="icon"><use href="#i-camera-off"/></svg>
+            </button>
+            <button id="share" type="button" class="round" title="Compartilhar tela" aria-label="Compartilhar tela">
+              <svg class="icon"><use href="#i-screen"/></svg>
+            </button>
+          </div>
+          <div id="request-controls" class="controls" hidden>
+            <button id="raise-hand" type="button" class="round" title="Pedir a palavra" aria-label="Pedir a palavra" aria-pressed="false" hidden>
+              <svg class="icon"><use href="#i-hand"/></svg>
+            </button>
+            <button id="ask-screen" type="button" class="round" title="Pedir para mostrar a tela" aria-label="Pedir para mostrar a tela" aria-pressed="false" hidden>
+              <svg class="icon"><use href="#i-screen"/></svg>
+            </button>
+          </div>
+        </div>
+
         <div id="viewer-controls" class="controls" hidden>
           <label class="volume" title="Volume">
             <svg class="icon"><use href="#i-volume"/></svg>
@@ -135,29 +163,10 @@
           <button id="pip-swap" type="button" class="round" title="Inverter câmera e tela" aria-label="Inverter câmera e tela" aria-pressed="false" hidden>
             <svg class="icon"><use href="#i-swap"/></svg>
           </button>
-          <button id="raise-hand" type="button" class="round" title="Pedir a palavra" aria-label="Pedir a palavra" aria-pressed="false" hidden>
-            <svg class="icon"><use href="#i-hand"/></svg>
-          </button>
-          <button id="ask-screen" type="button" class="round" title="Pedir para mostrar a tela" aria-label="Pedir para mostrar a tela" aria-pressed="false" hidden>
-            <svg class="icon"><use href="#i-screen"/></svg>
-          </button>
-          <span id="stats" class="muted small"></span>
-        </div>
-
-        <div id="host-controls" class="controls" hidden>
-          <button id="mic" type="button" class="round" title="Ligar microfone" aria-label="Ligar microfone" aria-pressed="false">
-            <svg class="icon"><use href="#i-mic-off"/></svg>
-          </button>
-          <button id="share" type="button" class="round" title="Compartilhar tela" aria-label="Compartilhar tela">
-            <svg class="icon"><use href="#i-screen"/></svg>
-          </button>
-          <button id="camera" type="button" class="round" title="Ligar câmera" aria-label="Ligar câmera" aria-pressed="false">
-            <svg class="icon"><use href="#i-camera-off"/></svg>
-          </button>
           <button id="record" type="button" class="round" title="Gravar a transmissão" aria-label="Gravar a transmissão" aria-pressed="false">
             <svg class="icon"><use href="#i-record"/></svg>
           </button>
-          <button id="settings-btn" type="button" class="round" title="Ajustes da transmissão" aria-label="Ajustes da transmissão" aria-expanded="false">
+          <button id="settings-btn" type="button" class="round" title="Ajustes" aria-label="Ajustes" aria-expanded="false">
             <svg class="icon"><use href="#i-settings"/></svg>
           </button>
           <button id="end" type="button" class="round danger" title="Encerrar sala" aria-label="Encerrar sala">
@@ -165,56 +174,60 @@
           </button>
 
           <div id="settings" class="popover" hidden>
-            <h2>Ajustes da transmissão</h2>
-            <label for="quality">Qualidade</label>
-            <select id="quality">
-              <option value="720p30">720p · 30 fps</option>
-              <option value="720p60">720p · 60 fps</option>
-              <option value="1080p30">1080p · 30 fps</option>
-              <option value="1080p60">1080p · 60 fps</option>
-              <option value="1440p60">1440p · 60 fps</option>
-            </select>
-            <p id="quality-warning" class="small warn field-hint" role="status" hidden></p>
-            <label for="codec">Codec</label>
-            <select id="codec">
-              <option value="h264" selected>H.264 (mais leve)</option>
-              <option value="vp9">VP9</option>
-              <option value="av1">AV1</option>
-            </select>
-            <label for="mic-device">Microfone</label>
-            <select id="mic-device">
-              <option value="">Padrão do sistema</option>
-            </select>
-            <label for="camera-device">Câmera</label>
-            <select id="camera-device">
-              <option value="">Padrão do sistema</option>
-            </select>
-            <fieldset id="pip-layout" class="pip-layout">
-              <legend>Câmera sobre a tela</legend>
-              <div class="seg" role="group" aria-label="Posição">
-                <button type="button" data-corner="tl" title="Canto superior esquerdo" aria-label="Canto superior esquerdo">↖</button>
-                <button type="button" data-corner="tr" title="Canto superior direito" aria-label="Canto superior direito">↗</button>
-                <button type="button" data-corner="bl" title="Canto inferior esquerdo" aria-label="Canto inferior esquerdo">↙</button>
-                <button type="button" data-corner="br" title="Canto inferior direito" aria-label="Canto inferior direito">↘</button>
-              </div>
-              <div class="seg" role="group" aria-label="Tamanho">
-                <button type="button" data-size="s">P</button>
-                <button type="button" data-size="m">M</button>
-                <button type="button" data-size="l">G</button>
-              </div>
-              <div class="seg" role="group" aria-label="Formato">
-                <button type="button" data-shape="rounded">Retângulo</button>
-                <button type="button" data-shape="circle">Círculo</button>
-              </div>
-            </fieldset>
-            <label for="audio-device">Áudio do jogo</label>
-            <div class="row">
-              <select id="audio-device">
-                <option value="">Só o da captura</option>
+            <h2>Ajustes</h2>
+            <p id="stats" class="muted small"></p>
+            <div id="broadcast-settings" class="popover-section" hidden>
+              <h3>Sua transmissão</h3>
+              <label for="quality">Qualidade</label>
+              <select id="quality">
+                <option value="720p30">720p · 30 fps</option>
+                <option value="720p60">720p · 60 fps</option>
+                <option value="1080p30">1080p · 30 fps</option>
+                <option value="1080p60">1080p · 60 fps</option>
+                <option value="1440p60">1440p · 60 fps</option>
               </select>
-              <button id="load-devices" type="button" class="secondary">Listar</button>
+              <p id="quality-warning" class="small warn field-hint" role="status" hidden></p>
+              <label for="codec">Codec</label>
+              <select id="codec">
+                <option value="h264" selected>H.264 (mais leve)</option>
+                <option value="vp9">VP9</option>
+                <option value="av1">AV1</option>
+              </select>
+              <label for="mic-device">Microfone</label>
+              <select id="mic-device">
+                <option value="">Padrão do sistema</option>
+              </select>
+              <label for="camera-device">Câmera</label>
+              <select id="camera-device">
+                <option value="">Padrão do sistema</option>
+              </select>
+              <fieldset id="pip-layout" class="pip-layout">
+                <legend>Câmera sobre a tela</legend>
+                <div class="seg" role="group" aria-label="Posição">
+                  <button type="button" data-corner="tl" title="Canto superior esquerdo" aria-label="Canto superior esquerdo">↖</button>
+                  <button type="button" data-corner="tr" title="Canto superior direito" aria-label="Canto superior direito">↗</button>
+                  <button type="button" data-corner="bl" title="Canto inferior esquerdo" aria-label="Canto inferior esquerdo">↙</button>
+                  <button type="button" data-corner="br" title="Canto inferior direito" aria-label="Canto inferior direito">↘</button>
+                </div>
+                <div class="seg" role="group" aria-label="Tamanho">
+                  <button type="button" data-size="s">P</button>
+                  <button type="button" data-size="m">M</button>
+                  <button type="button" data-size="l">G</button>
+                </div>
+                <div class="seg" role="group" aria-label="Formato">
+                  <button type="button" data-shape="rounded">Retângulo</button>
+                  <button type="button" data-shape="circle">Círculo</button>
+                </div>
+              </fieldset>
+              <label for="audio-device">Áudio do jogo</label>
+              <div class="row">
+                <select id="audio-device">
+                  <option value="">Só o da captura</option>
+                </select>
+                <button id="load-devices" type="button" class="secondary">Listar</button>
+              </div>
+              <p class="muted small">Clique em “Listar” para ver os microfones e dispositivos de áudio. No Linux, o navegador só captura áudio de abas: para o áudio do jogo, escolha o “Monitor of …” da sua saída de som.</p>
             </div>
-            <p class="muted small">Clique em “Listar” para ver os microfones e dispositivos de áudio. No Linux, o navegador só captura áudio de abas: para o áudio do jogo, escolha o “Monitor of …” da sua saída de som.</p>
           </div>
         </div>
       </div>

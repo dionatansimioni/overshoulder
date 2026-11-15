@@ -153,9 +153,9 @@ Ordem de execução, um commit por item:
 1. ✅ **Removido da sala:** quem é removido vai para uma tela "A live foi encerrada. Se isso foi um engano, entre em contato com o dono do servidor." (sem dizer que o anfitrião removeu).
 2. ✅ **Administração com botões:** os itens clicáveis do `/admin` (menu, Voltar, Minha conta) viram botões, não links simples.
 2b. ✅ **Logo novo e paleta da interface** (pedido depois): logo melhorado com **#9732F6** (roxo) e **#1DF0FC** (ciano), que passam a ser a referência de cores do app inteiro. Feito antes dos itens visuais seguintes para não refazer o visual duas vezes.
-3. **Sala só de voz:** quando ninguém transmite tela ou câmera, o espaço do vídeo mostra uma imagem (quem está na sala e quem está falando), não uma tela preta.
-3b. **Barra de controles reordenada** para quem transmite: à esquerda as entradas (microfone, câmera, tela ou janela); à direita volume, tela cheia, gravar, ajustes e, por último, encerrar. Resolução e taxa de bits ficam nos ajustes.
-4. **Microfone funcionando:** indicador de volume visível para quem transmite.
+3. ✅ **Sala só de voz:** quando ninguém transmite tela ou câmera, o espaço do vídeo mostra uma imagem (quem está na sala e quem está falando), não uma tela preta.
+3b. ✅ **Barra de controles reordenada** para quem transmite: à esquerda as entradas (microfone, câmera, tela ou janela); à direita volume, tela cheia, gravar, ajustes e, por último, encerrar. Resolução e taxa de bits ficam nos ajustes.
+4. ✅ **Microfone funcionando:** indicador de volume visível para quem transmite.
 5. **Prévia de quem transmite:** mostra a qualidade real enviada (resolução, fps e Mbps). Trocar a qualidade vale na hora, sem parar o compartilhamento nem recarregar a aba. Opção de esconder a própria tela (desfocada, sem reproduzir) e mostrar de novo. Observação: a prévia própria é local e não usa banda do servidor; esconder economiza processamento do computador de quem joga.
 6. **Qualidade para quem assiste:** "Automática" ou uma das camadas que quem transmite está enviando, nunca acima; troca na hora.
 7. **Avisos de rede para quem transmite:** quando a conexão não sustenta a qualidade escolhida (o navegador limita por banda), sugerir uma mais baixa com um clique; avisar perda de pacotes alta.

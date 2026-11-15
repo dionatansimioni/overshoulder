@@ -227,7 +227,7 @@ test('anfitrião compartilha a tela e o amigo recebe o vídeo decifrado', async 
 
   await host.page.click('#share');
   await host.page.waitForSelector('#share.on');
-  await viewer.page.waitForSelector('#overlay', { state: 'hidden' });
+  await viewer.page.waitForSelector('#voice-stage', { state: 'hidden' });
   const playing = async () => viewer.page.evaluate(() => {
     const v = document.querySelector('#video');
     return { width: v.videoWidth, time: v.currentTime };
@@ -241,7 +241,9 @@ test('anfitrião compartilha a tela e o amigo recebe o vídeo decifrado', async 
 
   await host.page.click('#share');
   await host.page.waitForSelector('#share:not(.on)');
-  await viewer.page.waitForFunction(() => document.querySelector('#overlay').textContent.includes('Aguardando'));
+  // Sem transmissão, volta a tela de quem está na sala (não uma tela preta)
+  await viewer.page.waitForSelector('#voice-stage:not([hidden])');
+  assert.equal(await viewer.page.textContent('#voice-hint'), 'Ninguém está transmitindo agora.');
   assert.deepEqual(host.errors, []);
   assert.deepEqual(viewer.errors, []);
 });

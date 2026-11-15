@@ -59,6 +59,11 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.':
+    'Nobody is broadcasting. Use the screen button below to show yours.',
+  'Ninguém está transmitindo agora.': 'Nobody is broadcasting right now.',
+  '{name} (você)': '{name} (you)',
+  Ajustes: 'Settings',
   'Sala privada': 'Private room',
   'Acaba quando você sair da sala (depois de 30 segundos fora) e não fica guardada neste navegador.':
     'It ends when you leave the room (after 30 seconds away) and is not saved in this browser.',
