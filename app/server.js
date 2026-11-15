@@ -316,6 +316,20 @@ const getState = async (req, res) => {
   });
 };
 
+// Primeiro passo da configuração: confere o código antes de pedir o resto (mesmo limite de tentativas)
+const checkSetupCode = async (req, res) => {
+  const ip = clientIp(req);
+  if (hasAdmin()) return json(res, 409, { error: 'O servidor já foi configurado.' });
+  if (ipLimiter.blocked(ip)) return json(res, 429, { error: 'Muitas tentativas. Espere alguns minutos.' });
+  const { code } = await readJson(req);
+  if (typeof code !== 'string' || !setupCode || !safeEqual(code.trim().toUpperCase(), setupCode)) {
+    ipLimiter.fail(ip);
+    log.warn('código de configuração incorreto');
+    return json(res, 403, { error: 'Código de configuração incorreto. Veja o código atual nos logs do servidor.' });
+  }
+  json(res, 200, { ok: true });
+};
+
 const setup = async (req, res) => {
   const ip = clientIp(req);
   if (hasAdmin()) return json(res, 409, { error: 'O servidor já foi configurado.' });
@@ -1591,6 +1605,7 @@ const healthz = async (req, res) => {
 const routes = {
   'GET /api/state': getState,
   'POST /api/setup': setup,
+  'POST /api/setup/check': checkSetupCode,
   'POST /api/login': login,
   'POST /api/login/totp': loginTotp,
   'POST /api/logout': logout,

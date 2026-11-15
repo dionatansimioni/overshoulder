@@ -140,6 +140,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - A lista fica no `localStorage` (`public/rooms-local.js`), com o link completo; o de quem é anfitrião inclui a chave de anfitrião (antes ficava só na aba). `POST /api/rooms/status` (só com conta, até 50 códigos) diz quais seguem no ar sem trazer de volta uma sala fixa vazia. O token passou a informar o tipo e o nome da sala fixa.
   - "Criar sala" abre uma janela com dois cartões (Jogando juntos / Live): um clique no cartão cria com os padrões; "Mais opções" fica recolhido. A tela de entrada do anfitrião já mostra o link de convite com "Copiar": em 2 cliques a sala existe e o link está na tela (copiar é o 3º).
   - Testes em `app/test/home.test.js` (inclui teclado, Voltar do navegador e celular).
+  - **Parte 2 feita:** configuração inicial em 3 passos (código, administrador, servidor), com barra de progresso, Voltar sem perder dados e cada passo no histórico (`#passo-2`), então o Voltar do navegador também funciona. O código é conferido já no passo 1 por `POST /api/setup/check`, que gasta o mesmo limite de tentativas da configuração. Um erro do servidor leva ao passo do campo que precisa mudar. Testes em `app/test/setup.test.js`.
 
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.

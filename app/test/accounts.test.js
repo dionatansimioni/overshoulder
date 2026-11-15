@@ -192,14 +192,17 @@ describe('no navegador', () => {
     await page.goto(`${s.url}/`);
     await page.waitForURL(`${s.url}/configurar`);
     await page.fill('#code', await s.setupCode());
+    await page.click('#next');
     await page.fill('#username', 'dona');
     await page.fill('#password', 'frase longa e segura demais');
     await page.fill('#password2', 'frase longa e diferente');
-    await page.click('#setup-form button');
+    await page.click('#next');
     assert.match(await page.textContent('#setup-error'), /não são iguais/);
 
     await page.fill('#password2', 'frase longa e segura demais');
-    await page.click('#setup-form button');
+    await page.click('#next');
+    await page.waitForSelector('#max:visible');
+    await page.click('#next');
     await page.waitForURL(`${s.url}/`);
     await page.waitForSelector('#signed-in:not([hidden])');
     assert.equal(await page.textContent('#me'), 'dona');

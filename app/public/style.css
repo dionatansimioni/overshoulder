@@ -179,6 +179,28 @@ code { padding: 1px 6px; border-radius: 4px; background: var(--input); font-size
 }
 .small-brand { font-weight: 700; margin: 0; }
 
+/* --- configuração inicial em passos ------------------------------------------ */
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.steps { display: flex; gap: 6px; margin: 12px 0 4px; padding: 0; list-style: none; counter-reset: step; }
+.steps li {
+  flex: 1;
+  padding-top: 8px;
+  border-top: 4px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  counter-increment: step;
+}
+.steps li::before { content: counter(step) ". "; }
+.steps li.done { border-color: var(--live); color: var(--text); }
+.steps li[aria-current] { border-color: var(--accent); color: var(--text); font-weight: 600; }
+#step-status { margin: 0 0 8px; }
+fieldset.step { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+fieldset.step[hidden] { display: none; }
+fieldset.step p { margin: 0; }
+.step-actions { display: flex; gap: 8px; margin-top: 12px; }
+.step-actions button { flex: 1; }
+
 /* --- página inicial: barra lateral e criar sala --------------------------- */
 
 .app {

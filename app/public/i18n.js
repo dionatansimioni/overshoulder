@@ -80,6 +80,20 @@ const EN = {
   'Crie a conta de administrador. O código de configuração aparece nos logs do servidor:':
     'Create the administrator account. The setup code is shown in the server logs:',
   'Código de configuração': 'Setup code',
+  Progresso: 'Progress',
+  Código: 'Code',
+  Administrador: 'Administrator',
+  Servidor: 'Server',
+  'Conta de administrador': 'Administrator account',
+  'O código aparece nos logs do servidor:': 'The code shows up in the server logs:',
+  '. Ele prova que é você quem instalou o servidor.': '. It proves you are the one who installed the server.',
+  'Qualidade, cadastro de transmissores e o resto ficam em Administração, e dá para mudar a qualquer hora.':
+    'Quality, broadcaster sign-up and everything else are in Administration, and you can change them any time.',
+  Continuar: 'Continue',
+  'Passo {n} de {total}': 'Step {n} of {total}',
+  'Informe o código de configuração.': 'Enter the setup code.',
+  'Informe o usuário do administrador.': 'Enter the administrator username.',
+  'A senha precisa de pelo menos 12 caracteres.': 'The password needs at least 12 characters.',
   'Usuário do administrador': 'Administrator username',
   'Pelo menos 12 caracteres. Uma frase longa é mais fácil de lembrar e mais segura.':
     'At least 12 characters. A long phrase is easier to remember and more secure.',
