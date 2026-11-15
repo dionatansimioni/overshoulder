@@ -67,6 +67,42 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
 - O `.env` local tem a senha `senha-teste`: só serve para testes.
 - A transmissão real (vídeo, áudio, E2EE e chat) ainda não foi testada num navegador, nem antes nem depois da troca de nome.
 
+## Novo foco (15/11/2026): gamers e criadores de conteúdo
+
+Estas decisões têm prioridade sobre as anteriores quando conflitarem.
+
+Com a suspensão do Discord no Brasil, muita gente ficou sem compartilhar a tela dos jogos. O Overshoulder passa a mirar:
+1. **gamers** que compartilham gameplay com os amigos e querem um lugar para jogar juntos;
+2. **criadores de conteúdo** com lives exclusivas para a audiência;
+3. **eventos** transmitidos.
+
+Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua num bom nível e o admin mantém controle e autonomia totais.
+
+| Tema | Decisão |
+|---|---|
+| Transmissores | O admin escolhe o modo: **só convite**, **cadastro com aprovação** (padrão, com fila no `/admin`) ou **cadastro livre**. Revoga qualquer um a qualquer momento |
+| Espectadores | **Sem conta.** Entram por convite de sala |
+| Formatos de sala | **Salas fixas** criadas pelo admin (como canais do Discord, endereço permanente) e **salas rápidas** com link, abertas por qualquer transmissor |
+| Tipos de sala | **"Jogando juntos"**: todos falam (como uma call) e, por padrão, qualquer um mostra a tela. **"Live"**: só quem apresenta fala; a audiência usa o chat e pode **pedir a palavra** ou **pedir para mostrar a tela**. A opção "qualquer um pode mostrar a tela" é escolhida ao criar a sala |
+| Várias telas | Várias telas ao vivo ao mesmo tempo; cada pessoa escolhe qual assistir e só recebe essa |
+| Convites de sala | Convite padrão: ilimitado, sem senha e sem validade. Opções: **limite de pessoas** (o navegador guarda um "ingresso" e volta sem gastar vaga), **validade**, **senha** opcional, **vários convites nomeados e revogáveis** (revogar tira da sala quem entrou por ele) e **sala de espera** (o anfitrião aprova cada entrada) |
+| Qualidade | Padrão **720p**. Qualidade maior mostra o aviso de banda. O admin configura o padrão e a qualidade máxima do servidor |
+| Tamanho | Um servidor só, com limite de pessoas configurável e sem teto fixo baixo (aviso de banda acima de algumas centenas) |
+| Recursos de empresa | Moderação, gravação, 2FA, chat, tradução e E2EE continuam em destaque. **SSO e TURN na 443** viram opções avançadas recolhidas no `/admin`, sem novos investimentos por enquanto |
+| Assinatura das imagens | Mantida (recomendação; confirmar com o usuário) |
+| Homelab | Funciona; o limite é o upload de casa (~26 pessoas em 720p com 100 Mbps de upload), o CGNAT e o IP de casa exposto a quem assiste. Para lives abertas ao público, recomendar VPS |
+| Rede local de empresa | Benefício a oferecer: servidor no hardware da empresa, só na rede interna. Já funciona com `TLS=local`; faltam o certificado da empresa (`TLS=custom`), o modo rede local no instalador e o guia de instalação sem internet |
+
+### Ordem de implementação (novo foco)
+1. **Tipos de sala e várias telas:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela).
+2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.
+3. **Salas fixas e cadastro de transmissores** com fila de aprovação.
+4. **Padrões de qualidade:** 720p, aviso de banda, padrão e qualidade máxima no admin, limite de pessoas sem teto baixo.
+5. **Interface:** reorganizar o `/admin`, com SSO e TURN recolhidos em opções avançadas.
+6. **Rede local e homelab:** certificado próprio (`TLS=custom`), modo rede local no instalador, guia de instalação sem internet e o aviso sobre o IP de casa exposto.
+7. **Instalador de um comando** e botão da Hostinger.
+8. **Validação numa VPS real** antes de divulgar (TURN, SSO com provedor real, certificado no IP).
+
 ## Decisões tomadas
 
 | Tema | Decisão |
