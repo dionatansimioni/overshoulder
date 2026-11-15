@@ -151,7 +151,12 @@ describe('no navegador', () => {
     const row = await personRow(host, viewer.lk.identity);
     host.once('dialog', (d) => d.accept());
     await row.locator('button[data-action="kick"]').click();
-    await viewer.waitForFunction(() => document.querySelector('#overlay').textContent.includes('removido'));
+    // Quem sai vê uma tela neutra, sem saber que foi removido pelo anfitrião
+    await viewer.waitForSelector('#ended:not([hidden])');
+    assert.equal(await viewer.textContent('#ended h2'), 'A live foi encerrada');
+    assert.match(await viewer.textContent('#ended'), /Se isso foi um engano, entre em contato com o dono do servidor\./);
+    assert.ok(await viewer.isHidden('#room'), 'a sala some');
+    assert.doesNotMatch(await viewer.textContent('body'), /removid/i);
 
     await host.waitForFunction((old) => document.querySelector('#invite-link').value !== old, oldLink);
     const newLink = await host.inputValue('#invite-link');

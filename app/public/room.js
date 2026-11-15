@@ -422,6 +422,10 @@ const wireRoomEvents = () => {
       showOverlay(t('Não foi possível descriptografar a transmissão. O link está completo?'));
     })
     .on(RoomEvent.Disconnected, (reason) => {
+      if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        $('room').hidden = true;
+        $('ended').hidden = false;
+      }
       mainTrack = attach(null, video, mainTrack);
       pipTrack = attach(null, pipVideo, pipTrack);
       pipVideo.hidden = true;
@@ -429,9 +433,7 @@ const wireRoomEvents = () => {
         t(
           reason === DisconnectReason.ROOM_DELETED
             ? 'A sala foi encerrada.'
-            : reason === DisconnectReason.PARTICIPANT_REMOVED
-              ? 'Você foi removido da sala pelo anfitrião.'
-              : 'Você foi desconectado. Recarregue a página para voltar.',
+            : 'Você foi desconectado. Recarregue a página para voltar.',
         ),
       );
       $('chat-input').disabled = true;

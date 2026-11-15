@@ -224,7 +224,7 @@ describe('no navegador', () => {
     await h.waitForFunction((id) => /1 de 1 pessoas/.test(document.querySelector(`#invites li[data-invite="${id}"]`).textContent), inv.id);
     h.once('dialog', (d) => d.accept());
     await h.click(`#invites li[data-invite="${inv.id}"] [data-action="revoke"]`);
-    await beto.waitForFunction(() => /removido da sala/.test(document.querySelector('#overlay').textContent));
+    await beto.waitForSelector('#ended:not([hidden])');
     await h.waitForFunction((id) => /revogado/.test(document.querySelector(`#invites li[data-invite="${id}"]`).textContent), inv.id);
     for (const p of [h, beto, carla]) assert.deepEqual(p.errors, []);
   });
