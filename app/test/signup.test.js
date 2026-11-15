@@ -105,7 +105,7 @@ describe('no navegador', () => {
 
       const a = await (await browser.newContext()).newPage();
       await loginInBrowser(a, s2.url);
-      await a.goto(`${s2.url}/admin`);
+      await a.goto(`${s2.url}/admin#transmissores`);
       const row = a.locator('#users li[data-username="iris"]');
       await row.waitFor();
       assert.match(await row.textContent(), /aguardando aprovação/);

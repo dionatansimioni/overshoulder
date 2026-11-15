@@ -10,13 +10,21 @@
   <script type="module" src="/static/admin.js"></script>
 </head>
 <body>
-  <main class="home wide">
-    <div class="card">
-      <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Administração</h1>
-      <p class="muted"><a href="/">Voltar</a> · <a href="/conta">Minha conta</a></p>
-
-      <section class="section">
-        <h2>Configurações</h2>
+  <div class="admin">
+    <aside class="admin-side">
+      <span class="brand small-brand"><img src="/static/icon.svg" alt="" width="24" height="24">Administração</span>
+      <nav class="admin-nav" aria-label="Seções da administração">
+        <a href="#geral">Geral</a>
+        <a href="#salas">Salas fixas</a>
+        <a href="#transmissores">Transmissores</a>
+        <a href="#convites">Convites</a>
+        <a href="#avancado">Avançado</a>
+      </nav>
+      <p class="side-links"><a href="/">Voltar</a> <a href="/conta">Minha conta</a></p>
+    </aside>
+    <main class="admin-main">
+      <section id="geral" class="admin-page" hidden>
+        <h1>Geral</h1>
         <form id="settings-form" class="form">
           <label class="check"><input id="require2fa" type="checkbox"> Exigir 2FA de todas as contas</label>
           <p class="muted small field-hint">Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.</p>
@@ -40,9 +48,8 @@
           <p id="settings-ok" class="ok" hidden>Configurações salvas.</p>
         </form>
       </section>
-
-      <section class="section">
-        <h2>Salas fixas</h2>
+      <section id="salas" class="admin-page" hidden>
+        <h1>Salas fixas</h1>
         <p class="muted small">Salas que não somem: o link continua o mesmo, com os mesmos convites. Boa para o canal da comunidade ou a live semanal. A chave de criptografia é criada neste navegador e fica só nos links; o servidor nunca a vê.</p>
         <form id="fixed-form" class="form">
           <label for="fixed-title">Nome da sala</label>
@@ -57,8 +64,34 @@
         </form>
         <ul id="fixed-rooms" class="list"></ul>
       </section>
+      <section id="transmissores" class="admin-page" hidden>
+        <h1>Transmissores</h1>
+        <p class="muted small">Pessoas autorizadas a criar salas e transmitir por este servidor, mesmo sem você presente. Elas não mexem nas configurações.</p>
+        <ul id="users" class="list"></ul>
+        <div id="user-codes" hidden>
+          <p class="notice">Novos códigos de recuperação de <b id="codes-for"></b>. Entregue por um canal seguro; os antigos deixaram de valer.</p>
+          <ol id="codes" class="codes"></ol>
+        </div>
+        <p id="users-error" class="error" hidden></p>
+      </section>
+      <section id="convites" class="admin-page" hidden>
+        <h1>Convites</h1>
+        <p class="muted small">O convite é um link de uso único que vale 48 horas. A pessoa escolhe o próprio usuário e senha; você nunca vê a senha.</p>
+        <button id="new-invite" type="button">Gerar convite</button>
+        <div id="invite-box" class="invite-box" hidden>
+          <input id="invite-link" readonly aria-label="Link do convite">
+          <button id="copy-invite" type="button" class="secondary">Copiar</button>
+        </div>
+        <ul id="invites" class="list"></ul>
+      </section>
+      <section id="avancado" class="admin-page" hidden>
+        <h1>Avançado</h1>
+        <p class="muted small">Recursos para redes e empresas. A maioria dos servidores não precisa mexer aqui.</p>
+        <h2>TURN na porta 443 <span class="muted small">(experimental)</span></h2>
+        <p class="muted small">Para redes que só liberam a porta 443, como algumas empresas e faculdades. É configurado nas variáveis do servidor:</p>
+        <p class="small"><code>TURN_DOMAIN=turn.seudominio.com</code> <code>HTTPS_PORT=443</code></p>
+        <p id="turn-status" class="notice"></p>
 
-      <section class="section">
         <h2>Login da empresa (SSO)</h2>
         <p class="muted small">OpenID Connect: Google Workspace, Microsoft Entra ID, Keycloak, Authentik e outros. Cadastre no provedor um aplicativo "web" com este endereço de retorno:</p>
         <p class="small"><code id="sso-redirect"></code></p>
@@ -85,29 +118,7 @@
           <p id="sso-ok" class="ok" hidden>Login da empresa salvo.</p>
         </form>
       </section>
-
-      <section class="section">
-        <h2>Transmissores</h2>
-        <p class="muted small">Pessoas autorizadas a criar salas e transmitir por este servidor, mesmo sem você presente. Elas não mexem nas configurações.</p>
-        <ul id="users" class="list"></ul>
-        <div id="user-codes" hidden>
-          <p class="notice">Novos códigos de recuperação de <b id="codes-for"></b>. Entregue por um canal seguro; os antigos deixaram de valer.</p>
-          <ol id="codes" class="codes"></ol>
-        </div>
-        <p id="users-error" class="error" hidden></p>
-      </section>
-
-      <section class="section">
-        <h2>Convites</h2>
-        <p class="muted small">O convite é um link de uso único que vale 48 horas. A pessoa escolhe o próprio usuário e senha; você nunca vê a senha.</p>
-        <button id="new-invite" type="button">Gerar convite</button>
-        <div id="invite-box" class="invite-box" hidden>
-          <input id="invite-link" readonly aria-label="Link do convite">
-          <button id="copy-invite" type="button" class="secondary">Copiar</button>
-        </div>
-        <ul id="invites" class="list"></ul>
-      </section>
-    </div>
-  </main>
+    </main>
+  </div>
 </body>
 </html>

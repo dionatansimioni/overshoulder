@@ -32,11 +32,29 @@ const action = (label, fn, className = 'secondary') => {
 
 const formatDate = (iso) => new Date(iso).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
+// --- menu lateral: uma página por seção, no fragmento da URL (#salas) ---------------
+// Cada troca entra no histórico, então o Voltar do navegador volta à seção anterior
+
+const PAGES = [...document.querySelectorAll('.admin-page')].map((p) => p.id);
+const showPage = () => {
+  const id = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : PAGES[0];
+  for (const page of PAGES) $(page).hidden = page !== id;
+  for (const link of document.querySelectorAll('.admin-nav a')) {
+    if (link.hash === `#${id}`) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+};
+addEventListener('hashchange', showPage);
+showPage();
+
 // --- configurações ---------------------------------------------------------
 
 const settings = await api('/api/admin/settings');
 $('require2fa').checked = settings.require2fa;
 $('max').value = settings.maxParticipants;
+$('turn-status').textContent = settings.turnDomain
+  ? t('Ligado: a porta 443 atende o TURN em {domain}.', { domain: settings.turnDomain })
+  : t('Desligado. Para ligar, defina TURN_DOMAIN com um subdomínio só para o TURN e reinicie o servidor.');
 for (const id of ['default-quality', 'max-quality']) {
   for (const q of QUALITIES) $(id).append(new Option(QUALITY_LABELS[q], q));
 }

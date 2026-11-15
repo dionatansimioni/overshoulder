@@ -203,6 +203,7 @@ const services = {
       DATA_DIR,
       HOST_KEY_SECRET: secrets.hostKeySecret,
       MAX_PARTICIPANTS: String(config.maxParticipants),
+      TURN_DOMAIN: config.turnDomain,
       TRUST_PROXY: '1',
     },
   },

@@ -38,6 +38,8 @@ const HOST_KEY_SECRET = env('HOST_KEY_SECRET');
 const DATA_DIR = env('DATA_DIR');
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const DEFAULT_MAX_PARTICIPANTS = Number(env('MAX_PARTICIPANTS', '16'));
+// Só para mostrar no painel: o TURN é configurado pelo supervisor
+const TURN_DOMAIN = process.env.TURN_DOMAIN ?? '';
 const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
 const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
 const INVITE_TTL_MS = Number(env('INVITE_TTL_MS', String(48 * 3600_000)));
@@ -513,7 +515,7 @@ const disable2fa = async (req, res) => {
 
 const getSettings = async (req, res) => {
   requireUser(req, { role: 'admin' });
-  json(res, 200, settings());
+  json(res, 200, { ...settings(), turnDomain: TURN_DOMAIN });
 };
 
 const updateSettings = async (req, res) => {

@@ -128,7 +128,7 @@ describe('no navegador', () => {
     const errors = [];
     a.on('pageerror', (e) => errors.push(e.message));
     await loginInBrowser(a, s.url);
-    await a.goto(`${s.url}/admin`);
+    await a.goto(`${s.url}/admin#salas`);
     await a.fill('#fixed-title', 'Canal da comunidade');
     await a.selectOption('#fixed-type', 'live');
     await a.click('#fixed-form button');
@@ -157,7 +157,7 @@ describe('no navegador', () => {
     // Em outro navegador a chave não está guardada: o admin vê o aviso
     const other = await (await browser.newContext()).newPage();
     await loginInBrowser(other, s.url);
-    await other.goto(`${s.url}/admin`);
+    await other.goto(`${s.url}/admin#salas`);
     const elsewhere = other.locator('#fixed-rooms li', { hasText: 'Canal da comunidade' });
     await elsewhere.waitFor();
     assert.match(await elsewhere.textContent(), /2 pessoa\(s\) agora · chave em outro navegador/);

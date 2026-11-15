@@ -221,6 +221,7 @@ describe('no navegador', () => {
     await loginInBrowser(adminPage, s.url);
     await adminPage.click('#admin-link');
     await adminPage.waitForURL(`${s.url}/admin`);
+    await adminPage.click('.admin-nav a[href="#convites"]');
     await adminPage.click('#new-invite');
     await adminPage.waitForSelector('#invite-box:not([hidden])');
     const link = await adminPage.inputValue('#invite-link');
@@ -248,6 +249,7 @@ describe('no navegador', () => {
     await viewer.click('#join-form button');
     await viewer.waitForSelector('#room:not([hidden])');
 
+    await adminPage.goto(`${s.url}/admin#transmissores`);
     await adminPage.reload();
     const row = adminPage.locator('#users li[data-username="bia"]');
     await row.waitFor();

@@ -8,6 +8,20 @@ const EN = {
   'Overshoulder · Configurar': 'Overshoulder · Setup',
   'Overshoulder · Minha conta': 'Overshoulder · My account',
   'Overshoulder · Administração': 'Overshoulder · Administration',
+  Geral: 'General',
+  Avançado: 'Advanced',
+  'Seções da administração': 'Administration sections',
+  'Recursos para redes e empresas. A maioria dos servidores não precisa mexer aqui.':
+    'Features for networks and companies. Most servers never need to change anything here.',
+  'TURN na porta 443': 'TURN on port 443',
+  'TURN_DOMAIN=turn.seudominio.com': 'TURN_DOMAIN=turn.yourdomain.com',
+  'HTTPS_PORT=443': 'HTTPS_PORT=443',
+  '(experimental)': '(experimental)',
+  'Para redes que só liberam a porta 443, como algumas empresas e faculdades. É configurado nas variáveis do servidor:':
+    'For networks that only allow port 443, like some companies and universities. It is set in the server variables:',
+  'Ligado: a porta 443 atende o TURN em {domain}.': 'On: port 443 serves TURN at {domain}.',
+  'Desligado. Para ligar, defina TURN_DOMAIN com um subdomínio só para o TURN e reinicie o servidor.':
+    'Off. To turn it on, set TURN_DOMAIN to a subdomain just for TURN and restart the server.',
   'Overshoulder · Convite': 'Overshoulder · Invitation',
   'Overshoulder · Redefinir administrador': 'Overshoulder · Reset administrator',
   Voltar: 'Back',

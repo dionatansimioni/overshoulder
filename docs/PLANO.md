@@ -125,7 +125,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Salas fixas do admin: configuração, convites (com usos e senhas em hash) e ingressos (em hash) persistem no `state.json`; a sala volta ao ar sozinha quando alguém entra, com o estado do ar zerado. A chave E2EE fica só no navegador do admin (`localStorage`); em outro navegador ele precisa do link ou de uma chave nova.
   - Corrigido: a página da sala apagava o nome digitado antes de o script carregar.
   - Atenção: servidores já instalados passam a aceitar pedidos de cadastro (modo padrão "com aprovação"); quem quiser o comportamento antigo escolhe "Só por convite" em `/admin`.
-  - Pendente para o item 5: recolher SSO e TURN em "opções avançadas" no admin.
+  - Feito no item 5 (parte 4): SSO e TURN em "Avançado" no admin.
 
 - **Item 4 feito (15/11/2026):**
   - Qualidade padrão **720p30** e máxima **1440p60** (sem restrição) em servidores novos e nos já instalados. O admin escolhe as duas em `/admin`; a padrão não pode passar da máxima.
@@ -142,6 +142,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Testes em `app/test/home.test.js` (inclui teclado, Voltar do navegador e celular).
   - **Parte 2 feita:** configuração inicial em 3 passos (código, administrador, servidor), com barra de progresso, Voltar sem perder dados e cada passo no histórico (`#passo-2`), então o Voltar do navegador também funciona. O código é conferido já no passo 1 por `POST /api/setup/check`, que gasta o mesmo limite de tentativas da configuração. Um erro do servidor leva ao passo do campo que precisa mudar. Testes em `app/test/setup.test.js`.
   - **Parte 3 feita:** antessala na tela de entrada da sala, com prévia da câmera, barra de volume do microfone e escolha dos dispositivos (`public/preview.js`). Nada é pedido ao navegador sem clique. O que estiver ligado na prévia entra ligado na sala, se a pessoa puder falar ou aparecer; senão, ela é avisada no chat. A prévia é desligada ao entrar, e os dispositivos escolhidos passam para os ajustes da sala. No celular, o nome e o botão de entrar vêm antes da prévia. Testes em `app/test/lobby.test.js`.
+  - **Parte 4 feita:** `/admin` com menu lateral (Geral, Salas fixas, Transmissores, Convites, Avançado), uma seção por vez, cada uma com endereço próprio (`/admin#salas`), então o Voltar do navegador volta à seção anterior. SSO e TURN ficam em **Avançado**; o TURN mostra se está ligado (o supervisor passa `TURN_DOMAIN` ao app, que só o mostra ao admin). No celular, o menu fica em cima. Testes em `app/test/admin-nav.test.js`; o teste de tradução confere cada seção.
 
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
