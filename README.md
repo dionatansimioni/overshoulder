@@ -56,9 +56,10 @@ Or with Compose: `./setup.sh` writes the `.env` and `docker compose up -d --buil
 | Variable | Default | Purpose |
 |---|---|---|
 | `DOMAIN` | (required) | The server's domain or IP |
-| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = self-signed certificate (local network) |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = self-signed certificate (local network); `proxy` = behind another proxy, such as Coolify's ([guide, in Portuguese](docs/proxy.md)) |
 | `NODE_IP` | auto-detected | IP that WebRTC announces to browsers (use it on a local network) |
-| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones with `-p` |
+| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones with `-p`. With `TLS=proxy`, only `HTTP_PORT` is used |
+| `TRUSTED_PROXIES` | `private_ranges` | `TLS=proxy` only: where the visitor's IP and protocol are accepted from |
 | `TURN_DOMAIN` | off | **Experimental.** Subdomain for TURN (e.g. `turn.live.yourdomain.com`), for networks that only allow port 443. Requires `HTTPS_PORT=443` and the subdomain pointing at the server |
 | `MAX_PARTICIPANTS` | `16` | Initial people per room limit, suggested during setup (2 to 5000) |
 

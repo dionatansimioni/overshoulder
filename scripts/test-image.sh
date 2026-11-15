@@ -16,6 +16,7 @@ cleanup() {
   rm -f "$JAR"
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$VOLUME" >/dev/null 2>&1 || true
+  docker rm -f overshoulder-test-proxy >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 cleanup
@@ -145,6 +146,65 @@ ok "com TURN_DOMAIN, a 443 leva turn.<domínio> ao TURN (STUN por TLS responde) 
 [ "$(docker run --rm -e DOMAIN=localhost -e TURN_DOMAIN=turn.localhost -e HTTPS_PORT=8443 "$IMAGE" 2>&1 | grep -c 'exige HTTPS_PORT=443')" = 1 ] \
   || die "TURN com porta diferente de 443 deveria ser recusado"
 ok "TURN_DOMAIN com HTTPS_PORT diferente de 443 é recusado com explicação"
+
+# --- TLS=proxy: atrás de outro proxy (Coolify, Traefik, Nginx…) -------------
+PROXY_NAME=overshoulder-test-proxy
+PBASE=http://127.0.0.1:18082
+proxy_cleanup() { docker rm -f "$PROXY_NAME" >/dev/null 2>&1 || true; }
+proxy_die() { docker logs --tail 20 "$PROXY_NAME" >&2 2>&1; proxy_cleanup; die "$@"; }
+# Sobe o modo proxy e faz a configuração inicial; $1 = TRUSTED_PROXIES (vazio = padrão)
+proxy_up() {
+  proxy_cleanup
+  docker run -d --name "$PROXY_NAME" -p 127.0.0.1:18082:18082 \
+    -e DOMAIN=live.example.test -e TLS=proxy -e HTTP_PORT=18082 -e NODE_IP=127.0.0.1 \
+    ${1:+-e TRUSTED_PROXIES="$1"} "$IMAGE" >/dev/null
+  wait_for 60 sh -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' $PBASE/healthz)\" = 200 ]" || proxy_die "modo proxy não respondeu em HTTP"
+  local pcode
+  pcode=$(docker logs "$PROXY_NAME" 2>&1 | sed -n 's/.*"setupCode":"\([A-Z0-9-]*\)".*/\1/p' | tail -1)
+  setup_headers=$(curl -s -D - -o /dev/null -X POST "$PBASE/api/setup" -H 'Content-Type: application/json' \
+    -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-For: 203.0.113.7' \
+    -d "{\"code\":\"$pcode\",\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}")
+  grep -qi '^set-cookie: overshoulder_session' <<<"$setup_headers" || proxy_die "configuração inicial no modo proxy"
+}
+# Cadastro de transmissor com o X-Forwarded-For informado; devolve o código HTTP
+signup_as() {
+  curl -s -o /dev/null -w '%{http_code}' -X POST "$PBASE/api/signup" -H 'Content-Type: application/json' \
+    -H "X-Forwarded-For: $1" -d "{\"username\":\"$2\",\"password\":\"frase comprida para o cadastro\"}"
+}
+
+proxy_up ''
+grep -qi '^set-cookie:.*; Secure' <<<"$setup_headers" || proxy_die "cookie sem Secure com X-Forwarded-Proto: https do proxy"
+room=$(curl -s -X POST "$PBASE/api/rooms" -H 'Content-Type: application/json' \
+  -H "Cookie: $(sed -n 's/^[Ss]et-[Cc]ookie: \(overshoulder_session=[^;]*\).*/\1/p' <<<"$setup_headers")" -d '{}')
+room_id=$(echo "$room" | sed -n 's/.*"roomId":"\([^"]*\)".*/\1/p')
+host_key=$(echo "$room" | sed -n 's/.*"hostKey":"\([^"]*\)".*/\1/p')
+[ -n "$room_id" ] || proxy_die "criar sala no modo proxy: $room"
+token_json=$(curl -s -X POST "$PBASE/api/token" -H 'Content-Type: application/json' -d "{\"roomId\":\"$room_id\",\"hostKey\":\"$host_key\"}")
+grep -q '"url":"wss://live.example.test"' <<<"$token_json" || proxy_die "URL pública no modo proxy: $token_json"
+ptoken=$(echo "$token_json" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$PBASE/rtc/validate?access_token=$ptoken")" = 200 ] || proxy_die "LiveKit pelo modo proxy"
+docker exec "$PROXY_NAME" overshoulder reset-admin | grep -q '^https://live.example.test/redefinir#' || proxy_die "link do reset-admin no modo proxy"
+ok "com TLS=proxy, site e LiveKit respondem em HTTP, e os links públicos são https://<domínio>"
+
+for i in 1 2 3 4 5; do [ "$(signup_as 203.0.113.1 "um$i")" = 201 ] || proxy_die "cadastro $i do mesmo IP"; done
+[ "$(signup_as 203.0.113.1 um6)" = 429 ] || proxy_die "limite por IP não valeu para o IP informado pelo proxy"
+[ "$(signup_as 203.0.113.2 dois1)" = 201 ] || proxy_die "outro IP atrás do mesmo proxy foi bloqueado"
+[ "$(signup_as '203.0.113.1, 198.51.100.50' tres1)" = 201 ] || proxy_die "IP forjado à esquerda do X-Forwarded-For foi usado"
+[ "$(signup_as '198.51.100.60, 203.0.113.1' tres2)" = 429 ] || proxy_die "IP forjado à esquerda driblou o limite"
+ok "o limite por IP usa o IP de quem acessa informado pelo proxy, e o que vem à esquerda dele não é aceito"
+
+proxy_up 192.0.2.1/32
+! grep -qi '^set-cookie:.*; Secure' <<<"$setup_headers" || proxy_die "X-Forwarded-Proto aceito de fora de TRUSTED_PROXIES"
+for i in 1 2 3 4 5; do [ "$(signup_as "203.0.113.1$i" "qu$i")" = 201 ] || proxy_die "cadastro $i sem proxy confiável"; done
+[ "$(signup_as 203.0.113.20 qu6)" = 429 ] || proxy_die "X-Forwarded-For aceito de fora de TRUSTED_PROXIES"
+proxy_cleanup
+ok "fora de TRUSTED_PROXIES, X-Forwarded-For e X-Forwarded-Proto são ignorados"
+
+[ "$(docker run --rm -e DOMAIN=localhost -e TLS=proxy -e TURN_DOMAIN=turn.localhost "$IMAGE" 2>&1 | grep -c 'TURN_DOMAIN não funciona com TLS=proxy')" = 1 ] \
+  || die "TURN com TLS=proxy deveria ser recusado"
+[ "$(docker run --rm -e DOMAIN=localhost -e TLS=proxy -e 'TRUSTED_PROXIES=10.0.0.0/8 }' "$IMAGE" 2>&1 | grep -c 'TRUSTED_PROXIES inválido')" = 1 ] \
+  || die "TRUSTED_PROXIES malformado deveria ser recusado"
+ok "TLS=proxy recusa TURN_DOMAIN e TRUSTED_PROXIES malformado, com explicação"
 
 docker stop "$NAME" >/dev/null
 [ "$(docker inspect -f '{{.State.ExitCode}}' "$NAME")" = 0 ] || die "desligamento não foi limpo"

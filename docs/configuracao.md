@@ -9,11 +9,12 @@ Passadas ao container com `-e NOME=valor` (ou no `.env` do Compose). Mudar uma v
 | Variável | Padrão | Uso |
 |---|---|---|
 | `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `TLS` | `acme` | `acme`: certificado do Let's Encrypt; `local`: certificado próprio (rede local) |
+| `TLS` | `acme` | `acme`: certificado do Let's Encrypt; `local`: certificado próprio (rede local); `proxy`: atrás de outro proxy, como o do Coolify, que cuida do HTTPS (veja [Atrás de outro proxy](proxy.md)) |
 | `NODE_IP` | descoberto sozinho | IP que o vídeo anuncia aos navegadores (use na rede local) |
-| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p` |
+| `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p`. Com `TLS=proxy`, só a `HTTP_PORT` é usada, e o endereço público fica sem porta |
+| `TRUSTED_PROXIES` | `private_ranges` | Só com `TLS=proxy`: de onde o IP e o protocolo de quem acessa são aceitos (IPs e faixas separados por espaço) |
 | `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 5000) |
-| `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio só para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor |
+| `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio só para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor; não funciona com `TLS=proxy` |
 
 ## Painel `/admin`
 

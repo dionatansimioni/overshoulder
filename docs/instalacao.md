@@ -27,6 +27,8 @@ Com o Docker Compose: `./setup.sh` pergunta o domínio e gera o `.env`; depois, 
 
 As outras variáveis (certificado próprio, portas, TURN) estão em [Configuração](configuracao.md#variáveis-do-servidor).
 
+Se as portas 80 e 443 já têm dono (Coolify, Dokploy, EasyPanel, um Nginx ou Traefik), veja [Atrás de outro proxy](proxy.md).
+
 ## Primeiro acesso
 
 1. Abra `https://live.seudominio.com/configurar`.

@@ -20,7 +20,9 @@ const commands = {
     const hash = crypto.createHash('sha256').update(token).digest('base64url');
     const file = path.join(DATA_DIR, 'admin-reset.json');
     fs.writeFileSync(file, JSON.stringify({ hash, expiresAt: Date.now() + RESET_TTL_MS }), { mode: 0o600 });
-    const port = process.env.HTTPS_PORT && process.env.HTTPS_PORT !== '443' ? `:${process.env.HTTPS_PORT}` : '';
+    // Com TLS=proxy, o endereço público é o do outro proxy, na 443
+    const httpsPort = process.env.TLS === 'proxy' ? '443' : process.env.HTTPS_PORT;
+    const port = httpsPort && httpsPort !== '443' ? `:${httpsPort}` : '';
     const base = process.env.DOMAIN ? `https://${process.env.DOMAIN}${port}` : '';
     console.log(`Link para redefinir a conta "${admin.username}" (vale uma vez, por ${Math.round(RESET_TTL_MS / 60_000)} minutos):`);
     console.log(`${base}/redefinir#${token}`);

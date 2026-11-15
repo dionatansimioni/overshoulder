@@ -60,6 +60,10 @@ Decidido em 08/11/2026. Ponto de partida para continuar o trabalho: nada daqui f
   - **Atenção:** a assinatura sem chave registra no log de transparência público do Sigstore (Rekor) o nome do repositório, o fluxo e a tag. O conteúdo continua privado, mas a existência do projeto e da versão ficou pública. O que já foi registrado não pode ser apagado; para repositório privado, decidir se a assinatura fica desligada até a abertura.
   - Falta verificar a assinatura de fora (`cosign verify`): o token do `gh` desta máquina não tem `read:packages` (`gh auth refresh -h github.com -s read:packages`).
   - Melhoria possível: compilar o arm64 num runner ARM nativo em vez do QEMU (bem mais rápido; para repositório privado depende do plano do GitHub).
+- **Requisito do usuário (15/11/2026): funcionar em plataformas como o Coolify** (e Dokploy, EasyPanel, Portainer com Traefik), que já ocupam 80/443 com o próprio proxy. Vale para tudo daqui em diante: nada pode depender de o Overshoulder ser dono das portas 80/443.
+  - **Feito em 15/11/2026: `TLS=proxy`** (o modo "já tenho proxy"). O Caddy serve só HTTP na `HTTP_PORT`, o proxy de fora cuida do HTTPS e o endereço público é `https://<DOMAIN>`. IP e protocolo de quem acessa só são aceitos de `TRUSTED_PROXIES` (padrão `private_ranges`), lendo o `X-Forwarded-For` da direita para a esquerda (`trusted_proxies_strict`); o app recebe um IP só. Recusa `TURN_DOMAIN`. Guia em `docs/proxy.md` (Coolify, Dokploy, EasyPanel, Nginx, Caddy, Traefik); testes em `scripts/test-image.sh`.
+  - A validar num Coolify de verdade: o domínio com `:80`, a publicação das portas 7881/7882 e o IP de quem acessa vindo do Traefik.
+  - Ainda por pensar: o instalador detectar o Coolify e similares, e uma variável para porta pública diferente de 443 atrás do proxy, se alguém pedir.
 - Próximo da ordem: o instalador de um comando e o botão da Hostinger. Antes de divulgar: validar numa VPS real o TURN, o SSO com um provedor real e o certificado no IP.
 - Ainda sem teste automático (o navegador headless não compartilha tela): compartilhamento de tela real e áudio do jogo. Testar à mão.
 - O LiveKit avisa a entrada de quem só assiste em lotes de ~2,5 s (`batchedUpdates`), e não há configuração conhecida para isso. Por isso o chat espera até 10 s pelo nome de quem acabou de entrar.
@@ -190,7 +194,7 @@ Ordem de execução, um commit por item:
 | Imagem | Pronta no **GHCR** (amd64 + arm64), gerada pelo GitHub Actions |
 | Repositório | GitHub pessoal do usuário (falta saber o nome de usuário) |
 | Licença | **AGPL-3.0** |
-| Proxy | Caddy embutido por padrão. Modo "já tenho proxy" se 80/443 estiverem ocupadas |
+| Proxy | Caddy embutido por padrão. Modo "já tenho proxy" (`TLS=proxy`) se 80/443 estiverem ocupadas; precisa funcionar no Coolify e similares |
 | Domínio | Opcional. Sem domínio, usa **certificado Let's Encrypt no IP** (perfil `shortlived`), com **nip.io** de reserva |
 | Primeira vez | Segredos gerados sozinhos num volume. Página **"Configurar"** liberada por **código de uso único mostrado nos logs**, onde se define a senha e, opcionalmente, o domínio |
 | Domínio depois | Campo na página de configuração: confere o DNS e troca o certificado na hora |
@@ -294,7 +298,7 @@ Cada etapa termina com algo funcionando e testado, na ordem abaixo. As regras de
   - Se falhar, usar `<ip-com-hífens>.nip.io`. Não está na Public Suffix List: a cota de certificados é dividida entre todos os usuários.
 - Com domínio: o app confere se o DNS aponta para o IP do servidor e reconfigura o Caddy na hora.
   - Decidir o mecanismo: API admin do Caddy (`localhost:2019`) ou Caddyfile gerado num volume + reload.
-- Modo "já tenho proxy": o Caddy não sobe, e o README traz configurações prontas para Nginx, Traefik e Caddy existentes. Atenção à rota `/rtc` (WebSocket do LiveKit).
+- Modo "já tenho proxy": feito como `TLS=proxy` (o Caddy sobe só em HTTP, para manter as rotas `/rtc` e do site); configurações prontas em `docs/proxy.md`.
 
 ### 7. Instalador de um comando
 - `curl -fsSL https://…/install.sh | bash` em Ubuntu e Debian:

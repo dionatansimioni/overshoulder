@@ -6,6 +6,7 @@ Compartilhamento de tela self-hosted, direto no navegador, com criptografia de p
 
 - [Instalação](instalacao.md): requisitos, subir com Docker, primeiro acesso, firewall, atualizar e fazer backup.
 - [Configuração](configuracao.md): variáveis do servidor e cada seção do painel `/admin`.
+- [Atrás de outro proxy](proxy.md): Coolify, Dokploy, EasyPanel, Nginx, Caddy ou Traefik cuidando do HTTPS.
 - [Contas e usuários](contas.md): administrador, transmissores, convites, aprovação, 2FA, login da empresa e recuperação de senha.
 - [Solução de problemas](problemas.md): certificado, portas, vídeo que não chega, áudio no Linux, gravação.
 

@@ -38,6 +38,7 @@ const config = {
   rtcUdpPort: port('RTC_UDP_PORT', 7882),
   nodeIp: process.env.NODE_IP ?? '',
   turnDomain: process.env.TURN_DOMAIN ?? '',
+  trustedProxies: (process.env.TRUSTED_PROXIES ?? 'private_ranges').trim().split(/\s+/),
   maxParticipants: Number(process.env.MAX_PARTICIPANTS ?? 16),
   watchdogMs: Number(process.env.WATCHDOG_INTERVAL_MS ?? 15_000),
 };
@@ -50,7 +51,15 @@ if (config.turnDomain && (!HOST_RE.test(config.turnDomain) || /^[\d.]+$/.test(co
   fail('TURN_DOMAIN inválido: use um subdomínio próprio para o TURN (ex.: turn.live.empresa.com), diferente de DOMAIN.');
 // O LiveKit anuncia o TURN sempre na porta 443, e o TURN só faz sentido onde só a 443 passa
 if (config.turnDomain && config.httpsPort !== 443) fail('TURN_DOMAIN exige HTTPS_PORT=443: o TURN é anunciado na porta 443.');
-if (!['acme', 'local'].includes(config.tls)) fail('TLS inválido: use "acme" (Let\'s Encrypt) ou "local".');
+if (!['acme', 'local', 'proxy'].includes(config.tls))
+  fail('TLS inválido: use "acme" (Let\'s Encrypt), "local" ou "proxy" (atrás de outro proxy, como o do Coolify).');
+// Atrás de outro proxy, a 443 é dele: o Caddy daqui não consegue separar o TURN pelo nome
+if (config.tls === 'proxy' && config.turnDomain)
+  fail('TURN_DOMAIN não funciona com TLS=proxy: a porta 443 é do outro proxy. Deixe TURN_DOMAIN vazio.');
+// Vão para o Caddyfile: só "private_ranges", IPs e faixas CIDR
+const PROXY_RE = /^(private_ranges|[\d.]+(\/\d{1,2})?|[\da-f:]+(\/\d{1,3})?)$/i;
+if (!config.trustedProxies.every((p) => PROXY_RE.test(p) && /[\d_]/.test(p)))
+  fail('TRUSTED_PROXIES inválido: use "private_ranges" ou IPs e faixas separados por espaço (ex.: 10.0.1.0/24).');
 if (config.nodeIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(config.nodeIp)) fail('NODE_IP inválido: informe um IPv4.');
 if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 5000)
   fail('MAX_PARTICIPANTS inválido: use um número entre 2 e 5000.');
@@ -131,10 +140,46 @@ const turnRouting = config.turnDomain
 	}`
   : '';
 
+// Rotas comuns aos dois modos: sinalização do LiveKit e o site
+const routes = (forwardedFor) => `	# Sinalização WebRTC do LiveKit (WebSocket)
+	handle /rtc* {
+		reverse_proxy 127.0.0.1:${LIVEKIT_PORT}${forwardedFor}
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy 127.0.0.1:${APP_PORT}${forwardedFor}
+	}`;
+
+// TLS=proxy: outro proxy (Coolify, Traefik, Nginx…) cuida do HTTPS e repassa em HTTP.
+// Só quem está em TRUSTED_PROXIES pode informar o IP e o protocolo de quem acessa; o app
+// recebe um X-Forwarded-For com um IP só, o de quem acessa de verdade.
+const proxyCaddyfile = () => `{
+	auto_https off
+	http_port ${config.httpPort}
+	servers {
+		trusted_proxies static ${config.trustedProxies.join(' ')}
+		client_ip_headers X-Forwarded-For
+		# Lê o X-Forwarded-For da direita para a esquerda: o que vem antes do último proxy confiável pode ser forjado
+		trusted_proxies_strict
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+:${config.httpPort} {
+${routes(` {
+			header_up X-Forwarded-For {client_ip}
+		}`)}
+}
+`;
+
 const caddyfile = path.join(RUN_DIR, 'Caddyfile');
 fs.writeFileSync(
   caddyfile,
-  `{
+  config.tls === 'proxy' ? proxyCaddyfile() : `{
 	http_port ${config.httpPort}
 	https_port ${config.httpsPort}
 	# Quem acessa pelo IP não envia SNI; dentro do container o IP local é o da rede do Docker,
@@ -148,15 +193,7 @@ fs.writeFileSync(
 }
 
 ${config.domain} {
-	# Sinalização WebRTC do LiveKit (WebSocket)
-	handle /rtc* {
-		reverse_proxy 127.0.0.1:${LIVEKIT_PORT}
-	}
-
-	handle {
-		encode zstd gzip
-		reverse_proxy 127.0.0.1:${APP_PORT}
-	}
+${routes('')}
 }
 ${
   // Bloco só para o Caddy obter e renovar o certificado de turn.<domínio>
@@ -170,7 +207,9 @@ ${config.turnDomain} {
 }`,
 );
 
-const publicHost = `${config.domain}${config.httpsPort === 443 ? '' : `:${config.httpsPort}`}`;
+// Com TLS=proxy, o endereço público é o do outro proxy, na 443
+const publicPort = config.tls === 'proxy' ? 443 : config.httpsPort;
+const publicHost = `${config.domain}${publicPort === 443 ? '' : `:${publicPort}`}`;
 const publicUrl = `wss://${publicHost}`;
 
 // --- processos -------------------------------------------------------------
@@ -311,7 +350,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 log.info('iniciando Overshoulder', {
   domain: config.domain,
   tls: config.tls,
-  httpsPort: config.httpsPort,
+  httpsPort: config.tls === 'proxy' ? undefined : config.httpsPort,
+  httpPort: config.httpPort,
+  ...(config.tls === 'proxy' && { trustedProxies: config.trustedProxies.join(' ') }),
   rtcTcpPort: config.rtcTcpPort,
   rtcUdpPort: config.rtcUdpPort,
   maxParticipants: config.maxParticipants,
