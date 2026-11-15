@@ -252,7 +252,8 @@ token_json=$(curl -s -X POST "$PBASE/api/token" -H 'Content-Type: application/js
 grep -q '"url":"wss://live.example.test"' <<<"$token_json" || proxy_die "URL pública no modo proxy: $token_json"
 ptoken=$(echo "$token_json" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$PBASE/rtc/validate?access_token=$ptoken")" = 200 ] || proxy_die "LiveKit pelo modo proxy"
-docker exec "$PROXY_NAME" overshoulder reset-admin | grep -q '^https://live.example.test/redefinir#' || proxy_die "link do reset-admin no modo proxy"
+preset_out=$(docker exec "$PROXY_NAME" overshoulder reset-admin)
+grep -q '^https://live.example.test/redefinir#' <<<"$preset_out" || proxy_die "link do reset-admin no modo proxy: $preset_out"
 ok "com TLS=proxy, site e LiveKit respondem em HTTP, e os links públicos são https://<domínio>"
 
 for i in 1 2 3 4 5; do [ "$(signup_as 203.0.113.1 "um$i")" = 201 ] || proxy_die "cadastro $i do mesmo IP"; done
