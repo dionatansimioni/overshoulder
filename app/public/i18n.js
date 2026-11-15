@@ -59,6 +59,13 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Sala privada': 'Private room',
+  'Acaba quando você sair da sala (depois de 30 segundos fora) e não fica guardada neste navegador.':
+    'It ends when you leave the room (after 30 seconds away) and is not saved in this browser.',
+  'Ao sair, esquecer as salas deste navegador': 'When signing out, forget the rooms in this browser',
+  'Sala privada: se você sair por mais de 30 segundos, ela acaba para todos.':
+    'Private room: if you leave for more than 30 seconds, it ends for everyone.',
+  'Sala privada: ela acaba quando o anfitrião sair.': 'Private room: it ends when the host leaves.',
   'Este navegador não compartilha a tela. Dá para transmitir com a câmera; para jogos de celular, veja o guia em {url}':
     'This browser cannot share the screen. You can broadcast with the camera; for phone games, see the guide at {url}',
   'Overshoulder · Celular': 'Overshoulder · Phone',

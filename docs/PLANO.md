@@ -146,6 +146,24 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - **Parte 5 feita:** app instalável (PWA): `manifest.webmanifest` e `sw.js` na raiz, ícones 192/512 e um "maskable" para o Android, cor do app e metas do iPhone em todas as páginas. O service worker só guarda a página "sem conexão" (com o visual do app); páginas, API e mídia sempre vêm do servidor. Na sala: tela cheia no iPhone pelo próprio vídeo (`webkitEnterFullscreen`), giro para paisagem no Android ao entrar em tela cheia e layout de celular deitado (vídeo na altura toda, chat ao lado). Sem compartilhamento de tela no navegador, o botão fica desligado e o chat aponta o guia em `/celular` (instalar, assistir, live só com câmera, scrcpy e AirPlay). Corrigido: com vídeo tocando, o tamanho natural dele esticava a coluna da sala e empurrava os botões para fora da tela (`.stage` sem `min-height: 0`). Testes em `app/test/pwa.test.js`.
   - **Item 5 concluído.** Falta testar em aparelhos reais (Android e iPhone): instalar na tela inicial, tela cheia e paisagem. O navegador dos testes só simula o celular.
 
+- **Sala privada (15/11/2026, pedido do usuário):** opção em "Mais opções" ao criar sala. A sala privada não fica guardada no navegador (a chave de anfitrião fica só na aba) e acaba quando o anfitrião sai por mais de 30 s (`PRIVATE_GRACE_MS`), tolerância para recarregar a página ou a rede cair. Ao fechar a aba, o anfitrião avisa o servidor (`POST /api/rooms/host-left`, com a chave de anfitrião), porque o LiveKit leva ~22 s para notar a queda. Antes de o anfitrião entrar pela primeira vez, a sala não acaba. Na página inicial, "Ao sair, esquecer as salas deste navegador". Testes em `app/test/home.test.js`.
+
+### Lapidações pedidas em 15/11/2026 (testes do usuário)
+Ordem de execução, um commit por item:
+1. **Removido da sala:** quem é removido vai para uma tela "A live foi encerrada. Se isso foi um engano, entre em contato com o dono do servidor." (sem dizer que o anfitrião removeu).
+2. **Administração com botões:** os itens clicáveis do `/admin` (menu, Voltar, Minha conta) viram botões, não links simples.
+2b. **Logo novo e paleta da interface** (pedido depois): logo melhorado com **#9732F6** (roxo) e **#1DF0FC** (ciano), que passam a ser a referência de cores do app inteiro. Feito antes dos itens visuais seguintes para não refazer o visual duas vezes.
+3. **Sala só de voz:** quando ninguém transmite tela ou câmera, o espaço do vídeo mostra uma imagem (quem está na sala e quem está falando), não uma tela preta.
+3b. **Barra de controles reordenada** para quem transmite: à esquerda as entradas (microfone, câmera, tela ou janela); à direita volume, tela cheia, gravar, ajustes e, por último, encerrar. Resolução e taxa de bits ficam nos ajustes.
+4. **Microfone funcionando:** indicador de volume visível para quem transmite.
+5. **Prévia de quem transmite:** mostra a qualidade real enviada (resolução, fps e Mbps). Trocar a qualidade vale na hora, sem parar o compartilhamento nem recarregar a aba. Opção de esconder a própria tela (desfocada, sem reproduzir) e mostrar de novo. Observação: a prévia própria é local e não usa banda do servidor; esconder economiza processamento do computador de quem joga.
+6. **Qualidade para quem assiste:** "Automática" ou uma das camadas que quem transmite está enviando, nunca acima; troca na hora.
+7. **Avisos de rede para quem transmite:** quando a conexão não sustenta a qualidade escolhida (o navegador limita por banda), sugerir uma mais baixa com um clique; avisar perda de pacotes alta.
+8. **Barra lateral recolhível na sala** (como o Discord) para quem tem conta: salas, criar sala, administração e conta, sem sair da sala por engano.
+9. **Gravação gera arquivo quebrado:** investigar e corrigir, com teste que abre o arquivo gravado (ffprobe).
+10. **Áudio do computador no Linux:** o usuário escolheu o "Monitor of …" e o áudio não funcionou. Investigar o caminho inteiro e corrigir.
+11. **Documentação em `docs/`** (decisão do usuário: pasta no repositório, não a Wiki), estilo wiki: instalar, configurar, opções do servidor, recuperar a senha, gerir usuários e salas.
+
 ### Ordem de implementação (novo foco)
 1. **Tipos de sala, várias telas e webcam:** "Jogando juntos" (voz para todos, várias telas, escolher qual assistir) e "Live" (pedir a palavra e pedir para mostrar a tela), com webcam e picture-in-picture para quem apresenta e gravação em arquivos separados.
 2. **Convites de sala:** limite com ingresso, validade, senha, convites nomeados e revogáveis, sala de espera.

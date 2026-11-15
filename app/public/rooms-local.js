@@ -48,6 +48,7 @@ export const rememberRoom = (room) => {
 };
 
 export const forgetRoom = (code) => save(recentRooms().filter((r) => r.code !== code));
+export const forgetAllRooms = () => save([]);
 
 // O anfitrião trocou o link: a sala continua a mesma, com o código novo
 export const renameRoom = (oldCode, newCode) =>

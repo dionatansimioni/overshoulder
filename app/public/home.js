@@ -1,5 +1,5 @@
 import { mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
-import { forgetRoom, getFixedKey, randomKey, recentRooms, rememberRoom, roomLink } from '/static/rooms-local.js';
+import { forgetAllRooms, forgetRoom, getFixedKey, randomKey, recentRooms, rememberRoom, roomLink } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
 
 translatePage();
@@ -205,10 +205,12 @@ for (const card of dialog.querySelectorAll('.type-card')) {
         type,
         ...(type === 'together' && { openScreens: $('open-screens').checked }),
         ...(state.sso && { requireSso: $('require-sso').checked }),
+        private: $('private-room').checked,
       });
       // A chave E2EE é gerada aqui e vai só no fragmento (#) da URL: nunca chega ao servidor.
       const room = { code: data.roomId, k: randomKey(), h: data.hostKey, type };
-      rememberRoom(room);
+      // Sala privada não fica na lista deste navegador
+      if (!data.private) rememberRoom(room);
       location.href = roomLink(room);
     } catch (err) {
       if (err.status === 401) location.reload();
@@ -219,6 +221,7 @@ for (const card of dialog.querySelectorAll('.type-card')) {
 }
 
 $('logout').addEventListener('click', async () => {
+  if ($('forget-on-logout').checked) forgetAllRooms();
   await api('/api/logout', {}).catch(() => {});
   location.reload();
 });

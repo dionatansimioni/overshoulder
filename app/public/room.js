@@ -494,7 +494,8 @@ const connect = async (name) => {
   isHost = data.role === 'host';
   token = data.token;
   if (data.quality) limitQualitySelect($('quality'), data.quality);
-  rememberRoom({ code: roomId, k: e2eeKey, h: isHost ? hostKey : undefined, type: data.room?.type, title: data.room?.title });
+  // Sala privada não fica guardada no navegador: a chave de anfitrião fica só nesta aba
+  if (!data.room?.private) rememberRoom({ code: roomId, k: e2eeKey, h: isHost ? hostKey : undefined, type: data.room?.type, title: data.room?.title });
 
   const keyProvider = new ExternalE2EEKeyProvider();
   room = new Room({
@@ -1074,6 +1075,13 @@ const setupHost = () => {
     const body = JSON.stringify({ roomId, hostKey, enabled: false });
     navigator.sendBeacon('/api/rooms/recording', new Blob([body], { type: 'application/json' }));
   });
+
+  // Sala privada: avisa a saída na hora, para a tolerância começar sem esperar o LiveKit notar a queda
+  addEventListener('pagehide', () => {
+    if (!meta.private) return;
+    const body = JSON.stringify({ roomId, hostKey, identity: room.localParticipant.identity });
+    navigator.sendBeacon('/api/rooms/host-left', new Blob([body], { type: 'application/json' }));
+  });
 };
 
 const setRecordButton = (on) => {
@@ -1326,5 +1334,7 @@ $('join-form').addEventListener('submit', async (e) => {
   applyMetadata();
   updateCount();
   addMessage(t(isHost ? 'Você é o anfitrião desta sala.' : 'Você entrou na sala.'));
+  if (meta.private)
+    addMessage(t(isHost ? 'Sala privada: se você sair por mais de 30 segundos, ela acaba para todos.' : 'Sala privada: ela acaba quando o anfitrião sair.'));
   await applyPreviewChoice(choice);
 });

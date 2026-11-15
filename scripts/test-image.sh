@@ -51,7 +51,9 @@ wait_for 90 healthy || die "container não ficou saudável"
 ok "container saudável pelo HEALTHCHECK do Docker"
 
 [ "$(api "$BASE/healthz")" = '{"status":"ok"}' ] || die "/healthz pelo Caddy"
-api "$BASE/" | grep -q '<title>Overshoulder' || die "página inicial pelo Caddy"
+# Resposta numa variável: com pipefail, "curl | grep -q" falha à toa quando o grep fecha o cano antes
+home=$(api "$BASE/")
+grep -q '<title>Overshoulder' <<<"$home" || die "página inicial pelo Caddy"
 ok "site e /healthz respondem por HTTPS pelo Caddy"
 
 code=$(docker logs "$NAME" 2>&1 | sed -n 's/.*"setupCode":"\([A-Z0-9-]*\)".*/\1/p' | tail -1)

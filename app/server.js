@@ -44,6 +44,8 @@ const SESSION_MAX_MS = Number(env('SESSION_MAX_MS', String(12 * 3600_000)));
 const SESSION_IDLE_MS = Number(env('SESSION_IDLE_MS', String(2 * 3600_000)));
 const INVITE_TTL_MS = Number(env('INVITE_TTL_MS', String(48 * 3600_000)));
 const BAN_CHECK_MS = Number(env('BAN_CHECK_MS', '2000'));
+// Sala privada: quanto tempo ela espera o anfitrião voltar (recarregar a página, rede caída) antes de acabar
+const PRIVATE_GRACE_MS = Number(env('PRIVATE_GRACE_MS', '30000'));
 // Endereço público do site: usado no redirect_uri do login corporativo
 const PUBLIC_ORIGIN = env('PUBLIC_ORIGIN', `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
 const SSO_REDIRECT_URI = `${PUBLIC_ORIGIN}/api/sso/callback`;
@@ -965,7 +967,7 @@ const freshRoomState = () => ({
   lobby: new Map(),
 });
 
-const newRoomState = ({ name, owner, type, openScreens, requireSso, fixed = false, title = null }) => ({
+const newRoomState = ({ name, owner, type, openScreens, requireSso, fixed = false, title = null, isPrivate = false }) => ({
   name,
   owner,
   code: null,
@@ -974,6 +976,12 @@ const newRoomState = ({ name, owner, type, openScreens, requireSso, fixed = fals
   requireSso,
   fixed,
   title,
+  // Sala privada: acaba quando o anfitrião sai e não fica guardada no navegador de ninguém
+  private: isPrivate,
+  hostSeen: false,
+  hostLeftAt: null,
+  // Conexões do anfitrião que avisaram a saída (aba fechada): o LiveKit ainda as lista por ~20 s
+  hostsGone: new Set(),
   invites: new Map(),
   waiting: false,
   ...freshRoomState(),
@@ -1146,6 +1154,7 @@ const viewerPermission = (room, identity) => {
 const metadataOf = (room) =>
   JSON.stringify({
     type: room.type,
+    private: room.private,
     openScreens: room.openScreens,
     chat: room.chat,
     recording: room.recording,
@@ -1179,15 +1188,31 @@ setInterval(async () => {
       }
     }
     if (lobbyChanged) await rooms.updateRoomMetadata(room.name, metadataOf(room)).catch(() => {});
-    if (!room.banned.size && !room.recording) continue;
+    if (!room.banned.size && !room.recording && !room.private) continue;
     try {
       const participants = await rooms.listParticipants(room.name);
+      const hostHere = participants.some((p) => p.identity.startsWith('h-') && !room.hostsGone.has(p.identity));
+      // Sala privada: depois que o anfitrião entrou, a saída dele por mais que a tolerância encerra a sala
+      if (room.private) {
+        if (hostHere) {
+          room.hostSeen = true;
+          room.hostLeftAt = null;
+        } else if (room.hostSeen) {
+          room.hostLeftAt ??= Date.now();
+          if (Date.now() - room.hostLeftAt >= PRIVATE_GRACE_MS) {
+            await rooms.deleteRoom(room.name).catch(() => {});
+            forgetRoom(room.name);
+            log.info('sala privada encerrada: o anfitrião saiu');
+            continue;
+          }
+        }
+      }
       for (const p of participants) {
         if (!room.banned.has(p.identity)) continue;
         await rooms.removeParticipant(room.name, p.identity).catch(() => {});
         log.warn('participante removido tentou voltar e foi removido de novo');
       }
-      if (room.recording && !participants.some((p) => p.identity.startsWith('h-'))) {
+      if (room.recording && !hostHere) {
         room.recording = false;
         await rooms.updateRoomMetadata(room.name, metadataOf(room));
         log.info('gravação encerrada: o anfitrião saiu da sala');
@@ -1214,15 +1239,18 @@ const roomOptions = (body) => {
 
 const createRoom = async (req, res) => {
   const { user } = requireUser(req);
-  const { type, openScreens, requireSso } = roomOptions(await readJson(req));
+  const body = await readJson(req);
+  const { type, openScreens, requireSso } = roomOptions(body);
+  if (body.private !== undefined && typeof body.private !== 'boolean')
+    throw new HttpError(400, 'private deve ser verdadeiro ou falso.');
   const name = newRoomId();
-  const room = newRoomState({ name, owner: user.id, type, openScreens, requireSso });
+  const room = newRoomState({ name, owner: user.id, type, openScreens, requireSso, isPrivate: body.private === true });
   room.code = newInvite(room, { label: 'Convite padrão', isDefault: true }).code;
   const { maxParticipants } = settings();
   await createLiveKitRoom(room);
   liveRooms.set(name, room);
-  log.info('sala criada', { user: user.username, tipo: type, maxParticipants, exigeLogin: requireSso });
-  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso, type, openScreens });
+  log.info('sala criada', { user: user.username, tipo: type, maxParticipants, exigeLogin: requireSso, privada: room.private });
+  json(res, 201, { roomId: room.code, hostKey: hostKeyFor(name), requireSso, type, openScreens, private: room.private });
 };
 
 const LOBBY_TTL_MS = 10 * 60_000;
@@ -1324,7 +1352,7 @@ const issueToken = async (req, res) => {
     // A página só oferece qualidades até a máxima do servidor (limite da interface, não do LiveKit)
     quality: { default: settings().defaultQuality, max: settings().maxQuality },
     // Para a lista "suas salas" da página inicial, guardada só no navegador
-    room: { type: found.room.type, ...(found.room.fixed && { title: found.room.title }) },
+    room: { type: found.room.type, private: found.room.private, ...(found.room.fixed && { title: found.room.title }) },
     ...(admitted?.ticket && { ticket: admitted.ticket }),
   });
 };
@@ -1359,6 +1387,20 @@ const setRecording = async (req, res) => {
   await rooms.updateRoomMetadata(name, metadataOf(room));
   log.info(room.recording ? 'gravação iniciada' : 'gravação encerrada');
   json(res, 200, { recording: room.recording });
+};
+
+// O anfitrião fechou a aba (aviso do navegador ao sair): na sala privada, a tolerância começa agora,
+// sem esperar o LiveKit perceber a queda
+const HOST_IDENTITY_RE = /^h-[0-9a-f]{12}$/;
+const hostLeft = async (req, res) => {
+  const body = await readJson(req);
+  const { room } = await hostRoom(body);
+  if (typeof body.identity !== 'string' || !HOST_IDENTITY_RE.test(body.identity))
+    return json(res, 400, { error: 'Identidade inválida.' });
+  room.hostsGone.add(body.identity);
+  // Quem avisa a saída esteve na sala, mesmo que a vigia não tenha chegado a vê-lo
+  room.hostSeen = true;
+  json(res, 200, { ok: true });
 };
 
 // Novo link para o convite padrão (o antigo deixa de valer; quem tem ingresso continua entrando)
@@ -1654,6 +1696,7 @@ const routes = {
   'POST /api/rooms/waiting': setWaiting,
   'POST /api/rooms/lobby': decideLobby,
   'POST /api/rooms/recording': setRecording,
+  'POST /api/rooms/host-left': hostLeft,
   'POST /api/rooms/permissions': setPermissions,
   'POST /api/rooms/request': requestPermission,
   'POST /api/rooms/layout': setLayout,

@@ -70,12 +70,12 @@ describe('situação das salas da barra lateral (API)', () => {
   test('o token informa o tipo da sala e o nome da sala fixa', async () => {
     const room = await createRoom(s.url, admin);
     const token = await api(s.url, '/api/token', { roomId: room.roomId, name: 'Beto' });
-    assert.deepEqual(token.body.room, { type: 'live' }, 'sem tipo informado, a sala é Live');
+    assert.deepEqual(token.body.room, { type: 'live', private: false }, 'sem tipo informado, a sala é Live');
     await api(s.url, '/api/rooms/end', { roomId: room.roomId, hostKey: room.hostKey });
 
     const fixed = (await api(s.url, '/api/admin/rooms', { title: 'Sala do clã', type: 'together' }, admin)).body;
     const fixedToken = await api(s.url, '/api/token', { roomId: fixed.roomId, name: 'Beto' });
-    assert.deepEqual(fixedToken.body.room, { type: 'together', title: 'Sala do clã' });
+    assert.deepEqual(fixedToken.body.room, { type: 'together', private: false, title: 'Sala do clã' });
     await api(s.url, '/api/admin/rooms/delete', { id: fixed.id }, admin);
   });
 });
@@ -190,5 +190,106 @@ describe('página inicial (navegador)', () => {
     const cards = await page.locator('.type-card').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().right));
     assert.ok(cards.every((right) => right <= 390), 'cartões cabem na tela');
     assert.deepEqual(errors, []);
+  });
+});
+
+describe('sala privada', () => {
+  let p;
+  let pAdmin;
+  before(async () => {
+    // Tolerância curta para o teste não esperar 30 s
+    p = await startServer(13175, { PRIVATE_GRACE_MS: '1500' });
+    pAdmin = await setupAdmin(p);
+  });
+  after(() => p?.stop());
+
+  const privStatus = async (code) => (await api(p.url, '/api/rooms/status', { codes: [code] }, pAdmin)).body.status[code];
+
+  test('API: cria privada, o token avisa e valor de tipo errado é recusado', async () => {
+    const r = await api(p.url, '/api/rooms', { type: 'live', private: true }, pAdmin);
+    assert.equal(r.status, 201);
+    assert.equal(r.body.private, true);
+    const token = await api(p.url, '/api/token', { roomId: r.body.roomId, name: 'Beto' });
+    assert.deepEqual(token.body.room, { type: 'live', private: true });
+    for (const value of ['sim', 1, null, {}]) {
+      assert.equal((await api(p.url, '/api/rooms', { private: value }, pAdmin)).status, 400, JSON.stringify(value));
+    }
+    assert.equal((await api(p.url, '/api/rooms', {}, pAdmin)).body.private, false, 'por padrão não é privada');
+  });
+
+  test('acaba quando o anfitrião sai e passa a tolerância; antes de ele entrar, não acaba', async () => {
+    const { page } = await newPage();
+    await loginInBrowser(page, p.url);
+    await page.click('#new-room');
+    await page.click('#more-options summary');
+    await page.check('#private-room');
+    await page.click('#create-live');
+    await page.waitForURL(/#k=/);
+    const code = new URL(page.url()).pathname.split('/').pop();
+
+    // Ainda na antessala: o anfitrião nunca entrou, a sala espera
+    await new Promise((r) => setTimeout(r, 2500));
+    assert.equal((await privStatus(code)).exists, true, 'sem o anfitrião ter entrado, a sala continua');
+
+    await enterRoom(page);
+    await page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Sala privada'));
+    assert.equal(await page.evaluate(() => localStorage.getItem('rooms')), null, 'não fica guardada no navegador');
+
+    // Fechar a aba como no navegador de verdade: a página avisa a saída ao servidor
+    await page.close({ runBeforeUnload: true });
+    // A vigia confere a cada 2 s; com a tolerância de 1,5 s, a sala some em poucos segundos
+    let gone = false;
+    for (let i = 0; i < 40 && !gone; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      gone = !(await privStatus(code)).exists;
+    }
+    assert.ok(gone, 'a sala acabou depois que o anfitrião saiu');
+  });
+
+  test('recarregar a página dentro da tolerância não derruba a sala', async () => {
+    const q = await startServer(13176, { PRIVATE_GRACE_MS: '8000' });
+    try {
+      await setupAdmin(q);
+      const { page } = await newPage();
+      await loginInBrowser(page, q.url);
+      await page.click('#new-room');
+      await page.click('#more-options summary');
+      await page.check('#private-room');
+      await page.click('#create-together');
+      await page.waitForURL(/#k=/);
+      await enterRoom(page);
+      await page.reload();
+      await enterRoom(page);
+      assert.ok(await page.isVisible('#end'), 'continua anfitrião depois de recarregar');
+    } finally {
+      q.stop();
+    }
+  });
+
+  test('ao sair com "esquecer as salas", a lista deste navegador fica vazia', async () => {
+    const { page } = await newPage();
+    await loginInBrowser(page, s.url);
+    await page.click('#new-room');
+    await page.click('#create-live');
+    await page.waitForURL(/#k=/);
+    await page.goto(s.url);
+    await page.waitForSelector('#my-rooms li');
+    await page.check('#forget-on-logout');
+    await page.click('#logout');
+    await page.waitForSelector('#login-form:not([hidden])');
+    assert.equal(await page.evaluate(() => localStorage.getItem('rooms')), '[]');
+  });
+});
+
+describe('aviso de saída do anfitrião (segurança)', () => {
+  test('só o anfitrião avisa, e a identidade precisa ter o formato do servidor', async () => {
+    const room = await createRoom(s.url, admin);
+    const call = (body) => api(s.url, '/api/rooms/host-left', { roomId: room.roomId, ...body });
+    assert.equal((await call({ hostKey: 'errada', identity: 'h-0123456789ab' })).status, 403);
+    for (const identity of [undefined, 42, 'v-0123456789ab', 'h-xyz', 'h-0123456789ab; drop', ['h-0123456789ab']]) {
+      assert.equal((await call({ hostKey: room.hostKey, identity })).status, 400, JSON.stringify(identity));
+    }
+    assert.equal((await call({ hostKey: room.hostKey, identity: 'h-0123456789ab' })).status, 200);
+    await api(s.url, '/api/rooms/end', { roomId: room.roomId, hostKey: room.hostKey });
   });
 });
