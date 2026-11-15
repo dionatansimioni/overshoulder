@@ -1654,3 +1654,5 @@ $('join-form').addEventListener('submit', async (e) => {
     addMessage(t(isHost ? 'Sala privada: se você sair por mais de 30 segundos, ela acaba para todos.' : 'Sala privada: ela acaba quando o anfitrião sair.'));
   await applyPreviewChoice(choice);
 });
+// O botão vem desativado no HTML para ninguém enviar o formulário antes deste script carregar
+if (e2eeKey && isE2EESupported()) $('join-form').querySelector('button').disabled = false;

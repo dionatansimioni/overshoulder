@@ -74,6 +74,14 @@ test('link sem chave avisa e bloqueia a entrada', async () => {
   assert.ok(await page.isDisabled('#join-form button'));
 });
 
+test('antes do script carregar, o botão de entrar fica desativado', async () => {
+  const { page } = await newPage();
+  // Sem o room.js, um clique enviaria o formulário pelo navegador e perderia a chave do link
+  await page.route('**/static/room.js', (route) => route.abort());
+  await page.goto(`${server.url}/r/${'c'.repeat(22)}#k=${'a'.repeat(43)}`);
+  assert.ok(await page.isDisabled('#join-form button[type="submit"]'));
+});
+
 test('anfitrião cria a sala, amigo entra e os dois conversam no chat', async () => {
   const host = await newPage();
   await createRoomAsHost(host.page);

@@ -68,7 +68,8 @@
               <label for="invite-password">Senha do convite</label>
               <input id="invite-password" type="password" maxlength="128" autocomplete="off">
             </div>
-            <button type="submit">Entrar na sala</button>
+            <!-- Ativado pelo room.js: sem o script, o envio padrão recarregaria a página e perderia a chave do link -->
+            <button type="submit" disabled>Entrar na sala</button>
             <p id="waiting-msg" class="notice" role="status" hidden>Aguardando o anfitrião liberar sua entrada…</p>
             <p id="join-error" class="error" hidden></p>
             <button id="sso-join" type="button" class="secondary" hidden>Entrar com login da empresa</button>
