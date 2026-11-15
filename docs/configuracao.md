@@ -8,8 +8,9 @@ Passadas ao container com `-e NOME=valor` (ou no `.env` do Compose). Mudar uma v
 
 | Variável | Padrão | Uso |
 |---|---|---|
-| `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `TLS` | `acme` | `acme`: certificado do Let's Encrypt; `local`: certificado próprio (rede local); `proxy`: atrás de outro proxy, como o do Coolify, que cuida do HTTPS (veja [Atrás de outro proxy](proxy.md)) |
+| `DOMAIN` | (obrigatória) | Domínio ou IP do servidor. Com um IP público e `TLS=acme`, o certificado é emitido para o IP (veja [Sem domínio](instalacao.md#sem-domínio)) |
+| `TLS` | `acme` | `acme`: certificado do Let's Encrypt; `local`: certificado próprio (rede local); `custom`: certificado seu, como o da empresa (veja [Certificado da empresa](instalacao.md#certificado-da-empresa)); `proxy`: atrás de outro proxy, como o do Coolify, que cuida do HTTPS (veja [Atrás de outro proxy](proxy.md)) |
+| `TLS_CERT`, `TLS_KEY` | `/data/certs/cert.pem`, `/data/certs/key.pem` | Só com `TLS=custom`: certificado (com a cadeia) e chave sem senha |
 | `NODE_IP` | descoberto sozinho | IP que o vídeo anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p`. Com `TLS=proxy`, só a `HTTP_PORT` é usada, e o endereço público fica sem porta |
 | `TRUSTED_PROXIES` | `private_ranges` | Só com `TLS=proxy`: de onde o IP e o protocolo de quem acessa são aceitos (IPs e faixas separados por espaço) |

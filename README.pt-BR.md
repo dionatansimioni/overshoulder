@@ -56,7 +56,7 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 | Variável | Padrão | Uso |
 |---|---|---|
 | `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local); `proxy` = atrás de outro proxy, como o do Coolify ([guia](docs/proxy.md)) |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local); `custom` = certificado seu (`TLS_CERT`, `TLS_KEY`); `proxy` = atrás de outro proxy, como o do Coolify ([guia](docs/proxy.md)) |
 | `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p`. Com `TLS=proxy`, só a `HTTP_PORT` é usada |
 | `TRUSTED_PROXIES` | `private_ranges` | Só com `TLS=proxy`: de onde o IP e o protocolo de quem acessa são aceitos |

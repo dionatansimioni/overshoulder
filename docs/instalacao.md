@@ -5,7 +5,7 @@
 ## Requisitos
 
 - Um servidor Linux com **Docker**.
-- Um **domínio ou subdomínio** apontando para o IP do servidor (por exemplo, `live.seudominio.com`). O HTTPS é obrigatório: os navegadores só compartilham tela e usam criptografia em sites HTTPS.
+- De preferência, um **domínio ou subdomínio** apontando para o IP do servidor (por exemplo, `live.seudominio.com`). Sem domínio também funciona: veja [Sem domínio](#sem-domínio). O HTTPS é obrigatório: os navegadores só compartilham tela e usam criptografia em sites HTTPS.
 - **Banda de saída:** o servidor envia uma cópia do vídeo para cada pessoa. Em 720p são ~3 Mbps por espectador; em 1080p60, ~7 Mbps. Com 10 pessoas em 1080p60, ~70 Mbps e quase 30 GB por hora. Confira a franquia do seu plano.
 
 ## Subir com Docker
@@ -76,7 +76,13 @@ docker run --rm -v overshoulder-data:/data -v "$PWD":/backup alpine \
 
 Para restaurar num servidor novo, extraia o arquivo no volume antes de subir o container. Guarde o backup em lugar seguro: `secrets.json` permite emitir acessos às salas.
 
-## Rede local (sem domínio)
+## Sem domínio
+
+Use o IP público do servidor em `DOMAIN` (ex.: `DOMAIN=203.0.113.5`). O Caddy pede ao Let's Encrypt um certificado para o próprio IP. Esses certificados duram uns 6 dias, e o Caddy os renova sozinho. A porta 80 precisa estar aberta para a internet.
+
+Se o certificado no IP falhar (veja os logs do container), use o nip.io, que transforma o IP num nome: `DOMAIN=203-0-113-5.nip.io`. O nip.io é um serviço de terceiros, e a cota de certificados do Let's Encrypt para ele é dividida entre todos os usuários. Um domínio próprio continua sendo o caminho mais estável.
+
+## Rede local
 
 Para usar só dentro de casa ou da empresa: `./setup.sh`, opção 2 (detecta o IP), e `docker compose up -d --build`. Com `TLS=local`, o Caddy usa um certificado próprio e cada navegador mostra um aviso na primeira vez ("Avançado" > "Continuar"). Para tirar o aviso de vez num aparelho, instale nele a CA do Caddy:
 
@@ -84,7 +90,41 @@ Para usar só dentro de casa ou da empresa: `./setup.sh`, opção 2 (detecta o I
 docker compose cp overshoulder:/data/caddy/pki/authorities/local/root.crt overshoulder-ca.crt
 ```
 
-Em casa, o limite é o upload da sua internet, e quem assiste de fora vê o IP da sua casa. Para lives abertas ao público, prefira uma VPS.
+### Certificado da empresa
+
+Se a empresa já tem um certificado que os aparelhos confiam (de uma CA interna ou comprado), use `TLS=custom`. Monte a pasta com o certificado (`cert.pem`, com a cadeia) e a chave sem senha (`key.pem`) em `/data/certs`:
+
+```bash
+docker run -d --name overshoulder --restart unless-stopped \
+  -p 443:443 -p 7881:7881 -p 7882:7882/udp \
+  -v overshoulder-data:/data -v /etc/overshoulder/certs:/data/certs:ro \
+  -e DOMAIN=live.empresa.local -e TLS=custom -e NODE_IP=192.168.0.10 \
+  overshoulder
+```
+
+- Outros caminhos: `TLS_CERT` e `TLS_KEY`.
+- O container roda com o usuário de uid 1000: ele precisa conseguir ler os dois arquivos.
+- Ao subir, o servidor confere se o certificado vale para `DOMAIN` (e para `TURN_DOMAIN`, se houver), se a chave é dele e se não venceu. Se algo estiver errado, ele não sobe e explica o motivo nos logs.
+- Para renovar, troque os arquivos: em até um minuto o certificado novo passa a valer, sem reiniciar. Se o novo tiver problema, o anterior continua e o motivo aparece nos logs.
+
+### Sem internet
+
+O servidor funciona numa rede sem acesso à internet. Numa máquina com internet, baixe a imagem e salve num arquivo:
+
+```bash
+docker pull ghcr.io/dionatansimioni/overshoulder:latest
+docker save -o overshoulder.tar ghcr.io/dionatansimioni/overshoulder:latest
+```
+
+Leve o arquivo ao servidor e carregue: `docker load -i overshoulder.tar`. Depois, suba com `TLS=local` ou `TLS=custom` e **sempre com `NODE_IP`** (o IP do servidor na rede): sem internet, o servidor não consegue descobrir o próprio IP sozinho. O aviso de nova versão fica sem resposta e não atrapalha nada.
+
+### Em casa (homelab)
+
+Funciona, com três cuidados:
+
+- **Upload:** o limite é o upload da sua internet. Com 100 Mbps de upload, cabem umas 26 pessoas em 720p.
+- **CGNAT:** se a operadora não dá um IP público só seu, quem está fora da sua casa não consegue chegar ao servidor. Confira se o IP que aparece no roteador é o mesmo de sites como `ifconfig.me`.
+- **IP exposto:** quem assiste se conecta direto ao servidor e fica sabendo o IP da sua casa, que revela a cidade e a operadora e pode virar alvo de ataques. Para lives abertas ao público, prefira uma VPS.
 
 ## Saúde e logs
 

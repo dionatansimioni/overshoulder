@@ -38,6 +38,9 @@ const config = {
   rtcUdpPort: port('RTC_UDP_PORT', 7882),
   nodeIp: process.env.NODE_IP ?? '',
   turnDomain: process.env.TURN_DOMAIN ?? '',
+  certFile: process.env.TLS_CERT ?? path.join(DATA_DIR, 'certs', 'cert.pem'),
+  keyFile: process.env.TLS_KEY ?? path.join(DATA_DIR, 'certs', 'key.pem'),
+  certCheckMs: Number(process.env.CERT_CHECK_INTERVAL_MS ?? 60_000),
   trustedProxies: (process.env.TRUSTED_PROXIES ?? 'private_ranges').trim().split(/\s+/),
   maxParticipants: Number(process.env.MAX_PARTICIPANTS ?? 16),
   watchdogMs: Number(process.env.WATCHDOG_INTERVAL_MS ?? 15_000),
@@ -51,8 +54,8 @@ if (config.turnDomain && (!HOST_RE.test(config.turnDomain) || /^[\d.]+$/.test(co
   fail('TURN_DOMAIN inválido: use um subdomínio próprio para o TURN (ex.: turn.live.empresa.com), diferente de DOMAIN.');
 // O LiveKit anuncia o TURN sempre na porta 443, e o TURN só faz sentido onde só a 443 passa
 if (config.turnDomain && config.httpsPort !== 443) fail('TURN_DOMAIN exige HTTPS_PORT=443: o TURN é anunciado na porta 443.');
-if (!['acme', 'local', 'proxy'].includes(config.tls))
-  fail('TLS inválido: use "acme" (Let\'s Encrypt), "local" ou "proxy" (atrás de outro proxy, como o do Coolify).');
+if (!['acme', 'local', 'custom', 'proxy'].includes(config.tls))
+  fail('TLS inválido: use "acme" (Let\'s Encrypt), "local", "custom" (certificado seu) ou "proxy" (atrás de outro proxy, como o do Coolify).');
 // Atrás de outro proxy, a 443 é dele: o Caddy daqui não consegue separar o TURN pelo nome
 if (config.tls === 'proxy' && config.turnDomain)
   fail('TURN_DOMAIN não funciona com TLS=proxy: a porta 443 é do outro proxy. Deixe TURN_DOMAIN vazio.');
@@ -60,6 +63,42 @@ if (config.tls === 'proxy' && config.turnDomain)
 const PROXY_RE = /^(private_ranges|[\d.]+(\/\d{1,2})?|[\da-f:]+(\/\d{1,3})?)$/i;
 if (!config.trustedProxies.every((p) => PROXY_RE.test(p) && /[\d_]/.test(p)))
   fail('TRUSTED_PROXIES inválido: use "private_ranges" ou IPs e faixas separados por espaço (ex.: 10.0.1.0/24).');
+// TLS=custom: o certificado é seu (ex.: o da empresa). Confere tudo antes de subir, com
+// mensagens claras, em vez de deixar o Caddy falhar com um erro difícil de entender.
+const PATH_RE = /^\/[\w./-]+$/;
+const certProblem = () => {
+  for (const [name, file] of [['TLS_CERT', config.certFile], ['TLS_KEY', config.keyFile]]) {
+    if (!PATH_RE.test(file)) return `${name} inválido: use um caminho absoluto só com letras, números, ".", "_", "-" e "/".`;
+    try {
+      fs.accessSync(file, fs.constants.R_OK);
+    } catch {
+      return `${name}: não foi possível ler ${file}. Monte o arquivo no container (ex.: -v /etc/overshoulder/certs:/data/certs:ro) e confira se o usuário do container (uid 1000) pode lê-lo.`;
+    }
+  }
+  let cert;
+  try {
+    cert = new crypto.X509Certificate(fs.readFileSync(config.certFile));
+  } catch {
+    return `TLS_CERT: ${config.certFile} não é um certificado PEM válido.`;
+  }
+  let key;
+  try {
+    key = crypto.createPrivateKey(fs.readFileSync(config.keyFile));
+  } catch {
+    return `TLS_KEY: ${config.keyFile} não é uma chave privada PEM válida (sem senha).`;
+  }
+  if (!cert.checkPrivateKey(key)) return 'TLS_KEY não corresponde ao certificado de TLS_CERT.';
+  for (const name of [config.domain, config.turnDomain].filter(Boolean)) {
+    const ok = /^[\d.]+$/.test(name) ? cert.checkIP(name) : cert.checkHost(name);
+    if (!ok) return `O certificado de TLS_CERT não vale para ${name}.`;
+  }
+  if (new Date(cert.validTo) < new Date()) return `O certificado de TLS_CERT venceu em ${cert.validTo}.`;
+  return null;
+};
+if (config.tls === 'custom') {
+  const problem = certProblem();
+  if (problem) fail(problem);
+}
 if (config.nodeIp && !/^\d{1,3}(\.\d{1,3}){3}$/.test(config.nodeIp)) fail('NODE_IP inválido: informe um IPv4.');
 if (!Number.isInteger(config.maxParticipants) || config.maxParticipants < 2 || config.maxParticipants > 5000)
   fail('MAX_PARTICIPANTS inválido: use um número entre 2 e 5000.');
@@ -176,6 +215,15 @@ ${routes(` {
 }
 `;
 
+// Com TLS=custom, o Caddy usa os arquivos informados (a TURN_DOMAIN precisa estar no mesmo certificado)
+const customTls = config.tls === 'custom' ? `	tls ${config.certFile} ${config.keyFile}\n\n` : '';
+// Sem domínio (DOMAIN é um IP), o Let's Encrypt só emite certificados de curta duração (~6 dias),
+// pelo perfil "shortlived"; o Caddy renova sozinho. Exige a porta 80 ou 443 acessível de fora.
+const ipTls =
+  config.tls === 'acme' && /^[\d.]+$/.test(config.domain)
+    ? `	tls {\n\t\tissuer acme {\n\t\t\tprofile shortlived\n\t\t}\n\t}\n\n`
+    : '';
+
 const caddyfile = path.join(RUN_DIR, 'Caddyfile');
 fs.writeFileSync(
   caddyfile,
@@ -185,7 +233,7 @@ fs.writeFileSync(
 	# Quem acessa pelo IP não envia SNI; dentro do container o IP local é o da rede do Docker,
 	# então o certificado precisa ser escolhido pelo domínio configurado
 	default_sni ${config.domain}
-	${config.tls === 'local' ? 'local_certs\n\tskip_install_trust' : ''}
+	${config.tls === 'local' ? 'local_certs\n\tskip_install_trust' : ''}${config.tls === 'custom' ? '\n\tauto_https disable_certs' : ''}
 	log {
 		output stdout
 		format json
@@ -193,14 +241,14 @@ fs.writeFileSync(
 }
 
 ${config.domain} {
-${routes('')}
+${customTls}${ipTls}${routes('')}
 }
 ${
   // Bloco só para o Caddy obter e renovar o certificado de turn.<domínio>
   config.turnDomain
     ? `
 ${config.turnDomain} {
-	respond "TURN do Overshoulder" 404
+${customTls}	respond "TURN do Overshoulder" 404
 }
 `
     : ''
@@ -359,3 +407,24 @@ log.info('iniciando Overshoulder', {
   turn: config.turnDomain || 'desligado',
 });
 for (const name of ['livekit', 'app', 'caddy']) start(name);
+
+// TLS=custom: quando o certificado é trocado no disco (renovação), o Caddy recarrega sozinho.
+// Um certificado novo com problema não substitui o que está valendo.
+if (config.tls === 'custom') {
+  const stamp = () => [config.certFile, config.keyFile].map((f) => fs.statSync(f, { throwIfNoEntry: false })?.mtimeMs).join('|');
+  let last = stamp();
+  setInterval(() => {
+    const now = stamp();
+    if (now === last || stopping) return;
+    last = now;
+    const problem = certProblem();
+    if (problem) return log.error('certificado novo recusado; o anterior continua valendo', { problem });
+    const reload = spawn(services.caddy.cmd, ['reload', '--config', caddyfile, '--adapter', 'caddyfile', '--force'], {
+      env: services.caddy.env,
+      stdio: 'ignore',
+    });
+    reload.on('exit', (code) =>
+      code === 0 ? log.info('certificado novo carregado') : log.error('não foi possível recarregar o certificado', { code }),
+    );
+  }, config.certCheckMs).unref();
+}

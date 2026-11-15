@@ -7,7 +7,7 @@
 - O domínio precisa apontar para o IP do servidor **antes** de subir o container: o Let's Encrypt confere isso pela porta 80.
 - As portas 80 e 443 precisam estar livres no servidor e liberadas no firewall (do sistema e do painel do provedor).
 - Veja o motivo nos logs: `docker logs overshoulder | grep -i -e error -e tls`.
-- Na rede local, o aviso de certificado é esperado com `TLS=local` (veja [Instalação](instalacao.md#rede-local-sem-domínio)).
+- Na rede local, o aviso de certificado é esperado com `TLS=local` (veja [Instalação](instalacao.md#rede-local)).
 
 ## A página abre, mas o vídeo não chega
 

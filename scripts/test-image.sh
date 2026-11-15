@@ -16,7 +16,7 @@ cleanup() {
   rm -f "$JAR"
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$VOLUME" >/dev/null 2>&1 || true
-  docker rm -f overshoulder-test-proxy >/dev/null 2>&1 || true
+  docker rm -f overshoulder-test-proxy overshoulder-test-custom overshoulder-test-ip >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 cleanup
@@ -146,6 +146,69 @@ ok "com TURN_DOMAIN, a 443 leva turn.<domínio> ao TURN (STUN por TLS responde) 
 [ "$(docker run --rm -e DOMAIN=localhost -e TURN_DOMAIN=turn.localhost -e HTTPS_PORT=8443 "$IMAGE" 2>&1 | grep -c 'exige HTTPS_PORT=443')" = 1 ] \
   || die "TURN com porta diferente de 443 deveria ser recusado"
 ok "TURN_DOMAIN com HTTPS_PORT diferente de 443 é recusado com explicação"
+
+# --- TLS=custom: certificado próprio (ex.: o da empresa) ----------------------
+CUSTOM_NAME=overshoulder-test-custom
+CERT_DIR=$(mktemp -d)
+chmod 755 "$CERT_DIR"
+custom_cleanup() { docker rm -f "$CUSTOM_NAME" >/dev/null 2>&1 || true; rm -rf "$CERT_DIR"; }
+custom_die() { docker logs --tail 20 "$CUSTOM_NAME" >&2 2>&1; custom_cleanup; die "$@"; }
+# Certificado autoassinado para $1 em $CERT_DIR (legível pelo usuário do container)
+make_cert() {
+  openssl req -x509 -newkey rsa:2048 -nodes -days 30 -subj "/CN=$1" -addext "subjectAltName=DNS:$1" \
+    -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" 2>/dev/null
+  chmod 644 "$CERT_DIR"/*.pem
+}
+local_fp() { openssl x509 -noout -fingerprint -sha256 -in "$CERT_DIR/cert.pem"; }
+served_fp() {
+  openssl s_client -connect 127.0.0.1:18452 -servername live.example.test </dev/null 2>/dev/null \
+    | openssl x509 -noout -fingerprint -sha256 2>/dev/null
+}
+custom_run() {
+  docker run "$@" -v "$CERT_DIR:/data/certs:ro" -e DOMAIN=live.example.test -e TLS=custom -e NODE_IP=127.0.0.1 "$IMAGE" 2>&1
+}
+
+make_cert outro.example.test
+out=$(custom_run --rm || true)
+grep -q 'não vale para live.example.test' <<<"$out" || { custom_cleanup; die "certificado de outro domínio deveria ser recusado"; }
+cp "$CERT_DIR/key.pem" "$CERT_DIR/old-key.pem"
+make_cert live.example.test
+mv "$CERT_DIR/old-key.pem" "$CERT_DIR/key.pem"
+out=$(custom_run --rm || true)
+grep -q 'TLS_KEY não corresponde' <<<"$out" || { custom_cleanup; die "chave de outro certificado deveria ser recusada"; }
+[ "$(docker run --rm -e DOMAIN=live.example.test -e TLS=custom "$IMAGE" 2>&1 | grep -c 'não foi possível ler /data/certs/cert.pem')" = 1 ] \
+  || { custom_cleanup; die "certificado ausente deveria ser recusado com explicação"; }
+ok "TLS=custom recusa certificado ausente, de outro domínio ou com a chave errada, com explicação"
+
+make_cert live.example.test
+first=$(local_fp)
+custom_run -d --name "$CUSTOM_NAME" -p 127.0.0.1:18452:443 -e CERT_CHECK_INTERVAL_MS=1000 >/dev/null
+wait_for 60 sh -c "[ \"\$(curl -sk --resolve live.example.test:18452:127.0.0.1 https://live.example.test:18452/healthz)\" = '{\"status\":\"ok\"}' ]" \
+  || custom_die "site não respondeu com TLS=custom"
+[ "$(served_fp)" = "$first" ] || custom_die "o Caddy não serve o certificado informado"
+ok "com TLS=custom, o site responde com o certificado informado"
+
+make_cert live.example.test
+second=$(local_fp)
+wait_for 20 sh -c "[ \"\$(openssl s_client -connect 127.0.0.1:18452 -servername live.example.test </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256 2>/dev/null)\" = '$second' ]" \
+  || custom_die "certificado renovado no disco não foi carregado"
+make_cert outro.example.test
+wait_for 20 sh -c "docker logs $CUSTOM_NAME 2>&1 | grep -q 'certificado novo recusado'" || custom_die "certificado inválido no disco não foi recusado"
+[ "$(served_fp)" = "$second" ] || custom_die "certificado inválido substituiu o que valia"
+custom_cleanup
+ok "certificado trocado no disco é carregado sozinho; um inválido é recusado e o anterior continua"
+
+# --- Sem domínio: certificado do Let's Encrypt no IP ---------------------------
+# Sem rede, para não pedir certificado de verdade: só confere a configuração gerada
+IP_NAME=overshoulder-test-ip
+docker rm -f "$IP_NAME" >/dev/null 2>&1 || true
+docker run -d --name "$IP_NAME" --network none -e DOMAIN=203.0.113.5 -e NODE_IP=127.0.0.1 "$IMAGE" >/dev/null
+wait_for 30 docker exec "$IP_NAME" test -f /tmp/overshoulder/Caddyfile || { docker rm -f "$IP_NAME" >/dev/null; die "Caddyfile não foi gerado"; }
+ip_conf=$(docker exec "$IP_NAME" caddy adapt --config /tmp/overshoulder/Caddyfile --adapter caddyfile 2>/dev/null || true)
+docker rm -f "$IP_NAME" >/dev/null
+grep -q '"profile":"shortlived"' <<<"$ip_conf" || die "DOMAIN com IP deveria pedir o perfil shortlived ao Let's Encrypt"
+grep -q '"203.0.113.5"' <<<"$ip_conf" || die "o site deveria responder pelo IP"
+ok "com DOMAIN sendo um IP, o certificado é pedido ao Let's Encrypt pelo perfil shortlived"
 
 # --- TLS=proxy: atrás de outro proxy (Coolify, Traefik, Nginx…) -------------
 PROXY_NAME=overshoulder-test-proxy
