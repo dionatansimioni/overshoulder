@@ -59,6 +59,14 @@ const EN = {
   '{n} sala(s) com a chave em outro navegador: veja em Administração.':
     '{n} room(s) with the key in another browser: see Administration.',
   'Link para convidar': 'Invite link',
+  'Qualidade que você recebe': 'Quality you receive',
+  Automática: 'Automatic',
+  'Só aparecem as qualidades que quem transmite está enviando.': 'Only the qualities the broadcaster is sending are listed.',
+  'Fechar aviso': 'Close warning',
+  'Sua internet não está dando conta de transmitir em {quality}.': 'Your internet cannot keep up with broadcasting at {quality}.',
+  'Usar {quality}': 'Use {quality}',
+  'Sua conexão está perdendo muitos pacotes ({pct}%). Quem assiste pode ver travamentos.':
+    'Your connection is losing many packets ({pct}%). Viewers may see stuttering.',
   'Sua tela está oculta para você.': 'Your screen is hidden from you.',
   'Quem assiste continua vendo normalmente. Assim seu computador não gasta para mostrar a própria transmissão.':
     'Viewers still see it normally. This way your computer does not spend effort showing your own broadcast.',

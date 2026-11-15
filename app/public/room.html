@@ -129,6 +129,12 @@
         </div>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
         <div id="send-badge" class="badge send" role="status" hidden></div>
+        <!-- Avisos de rede para quem transmite -->
+        <div id="net-warning" class="net-warning" role="alert" hidden>
+          <span id="net-warning-text"></span>
+          <button id="net-warning-action" type="button" hidden></button>
+          <button id="net-warning-close" type="button" class="secondary" aria-label="Fechar aviso" title="Fechar aviso">✕</button>
+        </div>
         <div id="mic-badge" class="badge" hidden>
           <svg class="icon"><use href="#i-mic"/></svg>
           Microfone ligado
@@ -191,6 +197,11 @@
           <div id="settings" class="popover" hidden>
             <h2>Ajustes</h2>
             <p id="stats" class="muted small"></p>
+            <div id="watch-quality-row" class="form" hidden>
+              <label for="watch-quality">Qualidade que você recebe</label>
+              <select id="watch-quality"><option value="auto">Automática</option></select>
+              <p class="muted small field-hint">Só aparecem as qualidades que quem transmite está enviando.</p>
+            </div>
             <div id="broadcast-settings" class="popover-section" hidden>
               <h3>Sua transmissão</h3>
               <label for="quality">Qualidade</label>

@@ -99,3 +99,75 @@ describe('prévia de quem transmite', () => {
     assert.deepEqual(host.errors, []);
   });
 });
+
+describe('qualidade para quem assiste', () => {
+  test('só as camadas que quem transmite envia; trocar vale na hora', async () => {
+    const { host, viewer } = await sharing();
+    await host.page.waitForFunction(() => /Transmitindo/.test(document.querySelector('#send-badge').textContent));
+    const sentHeight = Number(/×(\d+)/.exec(await host.page.textContent('#send-badge'))[1]);
+
+    await viewer.page.click('#settings-btn');
+    await viewer.page.waitForSelector('#watch-quality-row:not([hidden])');
+    const options = await viewer.page.$$eval('#watch-quality option', (os) => os.map((o) => o.textContent));
+    assert.equal(options[0], 'Automática');
+    const heights = options.slice(1).map((o) => Number(o.replace('p', '')));
+    assert.ok(heights.length >= 2, `camadas: ${options}`);
+    assert.ok(heights.every((h) => h <= Math.max(sentHeight, 720)), `nada acima do que é enviado (${sentHeight}p): ${options}`);
+
+    const lowest = await viewer.page.$eval('#watch-quality', (sel) => sel.options[sel.options.length - 1].value);
+    await viewer.page.selectOption('#watch-quality', lowest);
+    const lowHeight = Math.min(...heights);
+    await viewer.page.waitForFunction((h) => document.querySelector('#video').videoHeight <= h, lowHeight, { timeout: 20_000 });
+    await viewer.page.selectOption('#watch-quality', 'auto');
+    await viewer.page.waitForFunction((h) => document.querySelector('#video').videoHeight > h, lowHeight, { timeout: 20_000 });
+    assert.deepEqual(viewer.errors, []);
+  });
+});
+
+describe('avisos de rede para quem transmite', () => {
+  // Altera as estatísticas do WebRTC sob comando do teste: banda limitada e pacotes perdidos
+  const fakeNetwork = () => {
+    const original = RTCRtpSender.prototype.getStats;
+    window.fakeLost = 0;
+    RTCRtpSender.prototype.getStats = async function () {
+      const report = await original.call(this);
+      const out = new Map();
+      report.forEach((v, k) => {
+        if (v.type === 'outbound-rtp' && window.fakeLimit) v = { ...v, qualityLimitationReason: 'bandwidth' };
+        if (v.type === 'remote-inbound-rtp' && window.fakeLoss) v = { ...v, packetsLost: (window.fakeLost += 400) };
+        out.set(k, v);
+      });
+      return out;
+    };
+  };
+
+  test('banda insuficiente: avisa e oferece a qualidade de baixo', async () => {
+    const { host } = await sharing();
+    await host.page.evaluate(fakeNetwork);
+    await host.page.click('#settings-btn');
+    await host.page.selectOption('#quality', '1080p30');
+    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('1080p · 30 fps'));
+    await host.page.keyboard.press('Escape');
+    await host.page.evaluate(() => (window.fakeLimit = true));
+    await host.page.waitForSelector('#net-warning:not([hidden])', { timeout: 20_000 });
+    assert.equal(await host.page.textContent('#net-warning-text'), 'Sua internet não está dando conta de transmitir em 1080p · 30 fps.');
+    assert.equal(await host.page.textContent('#net-warning-action'), 'Usar 720p · 60 fps');
+    await host.page.evaluate(() => (window.fakeLimit = false));
+    await host.page.click('#net-warning-action');
+    assert.equal(await host.page.inputValue('#quality'), '720p60');
+    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Transmitindo agora em 720p · 60 fps'));
+    assert.ok(await host.page.isHidden('#net-warning'));
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('perda de pacotes alta: avisa com a porcentagem', async () => {
+    const { host } = await sharing();
+    await host.page.evaluate(fakeNetwork);
+    await host.page.evaluate(() => (window.fakeLoss = true));
+    await host.page.waitForSelector('#net-warning:not([hidden])', { timeout: 20_000 });
+    assert.match(await host.page.textContent('#net-warning-text'), /^Sua conexão está perdendo muitos pacotes \(\d+%\)\./);
+    assert.ok(await host.page.isHidden('#net-warning-action'));
+    await host.page.click('#net-warning-close');
+    assert.ok(await host.page.isHidden('#net-warning'));
+  });
+});

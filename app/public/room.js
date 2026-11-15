@@ -7,6 +7,7 @@ import {
   Track,
   VideoPreset,
   VideoPresets,
+  VideoQuality,
   createLocalAudioTrack,
   createLocalVideoTrack,
   isE2EESupported,
@@ -14,7 +15,7 @@ import {
 import { CATEGORIES, RECENT_ID, RECENT_MAX, isOnlyEmoji } from '/static/emoji.js';
 import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { PRESETS, HEAVY_HEIGHT, QUALITY_LABELS, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
-import { summarizeSend } from '/static/send-stats.js';
+import { createNetworkWatch, summarizeSend } from '/static/send-stats.js';
 import { Recorder, recordingFormat } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
@@ -248,6 +249,7 @@ const renderStage = () => {
     watching = (list.find((b) => !isMe(b.p)) ?? list[0])?.p.identity ?? null;
   }
   applySubscriptions();
+  refreshWatchQuality();
 
   $('screens').hidden = list.length < 2;
   $('screens').replaceChildren(
@@ -307,6 +309,67 @@ const renderStage = () => {
   recorder?.switchVideo(screen?.mediaStreamTrack ?? (camera && !screen ? camera.mediaStreamTrack : null));
   recorder?.switchCamera(screen && camera ? camera.mediaStreamTrack : null);
   renderPeople();
+};
+
+// Qualidade que quem assiste recebe: "Automática" ou uma das camadas que quem transmite envia,
+// nunca acima. Vale na hora (o servidor passa a mandar a camada escolhida).
+let watchQualityPub = null;
+const watchedPublication = () => {
+  if (!room || !watching || watching === room.localParticipant.identity) return null;
+  const p = room.remoteParticipants.get(watching);
+  const pub = p?.getTrackPublication(Track.Source.ScreenShare) ?? p?.getTrackPublication(Track.Source.Camera);
+  return pub?.isSubscribed ? pub : null;
+};
+const refreshWatchQuality = () => {
+  const pub = watchedPublication();
+  const layers = (pub?.trackInfo?.layers ?? []).filter((l) => l.height > 0).sort((a, b) => b.height - a.height);
+  // Sem camadas para escolher (transmissão sem simulcast), não há o que trocar
+  $('watch-quality-row').hidden = layers.length < 2;
+  if (layers.length < 2) return;
+  const select = $('watch-quality');
+  const keep = pub === watchQualityPub ? select.value : 'auto';
+  select.length = 1;
+  for (const l of layers) select.add(new Option(`${l.height}p`, String(l.quality)));
+  select.value = [...select.options].some((o) => o.value === keep) ? keep : 'auto';
+  if (pub !== watchQualityPub) {
+    watchQualityPub = pub;
+    pub.setVideoQuality(VideoQuality.HIGH);
+  }
+};
+
+// Avisos de rede para quem transmite: um por episódio, com atalho para a qualidade de baixo
+const netWatch = createNetworkWatch();
+const showNetWarning = (text, action) => {
+  $('net-warning-text').textContent = text;
+  $('net-warning-action').hidden = !action;
+  if (action) {
+    $('net-warning-action').textContent = action.label;
+    $('net-warning-action').onclick = () => {
+      $('net-warning').hidden = true;
+      action.run();
+    };
+  }
+  $('net-warning').hidden = false;
+};
+const checkNetwork = (summary) => {
+  const alerts = netWatch(summary);
+  if (alerts.bandwidth) {
+    const options = [...$('quality').options];
+    const lower = options[options.findIndex((o) => o.value === $('quality').value) - 1];
+    showNetWarning(
+      t('Sua internet não está dando conta de transmitir em {quality}.', { quality: QUALITY_LABELS[$('quality').value] }),
+      lower && {
+        label: t('Usar {quality}', { quality: QUALITY_LABELS[lower.value] }),
+        run: () => {
+          $('quality').value = lower.value;
+          updateQualityWarning();
+          applyScreenSettings();
+        },
+      },
+    );
+  } else if (alerts.loss) {
+    showNetWarning(t('Sua conexão está perdendo muitos pacotes ({pct}%). Quem assiste pode ver travamentos.', { pct: Math.round(summary.lossPct) }));
+  }
 };
 
 // Sala só de voz: um cartão por pessoa, com destaque em quem está falando
@@ -1256,6 +1319,12 @@ const setupViewing = () => {
     setToggle('pip-hide', pipHidden, ['Esconder câmera', 'Mostrar câmera']);
     renderStage();
   });
+  $('watch-quality').addEventListener('change', (e) => {
+    const value = e.target.value;
+    watchedPublication()?.setVideoQuality(value === 'auto' ? VideoQuality.HIGH : Number(value));
+  });
+  $('net-warning-close').addEventListener('click', () => ($('net-warning').hidden = true));
+
   $('hide-self').addEventListener('click', () => setSelfHidden(!selfHidden));
   $('show-self').addEventListener('click', () => setSelfHidden(false));
 
@@ -1267,6 +1336,7 @@ const setupViewing = () => {
 
   setInterval(async () => {
     const sending = await sendSummary();
+    if (sending) checkNetwork(sending);
     // Selo na prévia de quem transmite: a qualidade que está saindo de fato
     const watchingMe = watching === room?.localParticipant.identity;
     $('send-badge').hidden = !(sending && watchingMe);

@@ -117,6 +117,29 @@ button.round.on:hover { background: var(--accent-hover); }
 /* Selo da qualidade que está saindo, no canto de baixo da prévia de quem transmite */
 .badge.send { top: auto; bottom: 12px; left: 12px; background: rgba(16, 13, 22, .78); font-variant-numeric: tabular-nums; }
 
+/* Aviso de rede para quem transmite, no alto da prévia */
+.net-warning {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 8px 8px 8px 14px;
+  border-radius: 10px;
+  background: rgba(240, 178, 50, .95);
+  color: #1b1405;
+  font-size: 14px;
+  font-weight: 600;
+}
+.net-warning[hidden] { display: none; }
+.net-warning button { padding: 6px 12px; font-size: 13px; }
+.net-warning button.secondary { background: rgba(0, 0, 0, .15); color: #1b1405; }
+
 /* Sala só de voz: quem está na sala no lugar da tela preta */
 .voice-stage {
   position: absolute;
