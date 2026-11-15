@@ -292,6 +292,9 @@ const services = {
       MAX_PARTICIPANTS: String(config.maxParticipants),
       TURN_DOMAIN: config.turnDomain,
       TRUST_PROXY: '1',
+      APP_VERSION: process.env.APP_VERSION ?? 'dev',
+      ...(process.env.INSTALL_METHOD && { INSTALL_METHOD: process.env.INSTALL_METHOD }),
+      ...(process.env.UPDATE_CHECK && { UPDATE_CHECK: process.env.UPDATE_CHECK }),
     },
   },
   caddy: {

@@ -21,6 +21,7 @@ import { translateError, wantsEnglish } from './i18n-server.js';
 import { log } from './log.js';
 import { createStore } from './store.js';
 import { authorizationUrl, discover, finishLogin, forgetDiscovery, newAttempt, validIssuer } from './oidc.js';
+import { createUpdateChecker, DEFAULT_URL as UPDATE_DEFAULT_URL, INSTALL_METHODS, parseVersion } from './update-check.js';
 import { newRecoveryCodes, newSecret, normalizeRecoveryCode, otpauthUri, verifyCode } from './totp.js';
 
 const env = (name, fallback) => {
@@ -49,6 +50,15 @@ const PRIVATE_GRACE_MS = Number(env('PRIVATE_GRACE_MS', '30000'));
 // Endereço público do site: usado no redirect_uri do login corporativo
 const PUBLIC_ORIGIN = env('PUBLIC_ORIGIN', `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
 const SSO_REDIRECT_URI = `${PUBLIC_ORIGIN}/api/sso/callback`;
+// Versão (da tag da publicação) e como o servidor foi instalado: base do aviso de nova versão
+const APP_VERSION = process.env.APP_VERSION || 'dev';
+const INSTALL_METHOD = INSTALL_METHODS.includes(process.env.INSTALL_METHOD) ? process.env.INSTALL_METHOD : null;
+// UPDATE_CHECK=off desliga a consulta de vez (ex.: servidor sem internet)
+const UPDATE_CHECK_OFF = process.env.UPDATE_CHECK === 'off';
+const UPDATE_CHECK_URL = env('UPDATE_CHECK_URL', UPDATE_DEFAULT_URL);
+const UPDATE_CHECK_DELAY_MS = Number(env('UPDATE_CHECK_DELAY_MS', '60000'));
+const UPDATE_CHECK_INTERVAL_MS = Number(env('UPDATE_CHECK_INTERVAL_MS', String(24 * 3600_000)));
+const UPDATE_MANUAL_GAP_MS = Number(env('UPDATE_MANUAL_GAP_MS', '60000'));
 
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const TOKEN_TTL = '8h';
@@ -239,6 +249,7 @@ const settings = () => ({
   signup: 'approval',
   defaultQuality: '720p30',
   maxQuality: '1440p60',
+  updateCheck: true,
   ...store.state.settings,
 });
 const ssoSettings = () => ({ ...SSO_DEFAULTS, ...store.state.settings.sso });
@@ -526,8 +537,12 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   const { user } = requireUser(req, { role: 'admin' });
-  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality } = await readJson(req);
+  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality, updateCheck } = await readJson(req);
   const changes = {};
+  if (updateCheck !== undefined) {
+    if (typeof updateCheck !== 'boolean') return json(res, 400, { error: 'updateCheck deve ser verdadeiro ou falso.' });
+    changes.updateCheck = updateCheck;
+  }
   if (signup !== undefined) {
     if (!SIGNUP_MODES.includes(signup)) return json(res, 400, { error: 'Modo de cadastro inválido.' });
     changes.signup = signup;
@@ -551,6 +566,35 @@ const updateSettings = async (req, res) => {
   store.update((s) => Object.assign(s.settings, changes));
   log.info('configuração alterada', { user: user.username, ...changes });
   json(res, 200, settings());
+};
+
+// --- API: aviso de nova versão ---------------------------------------------
+
+const updateChecker = createUpdateChecker({ current: APP_VERSION, url: UPDATE_CHECK_URL, log });
+// Compilação local ("dev") não tem versão para comparar
+const updateCheckActive = () => !UPDATE_CHECK_OFF && !!parseVersion(APP_VERSION) && settings().updateCheck;
+const updateView = () => ({
+  ...updateChecker.view(),
+  method: INSTALL_METHOD,
+  enabled: settings().updateCheck,
+  disabledByEnv: UPDATE_CHECK_OFF,
+  devBuild: !parseVersion(APP_VERSION),
+});
+
+const getUpdate = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  json(res, 200, updateView());
+};
+
+let lastManualCheck = 0;
+const checkUpdateNow = async (req, res) => {
+  requireUser(req, { role: 'admin' });
+  if (!updateCheckActive()) return json(res, 409, { error: 'A verificação de novas versões está desligada.' });
+  if (Date.now() - lastManualCheck < UPDATE_MANUAL_GAP_MS)
+    return json(res, 429, { error: 'Verificado há pouco. Espere um minuto.' });
+  lastManualCheck = Date.now();
+  await updateChecker.check();
+  json(res, 200, updateView());
 };
 
 const targetUser = (username) => {
@@ -1680,6 +1724,8 @@ const routes = {
   'POST /api/admin-reset': adminReset,
   'GET /api/admin/sso': getSso,
   'POST /api/admin/sso': updateSso,
+  'GET /api/admin/update': getUpdate,
+  'POST /api/admin/update/check': checkUpdateNow,
   'GET /api/sso/start': ssoStart,
   'GET /api/sso/callback': ssoCallback,
   'POST /api/sso/logout': ssoLogout,
@@ -1752,4 +1798,7 @@ server.listen(PORT, '127.0.0.1', () => {
   log.info(`Overshoulder ouvindo em http://127.0.0.1:${PORT}`);
   if (!hasAdmin()) newSetupCode();
   loadFixedRooms();
+  const scheduledCheck = () => updateCheckActive() && updateChecker.check();
+  setTimeout(scheduledCheck, UPDATE_CHECK_DELAY_MS).unref();
+  setInterval(scheduledCheck, UPDATE_CHECK_INTERVAL_MS).unref();
 });

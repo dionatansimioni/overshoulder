@@ -245,6 +245,41 @@ const EN = {
   // --- administração
   Configurações: 'Settings',
   'Exigir 2FA de todas as contas': 'Require 2FA for every account',
+
+  // --- versão e aviso de atualização
+  Versão: 'Version',
+  'Ver o que mudou nesta versão': 'See what changed in this version',
+  'Faça um backup antes. Os dados ficam no volume e continuam depois da atualização.':
+    'Make a backup first. The data lives in the volume and stays after the update.',
+  'Outras formas de instalação': 'Other ways of installing',
+  'Verificar novas versões uma vez por dia': 'Check for new versions once a day',
+  'Consulta a última versão publicada no GitHub. Nenhum dado do servidor é enviado; o GitHub vê só o IP dele.':
+    "Looks up the latest version published on GitHub. No server data is sent; GitHub only sees the server's IP.",
+  'Verificar agora': 'Check now',
+  'Guia de atualização': 'Update guide',
+  'Instalador de um comando': 'One-command installer',
+  'No servidor, rode:': 'On the server, run:',
+  'Docker Compose com a imagem pronta': 'Docker Compose with the prebuilt image',
+  'Na pasta do compose.yml, rode:': 'In the folder with compose.yml, run:',
+  'Docker Compose compilando o código': 'Docker Compose building from source',
+  'Na pasta do projeto, rode:': 'In the project folder, run:',
+  'docker run': 'docker run',
+  'Baixe a imagem nova e recrie o container com o mesmo comando usado na instalação:':
+    'Pull the new image and recreate the container with the same command used to install it:',
+  'docker run … (o mesmo comando da instalação)': 'docker run … (the same command used to install)',
+  'Coolify, Dokploy ou EasyPanel': 'Coolify, Dokploy or EasyPanel',
+  'Abra o serviço no painel e clique em Redeploy. Com a tag latest, a imagem nova é baixada; com uma versão fixa, troque antes a tag da imagem para {version}.':
+    'Open the service in the panel and click Redeploy. With the latest tag, the new image is pulled; with a pinned version, first change the image tag to {version}.',
+  'Versão de desenvolvimento (compilada a partir do código): o aviso de nova versão fica desligado.':
+    'Development version (built from source): the new version notice is off.',
+  'Versão {current}. A verificação de novas versões está desligada pela variável UPDATE_CHECK=off.':
+    'Version {current}. Checking for new versions is turned off by the UPDATE_CHECK=off variable.',
+  'Versão {current}. A verificação de novas versões está desligada.': 'Version {current}. Checking for new versions is turned off.',
+  'Versão {latest} disponível. Este servidor está na {current}.': 'Version {latest} is available. This server runs {current}.',
+  'Versão {current}. Não foi possível consultar a versão mais recente.': 'Version {current}. Could not look up the latest version.',
+  'Versão {current}: é a mais recente.': 'Version {current}: it is the latest.',
+  'Versão {current}. Ainda não verificado.': 'Version {current}. Not checked yet.',
+  'Versão {version} disponível: veja como atualizar.': 'Version {version} is available: see how to update.',
   'Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.':
     'Anyone without 2FA yet (including you) will need to set it up before continuing.',
   'Configurações salvas.': 'Settings saved.',

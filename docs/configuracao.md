@@ -14,6 +14,8 @@ Passadas ao container com `-e NOME=valor` (ou no `.env` do Compose). Mudar uma v
 | `NODE_IP` | descoberto sozinho | IP que o vídeo anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p`. Com `TLS=proxy`, só a `HTTP_PORT` é usada, e o endereço público fica sem porta |
 | `TRUSTED_PROXIES` | `private_ranges` | Só com `TLS=proxy`: de onde o IP e o protocolo de quem acessa são aceitos (IPs e faixas separados por espaço) |
+| `UPDATE_CHECK` | ligada | `off` desliga de vez a consulta de nova versão (ex.: servidor sem internet) |
+| `INSTALL_METHOD` | (vazia) | Como o servidor foi instalado (`installer`, `compose`, `compose-build`, `docker`, `coolify`): o aviso de nova versão mostra primeiro os passos dessa forma. O instalador e os exemplos já preenchem |
 | `MAX_PARTICIPANTS` | `16` | Limite inicial de pessoas por sala, sugerido na configuração (2 a 5000) |
 | `TURN_DOMAIN` | desligado | **Experimental.** Subdomínio só para o TURN (ex.: `turn.live.seudominio.com`), para redes que só liberam a porta 443. Exige `HTTPS_PORT=443` e o subdomínio apontando para o servidor; não funciona com `TLS=proxy` |
 
@@ -23,6 +25,9 @@ Só o administrador abre. O menu lateral tem cinco seções; cada uma tem endere
 
 ### Geral
 
+- **Versão:** mostra a versão do servidor e avisa quando sai uma nova, com o link para o que mudou e os passos para atualizar do jeito que o servidor foi instalado (veja [Atualizar](instalacao.md#atualizar)). O aviso também aparece na página inicial do admin.
+  - A consulta é feita uma vez por dia na API de releases do GitHub. Nenhum dado do servidor é enviado; o GitHub vê só o IP do servidor. Desligue em **Verificar novas versões uma vez por dia** ou, de vez, com `UPDATE_CHECK=off`.
+  - Compilações locais (versão `dev`) não consultam.
 - **Exigir 2FA de todas as contas:** quem ainda não tem verificação em duas etapas (inclusive você) precisa configurar antes de continuar.
 - **Limite de pessoas por sala:** de 2 a 5000. O painel estima a banda com a sala cheia e destaca a estimativa a partir de 200 pessoas.
 - **Qualidade padrão das transmissões:** começa em 720p · 30 fps.

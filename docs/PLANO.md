@@ -163,6 +163,9 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - **O endereço do instalador e a imagem só funcionam com o repositório e o pacote do GHCR públicos.** Até lá, testar com `OVERSHOULDER_IMAGE` apontando para uma imagem acessível.
   - Teste das portas pelo navegador do admin (teste WebRTC na configuração) ainda não feito.
 
+- **Etapa 9 feita (15/11/2026): aviso de nova versão.** `app/update-check.js` consulta `releases/latest` do GitHub uma vez por dia (1 min depois de subir), aceita só versão semântica publicada e link das releases do próprio projeto. `/admin` → Geral mostra a versão, o aviso, as notas e os passos da forma de instalação (`INSTALL_METHOD`), com as outras recolhidas; a página inicial do admin mostra o aviso. Desliga no admin (`updateCheck`) ou com `UPDATE_CHECK=off`; versão `dev` não consulta. Testes em `app/test/update.test.js`.
+  - Com o repositório privado, a consulta recebe 404 e o painel mostra "não foi possível consultar". Funciona quando o repositório abrir.
+
 - **Sala privada (15/11/2026, pedido do usuário):** opção em "Mais opções" ao criar sala. A sala privada não fica guardada no navegador (a chave de anfitrião fica só na aba) e acaba quando o anfitrião sai por mais de 30 s (`PRIVATE_GRACE_MS`), tolerância para recarregar a página ou a rede cair. Ao fechar a aba, o anfitrião avisa o servidor (`POST /api/rooms/host-left`, com a chave de anfitrião), porque o LiveKit leva ~22 s para notar a queda. Antes de o anfitrião entrar pela primeira vez, a sala não acaba. Na página inicial, "Ao sair, esquecer as salas deste navegador". Testes em `app/test/home.test.js`.
 
 ### Lapidações pedidas em 15/11/2026 (testes do usuário)

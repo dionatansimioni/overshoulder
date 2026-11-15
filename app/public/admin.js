@@ -104,6 +104,90 @@ $('settings-form').addEventListener('submit', (e) => {
   });
 });
 
+// --- versão e aviso de atualização --------------------------------------------
+
+const IMAGE = 'ghcr.io/dionatansimioni/overshoulder';
+const UPDATE_DOCS = 'https://github.com/dionatansimioni/overshoulder/blob/main/docs/instalacao.md#atualizar';
+// Passos para atualizar em cada forma de instalação: [título, explicação, comandos]
+const UPDATE_STEPS = {
+  installer: ['Instalador de um comando', 'No servidor, rode:', ['sudo overshoulder update']],
+  compose: ['Docker Compose com a imagem pronta', 'Na pasta do compose.yml, rode:', ['docker compose pull', 'docker compose up -d']],
+  'compose-build': ['Docker Compose compilando o código', 'Na pasta do projeto, rode:', ['git pull', 'docker compose up -d --build']],
+  docker: [
+    'docker run',
+    'Baixe a imagem nova e recrie o container com o mesmo comando usado na instalação:',
+    [`docker pull ${IMAGE}:latest`, 'docker rm -f overshoulder', 'docker run … (o mesmo comando da instalação)'],
+  ],
+  coolify: [
+    'Coolify, Dokploy ou EasyPanel',
+    'Abra o serviço no painel e clique em Redeploy. Com a tag latest, a imagem nova é baixada; com uma versão fixa, troque antes a tag da imagem para {version}.',
+    [],
+  ],
+};
+
+const stepsBlock = (method, version) => {
+  const [title, text, commands] = UPDATE_STEPS[method];
+  const box = el('div');
+  box.append(el('h3', { textContent: t(title) }), el('p', { className: 'small', textContent: t(text, { version }) }));
+  if (commands.length) box.append(el('pre', {}, el('code', { textContent: commands.map((c) => t(c)).join('\n') })));
+  return box;
+};
+
+const renderUpdate = (u) => {
+  const status = $('update-status');
+  status.classList.toggle('update-status-new', u.available);
+  status.textContent = u.devBuild
+    ? t('Versão de desenvolvimento (compilada a partir do código): o aviso de nova versão fica desligado.')
+    : u.disabledByEnv
+      ? t('Versão {current}. A verificação de novas versões está desligada pela variável UPDATE_CHECK=off.', u)
+      : !u.enabled
+        ? t('Versão {current}. A verificação de novas versões está desligada.', u)
+        : u.available
+          ? t('Versão {latest} disponível. Este servidor está na {current}.', u)
+          : u.error
+            ? t('Versão {current}. Não foi possível consultar a versão mais recente.', u)
+            : u.latest
+              ? t('Versão {current}: é a mais recente.', u)
+              : t('Versão {current}. Ainda não verificado.', u);
+  $('update-how').hidden = !u.available;
+  $('update-notes').href = u.notesUrl;
+  // Primeiro a forma como este servidor foi instalado; sem saber, todas aparecem
+  const known = u.method && UPDATE_STEPS[u.method];
+  $('update-steps').replaceChildren(
+    ...(known ? [stepsBlock(u.method, u.latest)] : Object.keys(UPDATE_STEPS).map((m) => stepsBlock(m, u.latest))),
+  );
+  $('update-other').replaceChildren(
+    ...Object.keys(UPDATE_STEPS)
+      .filter((m) => known && m !== u.method)
+      .map((m) => stepsBlock(m, u.latest)),
+    el('p', { className: 'small' }, el('a', { href: UPDATE_DOCS, target: '_blank', rel: 'noopener noreferrer', textContent: t('Guia de atualização') })),
+  );
+  $('update-check').checked = u.enabled;
+  $('update-check').disabled = u.disabledByEnv || u.devBuild;
+  $('update-check-now').disabled = u.disabledByEnv || u.devBuild || !u.enabled;
+};
+
+renderUpdate(await api('/api/admin/update'));
+$('update-check').addEventListener('change', async () => {
+  $('update-error').hidden = true;
+  try {
+    await api('/api/admin/settings', { updateCheck: $('update-check').checked });
+    renderUpdate(await api('/api/admin/update'));
+  } catch (err) {
+    showError($('update-error'), err);
+  }
+});
+$('update-check-now').addEventListener('click', async () => {
+  $('update-error').hidden = true;
+  $('update-check-now').disabled = true;
+  try {
+    renderUpdate(await api('/api/admin/update/check', {}));
+  } catch (err) {
+    showError($('update-error'), err);
+    $('update-check-now').disabled = false;
+  }
+});
+
 // --- login da empresa (SSO) -------------------------------------------------
 
 const fillSso = (sso) => {

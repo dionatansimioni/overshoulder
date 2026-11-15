@@ -32,6 +32,26 @@
     <main class="admin-main">
       <section id="geral" class="admin-page" hidden>
         <h1>Geral</h1>
+        <div id="update-box" class="update-box">
+          <h2>Versão</h2>
+          <p id="update-status" class="notice"></p>
+          <div id="update-how" hidden>
+            <p class="small"><a id="update-notes" target="_blank" rel="noopener noreferrer">Ver o que mudou nesta versão</a></p>
+            <p class="small">Faça um backup antes. Os dados ficam no volume e continuam depois da atualização.</p>
+            <div id="update-steps" class="update-steps"></div>
+            <details class="small">
+              <summary>Outras formas de instalação</summary>
+              <div id="update-other" class="update-steps"></div>
+            </details>
+          </div>
+          <label class="check"><input id="update-check" type="checkbox"> Verificar novas versões uma vez por dia</label>
+          <p class="muted small field-hint">Consulta a última versão publicada no GitHub. Nenhum dado do servidor é enviado; o GitHub vê só o IP dele.</p>
+          <div class="row-actions">
+            <button type="button" id="update-check-now" class="secondary">Verificar agora</button>
+          </div>
+          <p id="update-error" class="error" hidden></p>
+        </div>
+        <h2>Configurações</h2>
         <form id="settings-form" class="form">
           <label class="check"><input id="require2fa" type="checkbox"> Exigir 2FA de todas as contas</label>
           <p class="muted small field-hint">Quem ainda não tem 2FA (inclusive você) precisará configurar antes de continuar.</p>

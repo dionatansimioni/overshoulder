@@ -17,6 +17,17 @@ const showSignedIn = (user) => {
   $('recommend-2fa').hidden = user.totp;
   $('admin-link').hidden = user.role !== 'admin';
   mountRoomList({ isAdmin: user.role === 'admin' });
+  if (user.role === 'admin') showUpdateNotice();
+};
+
+// Versão nova publicada: o admin vê o aviso aqui e os passos para atualizar em /admin
+const showUpdateNotice = async () => {
+  try {
+    const update = await api('/api/admin/update');
+    if (!update.available) return;
+    $('update-notice').textContent = t('Versão {version} disponível: veja como atualizar.', { version: update.latest });
+    $('update-notice').hidden = false;
+  } catch {}
 };
 
 // Mensagens de volta do login corporativo
