@@ -156,7 +156,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
   - Guias em `docs/instalacao.md`: sem domínio, certificado da empresa, sem internet (`docker save`/`load`, `NODE_IP` obrigatório) e homelab (upload, CGNAT, IP de casa exposto).
 
 - **Item 7 feito (15/11/2026), sem o botão da Hostinger (decisão do usuário: fica para depois):**
-  - `install.sh` na raiz (`curl … | sudo bash`): confere sistema e arquitetura, instala o Docker pelo get.docker.com se faltar, pergunta o modo (domínio, IP sem domínio, rede local, atrás de proxy; sugere o proxy se 80/443 estiverem ocupadas e aponta o guia se achar o `coolify-proxy`), confere o DNS do domínio, abre ufw/firewalld, gera `/opt/overshoulder/compose.yml` e `.env` (644, sem segredos; precisa ser legível para `overshoulder status` sem sudo) com a imagem do GHCR, sobe e mostra endereço, código e portas do painel do provedor. Sem perguntas com `MODE`/`DOMAIN`/`OVERSHOULDER_YES=1`.
+  - `install.sh` na raiz (`sudo bash -c "$(curl …)"`; o `curl … | sudo bash` não recebe o teclado no Ubuntu 25.10, com sudo-rs 0.2.8): confere sistema e arquitetura, instala o Docker pelo get.docker.com se faltar, pergunta o modo (domínio, IP sem domínio, rede local, atrás de proxy; sugere o proxy se 80/443 estiverem ocupadas e aponta o guia se achar o `coolify-proxy`), confere o DNS do domínio, abre ufw/firewalld, gera `/opt/overshoulder/compose.yml` e `.env` (644, sem segredos; precisa ser legível para `overshoulder status` sem sudo) com a imagem do GHCR, sobe e mostra endereço, código e portas do painel do provedor. Sem perguntas com `MODE`/`DOMAIN`/`OVERSHOULDER_YES=1`.
   - Comando `overshoulder` do servidor: `update`, `status`, `logs`, `config-code`, `reset-admin`, `backup`, `uninstall [--purge]`.
   - A imagem informa a versão (`APP_VERSION`, da tag; local = `dev`) e o `INSTALL_METHOD` de cada caminho (installer, compose-build, coolify).
   - Teste em `scripts/test-installer.sh`: instala de verdade a partir de um registro local, atualiza para uma imagem nova e desinstala.
@@ -322,7 +322,7 @@ Cada etapa termina com algo funcionando e testado, na ordem abaixo. As regras de
 - Modo "já tenho proxy": feito como `TLS=proxy` (o Caddy sobe só em HTTP, para manter as rotas `/rtc` e do site); configurações prontas em `docs/proxy.md`.
 
 ### 7. Instalador de um comando
-- `curl -fsSL https://…/install.sh | bash` em Ubuntu e Debian:
+- `sudo bash -c "$(curl -fsSL https://…/install.sh)"` em Ubuntu e Debian:
   1. Verifica o sistema e a arquitetura.
   2. Instala o Docker se faltar.
   3. Verifica as portas 80/443; se estiverem ocupadas, oferece o modo proxy.

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Instalador do Overshoulder para Ubuntu e Debian (amd64 e arm64):
-#   curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh | sudo bash
+#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"
+#
+# Não use "curl … | sudo bash": no Ubuntu 25.10 (sudo-rs 0.2.8), o script lido pelo cano não
+# recebe o que se digita no terminal, nem o CTRL+C.
 #
 # Pergunta como o servidor vai ser acessado, instala o Docker se faltar, abre o firewall,
 # sobe o container com Docker Compose em /opt/overshoulder e instala o comando "overshoulder".
@@ -24,14 +27,21 @@ say() { printf '%s\n' "$*"; }
 warn() { printf '\033[33mAtenção:\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[31mErro:\033[0m %s\n' "$*" >&2; exit 1; }
 
-# Com "curl | bash", a entrada padrão é o próprio script: as respostas vêm do terminal
-interactive() { [ -z "${OVERSHOULDER_YES:-}" ] && [ -r /dev/tty ] && [ -w /dev/tty ]; }
+INSTALL_CMD='sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"'
+# As respostas vêm do terminal (/dev/tty), não da entrada padrão. Sem terminal (automação), valem os padrões.
+interactive() { [ -z "${OVERSHOULDER_YES:-}" ] && { : </dev/tty; } 2>/dev/null; }
 # ask "pergunta" "padrão" → resposta (ou o padrão, sem terminal)
 ask() {
   local answer=''
   if interactive; then
     printf '%s%s: ' "$1" "${2:+ [$2]}" >/dev/tty
-    read -r answer </dev/tty || true
+    if ! read -r answer </dev/tty; then
+      # Terminal que abre mas não entrega o que se digita (curl | sudo-rs) ou CTRL+D: para tudo, sem
+      # seguir com respostas vazias. Roda numa subshell ($(ask …)): o kill encerra o instalador.
+      printf '\n\033[31mErro:\033[0m não recebi sua resposta pelo terminal. Rode o instalador assim:\n  %s\n' "$INSTALL_CMD" >&2
+      kill -TERM $$
+      exit 1
+    fi
   fi
   printf '%s' "${answer:-$2}"
 }
@@ -45,7 +55,7 @@ port_busy() { ss -Hltn "sport = :$1" 2>/dev/null | grep -q .; }
 # --- sistema --------------------------------------------------------------
 
 bold "Overshoulder: instalação"
-[ "$(id -u)" = 0 ] || die "rode como root: curl -fsSL … | sudo bash"
+[ "$(id -u)" = 0 ] || die "rode como root: $INSTALL_CMD"
 case "$(uname -m)" in
   x86_64 | amd64) ;;
   aarch64 | arm64) ;;

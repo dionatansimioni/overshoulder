@@ -13,7 +13,7 @@
 Em Ubuntu ou Debian (amd64 ou arm64), com o domínio já apontando para o servidor:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh | sudo bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"
 ```
 
 O instalador:

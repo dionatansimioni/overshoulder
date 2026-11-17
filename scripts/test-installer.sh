@@ -55,6 +55,39 @@ grep -q 'MODE inválido' <<<"$out" || die "MODE inválido deveria ser recusado: 
 [ ! -e "$TMP/opt/.env" ] || die "instalação recusada deixou arquivos para trás"
 ok "respostas inválidas (IP privado sem domínio, domínio malformado, modo) são recusadas sem instalar nada"
 
+# --- terminal que não entrega o que se digita ---------------------------------------
+# No Ubuntu 25.10, "curl | sudo bash" abre o /dev/tty, mas a leitura falha. Aqui o terminal é um pty
+# de verdade e a resposta é um CTRL+D: o instalador tem de parar e mostrar o comando certo, sem
+# seguir com respostas vazias.
+out=$(env -u OVERSHOULDER_YES python3 -I - "$SUDO" <<'PY' 2>&1 || true
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp('sh', ['sh', '-c', f'{sys.argv[1]} bash install.sh'])
+out, sent, t0 = b'', False, time.time()
+while time.time() - t0 < 60:
+    if select.select([fd], [], [], 0.2)[0]:
+        try:
+            chunk = os.read(fd, 1024)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+    if not sent and b'Escolha' in out:
+        time.sleep(0.3)
+        os.write(fd, b'\x04')
+        sent = True
+os.waitpid(pid, 0)
+print(out.decode(errors='replace'))
+PY
+)
+grep -q 'não recebi sua resposta pelo terminal' <<<"$out" && grep -qF 'sudo bash -c "$(curl -fsSL' <<<"$out" \
+  || die "sem resposta no terminal, o instalador deveria parar e mostrar o comando certo: $out"
+! grep -q 'Domínio\|Pronto!' <<<"$out" || die "o instalador seguiu adiante sem resposta: $out"
+[ ! -e "$TMP/opt/.env" ] || die "instalação sem resposta deixou arquivos para trás"
+ok "sem resposta pelo terminal, o instalador para e mostra o comando certo"
+
 # --- rede local ---------------------------------------------------------------
 out=$(install_with MODE=lan DOMAIN=127.0.0.1) || die "instalação na rede local falhou: $out"
 grep -q 'Pronto!' <<<"$out" || die "instalador não terminou: $out"
