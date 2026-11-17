@@ -108,7 +108,15 @@ export const waitForLiveKit = async () => {
 
 // Faz login pela página inicial, no navegador
 export const loginInBrowser = async (page, base, { username, password } = ADMIN) => {
+  const pageErrors = [];
+  page.on('pageerror', (e) => pageErrors.push(e.message));
   await page.goto(`${base}/`);
+  // O formulário só aparece depois de a página ler /api/state. Se não aparecer, o erro diz onde a
+  // página parou: falhou de vez na suíte inteira sem deixar pista
+  await page.waitForSelector('#login-form:not([hidden])', { timeout: 15000 }).catch(async (err) => {
+    const state = await page.evaluate(() => fetch('/api/state').then((r) => `${r.status} ${r.statusText}`, (e) => e.message)).catch((e) => e.message);
+    throw new Error(`login: o formulário não apareceu em ${page.url()} (/api/state: ${state}; erros: ${JSON.stringify(pageErrors)})`, { cause: err });
+  });
   await page.fill('#username', username);
   await page.fill('#password', password);
   await page.click('#login-form button');
