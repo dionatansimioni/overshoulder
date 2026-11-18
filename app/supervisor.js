@@ -213,6 +213,15 @@ const proxyCaddyfile = () => `{
 }
 
 :${config.httpPort} {
+	# Acesso por http:// que o proxy repassou (o Coolify, por exemplo, atende os dois): manda para o
+	# https:// do domínio, senão login e senha passariam sem criptografia. Só vale o X-Forwarded-Proto
+	# de um proxy confiável; sem o cabeçalho (healthcheck, acesso direto), segue normal.
+	@sem_https {
+		remote_ip ${config.trustedProxies.join(' ')}
+		header X-Forwarded-Proto http
+	}
+	redir @sem_https https://${config.domain}{uri} 308
+
 ${routes(` {
 			header_up X-Forwarded-For {client_ip}
 		}`)}

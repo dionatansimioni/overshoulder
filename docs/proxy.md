@@ -39,6 +39,8 @@ Por padrão, o Overshoulder usa as portas 80 e 443 e cuida sozinho do HTTPS. Se 
 
 Não publique a porta 80 do container no servidor (`ports: "80:80"`): o acesso ao site deve passar sempre pelo proxy do Coolify.
 
+Se alguém abrir o site por `http://`, o Overshoulder redireciona para `https://<DOMAIN>`. Para isso, o proxy precisa enviar o cabeçalho `X-Forwarded-Proto`, como fazem o Traefik do Coolify, o Caddy e as configurações de Nginx deste guia.
+
 O Dokploy e o EasyPanel funcionam da mesma forma: domínio apontando para a porta 80 do container, `TLS=proxy` e as portas de vídeo publicadas.
 
 ## Nginx, Caddy ou Traefik no mesmo servidor

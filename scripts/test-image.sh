@@ -256,6 +256,14 @@ preset_out=$(docker exec "$PROXY_NAME" overshoulder reset-admin)
 grep -q '^https://live.example.test/redefinir#' <<<"$preset_out" || proxy_die "link do reset-admin no modo proxy: $preset_out"
 ok "com TLS=proxy, site e LiveKit respondem em HTTP, e os links públicos são https://<domínio>"
 
+# Acesso por http:// repassado pelo proxy vai para o https:// do domínio, mantendo o caminho e o método
+redir=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H 'X-Forwarded-Proto: http' -H 'Host: outro.example.test' "$PBASE/admin?x=1")
+[ "$redir" = '308 https://live.example.test/admin?x=1' ] || proxy_die "http:// pelo proxy deveria ir para https://<DOMAIN>: $redir"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'X-Forwarded-Proto: http' "$PBASE/api/login")" = 308 ] || proxy_die "POST por http:// deveria ser redirecionado"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-Proto: https' "$PBASE/admin")" = 200 ] || proxy_die "https:// pelo proxy não deveria ser redirecionado"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$PBASE/healthz")" = 200 ] || proxy_die "sem X-Forwarded-Proto (healthcheck) não deveria ser redirecionado"
+ok "com TLS=proxy, acesso por http:// repassado pelo proxy vai para https://<DOMAIN>"
+
 for i in 1 2 3 4 5; do [ "$(signup_as 203.0.113.1 "um$i")" = 201 ] || proxy_die "cadastro $i do mesmo IP"; done
 [ "$(signup_as 203.0.113.1 um6)" = 429 ] || proxy_die "limite por IP não valeu para o IP informado pelo proxy"
 [ "$(signup_as 203.0.113.2 dois1)" = 201 ] || proxy_die "outro IP atrás do mesmo proxy foi bloqueado"
@@ -265,6 +273,7 @@ ok "o limite por IP usa o IP de quem acessa informado pelo proxy, e o que vem à
 
 proxy_up 192.0.2.1/32
 ! grep -qi '^set-cookie:.*; Secure' <<<"$setup_headers" || proxy_die "X-Forwarded-Proto aceito de fora de TRUSTED_PROXIES"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-Proto: http' "$PBASE/admin")" = 200 ] || proxy_die "X-Forwarded-Proto de fora de TRUSTED_PROXIES não deveria redirecionar"
 for i in 1 2 3 4 5; do [ "$(signup_as "203.0.113.1$i" "qu$i")" = 201 ] || proxy_die "cadastro $i sem proxy confiável"; done
 [ "$(signup_as 203.0.113.20 qu6)" = 429 ] || proxy_die "X-Forwarded-For aceito de fora de TRUSTED_PROXIES"
 proxy_cleanup
