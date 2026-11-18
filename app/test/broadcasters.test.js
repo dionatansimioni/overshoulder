@@ -37,7 +37,7 @@ describe('convites', () => {
 
   test('convite vale uma vez e cria um transmissor já logado', async () => {
     const inv = await invite(s, admin);
-    assert.match(inv.path, /^\/convite#[A-Za-z0-9_-]{43}$/);
+    assert.match(inv.path, /^\/invite#[A-Za-z0-9_-]{43}$/);
     const token = tokenOf(inv.path);
 
     assert.equal((await api(s.url, '/api/invites/accept', { token, username: 'ab', password: BROADCASTER.password })).status, 400);
@@ -169,7 +169,7 @@ describe('redefinição do admin pelo comando no servidor', () => {
       cwd: APP_DIR,
       env: { ...process.env, DATA_DIR: dataDir, DOMAIN: 'live.exemplo.com', HTTPS_PORT: '443', OVERSHOULDER_LANG: 'pt', ...env },
     });
-    return stdout.match(/https:\/\/live\.exemplo\.com\/redefinir#([A-Za-z0-9_-]+)/)[1];
+    return stdout.match(/https:\/\/live\.exemplo\.com\/reset#([A-Za-z0-9_-]+)/)[1];
   };
 
   test('link vale uma vez, troca a senha, remove o 2FA e encerra as sessões', async () => {
@@ -242,7 +242,7 @@ describe('no navegador', () => {
     await adminPage.click('#new-invite');
     await adminPage.waitForSelector('#invite-box:not([hidden])');
     const link = await adminPage.inputValue('#invite-link');
-    assert.match(link, /\/convite#/);
+    assert.match(link, /\/invite#/);
 
     const bia = await page();
     await bia.goto(link);
@@ -296,7 +296,7 @@ describe('no navegador', () => {
     // Exigir 2FA vale para o próprio admin: sem 2FA, ele é levado a configurar
     await p.check('#require2fa');
     await p.click('#settings-form button');
-    await p.waitForURL(`${s.url}/conta`);
+    await p.waitForURL(`${s.url}/account`);
     assert.ok(await p.isVisible('#required-2fa'));
     const saved = JSON.parse(fs.readFileSync(path.join(s.dataDir, 'state.json'), 'utf8')).settings;
     assert.deepEqual(saved, { maxParticipants: 150, signup: 'approval', require2fa: true, defaultQuality: '720p30', maxQuality: '1440p60' });

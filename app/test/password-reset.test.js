@@ -26,7 +26,7 @@ describe('link de nova senha para transmissor', () => {
     const { s, admin, broadcaster } = await fresh(13320);
     const r = await resetLink(s, admin);
     assert.equal(r.status, 200);
-    assert.match(r.body.path, /^\/nova-senha#[A-Za-z0-9_-]{40,}$/);
+    assert.match(r.body.path, /^\/new-password#[A-Za-z0-9_-]{40,}$/);
     assert.ok(Date.parse(r.body.expiresAt) > Date.now() + 23 * 3600_000);
 
     const done = await api(s.url, '/api/password-reset', { token: tokenOf(r), password: NEW_PASSWORD });
@@ -98,7 +98,7 @@ describe('link de nova senha no navegador', () => {
     await admin.waitForSelector('#user-reset:not([hidden])');
     assert.equal(await admin.textContent('#reset-for'), BROADCASTER.username);
     const link = await admin.inputValue('#reset-link');
-    assert.match(link, new RegExp(`^${s.url}/nova-senha#`));
+    assert.match(link, new RegExp(`^${s.url}/new-password#`));
 
     const page = await (await browser.newContext()).newPage();
     page.on('pageerror', (err) => errors.push(err.message));

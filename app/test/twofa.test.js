@@ -196,7 +196,7 @@ describe('no navegador', () => {
     await loginInBrowser(page, s.url);
     assert.ok(await page.isVisible('#recommend-2fa'), 'recomenda ativar o 2FA');
     await page.click('#recommend-2fa');
-    await page.waitForURL(`${s.url}/conta`);
+    await page.waitForURL(`${s.url}/account`);
     await page.click('#start-2fa');
     await page.waitForSelector('#qr[src^="data:image/svg+xml"]');
     const secret = (await page.textContent('#secret')).replace(/\s/g, '');
@@ -227,7 +227,7 @@ describe('no navegador', () => {
     await page.fill('#username', ADMIN.username);
     await page.fill('#password', ADMIN.password);
     await page.click('#login-form button');
-    await page.waitForURL(`${s.url}/conta`);
+    await page.waitForURL(`${s.url}/account`);
     assert.ok(await page.isVisible('#required-2fa'));
   });
 });

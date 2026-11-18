@@ -14,7 +14,7 @@ $('reset-form').addEventListener('submit', (e) => {
   busy(e.target, async () => {
     try {
       await api('/api/admin-reset', { token, password: $('password').value });
-      location.replace('/conta');
+      location.replace('/account');
     } catch (err) {
       showError($('reset-error'), err);
     }

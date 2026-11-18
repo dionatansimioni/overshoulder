@@ -102,7 +102,7 @@ out=$(install_with MODE=lan DOMAIN=127.0.0.1) || die "instalação na rede local
 grep -q 'Pronto!' <<<"$out" || die "instalador não terminou: $out"
 code=$(sed -n 's/.*código de configuração: \([A-Z0-9-]*\)$/\1/p' <<<"$out")
 [ -n "$code" ] || die "instalador não mostrou o código de configuração: $out"
-grep -q "Abra https://127.0.0.1:18493/configurar" <<<"$out" || die "endereço errado no fim da instalação: $out"
+grep -q "Abra https://127.0.0.1:18493/setup" <<<"$out" || die "endereço errado no fim da instalação: $out"
 [ "$(curl -sk "$BASE/healthz")" = '{"status":"ok"}' ] || die "site não respondeu depois da instalação"
 # O .env não guarda segredos e precisa ser legível sem sudo (overshoulder status)
 [ "$(stat -c %a "$TMP/opt/.env")" = 644 ] || die ".env deveria ter permissão 644"
@@ -120,7 +120,7 @@ grep -q '"role":"admin"' <<<"$setup" || die "configuração inicial: $setup"
 # Saídas em variáveis: com pipefail, "comando | grep -q" falha à toa quando o grep fecha o cano antes
 cc=$($BIN config-code); grep -q 'já foi configurado' <<<"$cc" || die "config-code depois de configurado: $cc"
 ra=$($BIN reset-admin)
-grep -q '^https://127.0.0.1:18493/redefinir#' <<<"$ra" && grep -q '^Link para redefinir' <<<"$ra" || die "overshoulder reset-admin: $ra"
+grep -q '^https://127.0.0.1:18493/reset#' <<<"$ra" && grep -q '^Link para redefinir' <<<"$ra" || die "overshoulder reset-admin: $ra"
 out=$(OVERSHOULDER_LANG=en $BIN help); grep -q '^Usage: overshoulder <command>' <<<"$out" || die "overshoulder help em inglês: $out"
 out=$(OVERSHOULDER_LANG=en $BIN status); grep -q 'Health: healthy · Version: ' <<<"$out" || die "overshoulder status em inglês: $out"
 out=$(OVERSHOULDER_LANG=en $BIN reset-admin); grep -q '^Link to reset' <<<"$out" || die "overshoulder reset-admin em inglês: $out"
@@ -153,7 +153,7 @@ ok "overshoulder uninstall --purge remove container, dados, pasta e comando"
 # --- atrás de outro proxy --------------------------------------------------------
 out=$(install_with MODE=proxy DOMAIN=live.example.test PROXY_PORT=18091) || die "instalação no modo proxy falhou: $out"
 [ "$(curl -s http://127.0.0.1:18091/healthz)" = '{"status":"ok"}' ] || die "modo proxy não respondeu na porta local"
-grep -q 'Abra https://live.example.test/configurar' <<<"$out" || die "endereço do modo proxy: $out"
+grep -q 'Abra https://live.example.test/setup' <<<"$out" || die "endereço do modo proxy: $out"
 grep -q '"127.0.0.1:18091:18090"' "$TMP/opt/compose.yml" || die "no modo proxy, o site deveria ficar só em 127.0.0.1"
 ! grep -q '18493' "$TMP/opt/compose.yml" || die "no modo proxy, a porta HTTPS não deveria ser publicada"
 $SUDO "$BIN" uninstall --purge >/dev/null

@@ -356,7 +356,7 @@ url="https://$domain"
 
 say ""
 bold "$(m Pronto! Done!)"
-say "1. $(m Abra Open) $url/configurar"
+say "1. $(m Abra Open) $url/setup"
 say "2. $(m 'Use o código de configuração:' 'Use the setup code:') ${code:-$(m '(rode: overshoulder config-code)' '(run: overshoulder config-code)')}"
 say ""
 say "$(m 'Se o seu provedor tem firewall no painel, libere estas portas lá também. No Oracle Cloud, AWS e Google Cloud ele vem ligado; na Hostinger, só vale se você aplicar um.' \

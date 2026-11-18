@@ -19,8 +19,8 @@ const commands = {
     if (!admin) {
       console.error(
         m(
-          'O servidor ainda não foi configurado: abra /configurar com o código que aparece nos logs.',
-          "The server isn't set up yet: open /configurar with the code shown in the logs.",
+          'O servidor ainda não foi configurado: abra /setup com o código que aparece nos logs.',
+          "The server isn't set up yet: open /setup with the code shown in the logs.",
         ),
       );
       process.exit(1);
@@ -40,7 +40,7 @@ const commands = {
         `Link to reset the "${admin.username}" account (works once, for ${minutes} minutes):`,
       ),
     );
-    console.log(`${base}/redefinir#${token}`);
+    console.log(`${base}/reset#${token}`);
     console.log(
       m(
         'A senha será trocada e o 2FA da conta, removido. Todas as sessões dela serão encerradas.',

@@ -419,7 +419,7 @@ const updateControls = () => {
     // Celulares não compartilham a tela: avisa uma vez e aponta o guia
     if (!shareHintShown) {
       shareHintShown = true;
-      addMessage(t('Este navegador não compartilha a tela. Dá para transmitir com a câmera; para jogos de celular, veja o guia em {url}', { url: `${location.origin}/celular` }));
+      addMessage(t('Este navegador não compartilha a tela. Dá para transmitir com a câmera; para jogos de celular, veja o guia em {url}', { url: `${location.origin}/mobile` }));
     }
   }
 

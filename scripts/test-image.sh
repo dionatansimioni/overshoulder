@@ -115,7 +115,7 @@ wait_for 90 healthy || die "container não voltou saudável depois de reiniciar"
 ok "segredos e contas sobrevivem ao reinício do container"
 
 reset_out=$(docker exec "$NAME" overshoulder reset-admin)
-reset_token=$(echo "$reset_out" | sed -n 's|^https://127.0.0.1:18443/redefinir#\([A-Za-z0-9_-]*\)$|\1|p')
+reset_token=$(echo "$reset_out" | sed -n 's|^https://127.0.0.1:18443/reset#\([A-Za-z0-9_-]*\)$|\1|p')
 [ -n "$reset_token" ] || die "reset-admin não gerou o link: $reset_out"
 NEW_PASSWORD='outra frase longa para a dona'
 [ "$(api -o /dev/null -w '%{http_code}' -X POST "$BASE/api/admin-reset" -H 'Content-Type: application/json' \
@@ -253,7 +253,7 @@ grep -q '"url":"wss://live.example.test"' <<<"$token_json" || proxy_die "URL pú
 ptoken=$(echo "$token_json" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$PBASE/rtc/validate?access_token=$ptoken")" = 200 ] || proxy_die "LiveKit pelo modo proxy"
 preset_out=$(docker exec "$PROXY_NAME" overshoulder reset-admin)
-grep -q '^https://live.example.test/redefinir#' <<<"$preset_out" || proxy_die "link do reset-admin no modo proxy: $preset_out"
+grep -q '^https://live.example.test/reset#' <<<"$preset_out" || proxy_die "link do reset-admin no modo proxy: $preset_out"
 ok "com TLS=proxy, site e LiveKit respondem em HTTP, e os links públicos são https://<domínio>"
 
 # Acesso por http:// repassado pelo proxy vai para o https:// do domínio, mantendo o caminho e o método

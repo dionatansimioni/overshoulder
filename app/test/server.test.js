@@ -58,6 +58,34 @@ describe('arquivos', () => {
     assert.equal((await fetch(`${base}/vendor/livekit-client.umd.js`)).status, 404);
   });
 
+  test('páginas respondem nos endereços em inglês', async () => {
+    for (const route of ['/setup', '/account', '/admin', '/invite', '/signup', '/reset', '/new-password', '/mobile']) {
+      const res = await fetch(base + route);
+      assert.equal(res.status, 200, route);
+      assert.match(res.headers.get('content-type'), /text\/html/, route);
+    }
+  });
+
+  test('endereços antigos, em português, redirecionam para os novos mantendo a busca', async () => {
+    for (const [old, now] of [
+      ['/configurar', '/setup'],
+      ['/conta', '/account'],
+      ['/convite', '/invite'],
+      ['/cadastro', '/signup'],
+      ['/redefinir', '/reset'],
+      ['/nova-senha', '/new-password'],
+      ['/celular', '/mobile'],
+    ]) {
+      const res = await fetch(`${base}${old}?a=1`, { redirect: 'manual' });
+      assert.equal(res.status, 301, old);
+      assert.equal(res.headers.get('location'), `${now}?a=1`, old);
+    }
+    // O redirecionamento não vira um redirecionamento aberto
+    const res = await fetch(`${base}/configurar?next=//mal.example`, { redirect: 'manual' });
+    assert.equal(res.headers.get('location'), '/setup?next=//mal.example');
+    assert.equal((await fetch(`${base}/configurar/x`, { redirect: 'manual' })).status, 404);
+  });
+
   test('caminhos desconhecidos ou suspeitos dão 404', async () => {
     assert.equal((await fetch(`${base}/static/..%2Fserver.js`)).status, 404);
     assert.equal((await fetch(`${base}/server.js`)).status, 404);

@@ -151,7 +151,7 @@ describe('no navegador, em inglês', () => {
     await loginInBrowser(page, s.url);
     await assertEnglish(page, 'início');
     // Cada página do painel aparece sozinha: todas precisam ser conferidas
-    for (const route of ['/conta', '/admin#geral', '/admin#uso', '/admin#salas', '/admin#transmissores', '/admin#convites', '/admin#avancado']) {
+    for (const route of ['/account', '/admin#geral', '/admin#uso', '/admin#salas', '/admin#transmissores', '/admin#convites', '/admin#avancado']) {
       await page.goto(`${s.url}${route}`);
       await page.waitForLoadState('networkidle');
       await assertEnglish(page, route);

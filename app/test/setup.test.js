@@ -53,7 +53,7 @@ describe('configuração em 3 passos (navegador)', () => {
   test('código errado fica no passo 1 com o erro; o certo avança', async () => {
     const s = await fresh(13182);
     const { page, errors } = await newPage();
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     assert.equal(await stepShown(page), 1);
     assert.equal(await page.textContent('#step-status'), 'Passo 1 de 3');
     assert.ok(await page.isHidden('#back'), 'sem Voltar no primeiro passo');
@@ -75,7 +75,7 @@ describe('configuração em 3 passos (navegador)', () => {
   test('Voltar (botão e navegador) não perde o que foi digitado, e Avançar do navegador volta ao passo', async () => {
     const s = await fresh(13183);
     const { page, errors } = await newPage();
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     const code = await s.setupCode();
     await page.fill('#code', code);
     await page.click('#next');
@@ -111,7 +111,7 @@ describe('configuração em 3 passos (navegador)', () => {
   test('senha recusada pelo servidor leva de volta ao passo da conta', async () => {
     const s = await fresh(13184);
     const { page } = await newPage();
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     await page.fill('#code', await s.setupCode());
     await page.click('#next');
     await page.fill('#username', 'dona');
@@ -129,7 +129,7 @@ describe('configuração em 3 passos (navegador)', () => {
   test('tudo pelo teclado: Enter avança cada passo', async () => {
     const s = await fresh(13185);
     const { page } = await newPage();
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     await page.fill('#code', await s.setupCode());
     await page.press('#code', 'Enter');
     await page.waitForSelector('#username:visible');
@@ -146,7 +146,7 @@ describe('configuração em 3 passos (navegador)', () => {
   test('no celular os passos e os botões cabem na tela', async () => {
     const s = await fresh(13186);
     const { page, errors } = await newPage({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true });
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     await page.fill('#code', await s.setupCode());
     await page.click('#next');
     await page.waitForSelector('#username:visible');

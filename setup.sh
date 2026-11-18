@@ -51,7 +51,7 @@ url="https://$domain"
 [[ "$https_port" == 443 ]] || url="$url:$https_port"
 echo
 echo "Pronto. Suba com:  docker compose up -d --build"
-echo "Depois abra:       $url/configurar"
+echo "Depois abra:       $url/setup"
 echo "e use o código que aparece em:  docker compose logs | grep setupCode"
 if [[ "$tls" == local ]]; then
   echo

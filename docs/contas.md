@@ -17,8 +17,8 @@ No mínimo 12 caracteres, sem conter o usuário e fora das ~30 mil senhas vazada
 O modo de cadastro fica em `/admin` › Geral:
 
 - **Só por convite:** o admin gera um convite em `/admin` › Convites e manda o link. A pessoa escolhe o próprio usuário e senha; o admin nunca vê a senha. O link vale uma vez, por 48 horas.
-- **Com aprovação (padrão):** qualquer um pede uma conta em `/cadastro`; a conta fica pendente até o admin aprovar em `/admin` › Transmissores. Há limite de pedidos por IP e um teto de contas esperando.
-- **Livre:** qualquer um cria conta em `/cadastro` e já transmite. Use só em servidores para um grupo que você confia.
+- **Com aprovação (padrão):** qualquer um pede uma conta em `/signup`; a conta fica pendente até o admin aprovar em `/admin` › Transmissores. Há limite de pedidos por IP e um teto de contas esperando.
+- **Livre:** qualquer um cria conta em `/signup` e já transmite. Use só em servidores para um grupo que você confia.
 
 Em `/admin` › Transmissores:
 
@@ -28,7 +28,7 @@ Em `/admin` › Transmissores:
 
 ## Verificação em duas etapas (2FA)
 
-Cada pessoa ativa em `/conta`, com um app autenticador (Google Authenticator, Aegis, 1Password…). Ao ativar, recebe 10 códigos de recuperação, que valem uma vez cada. O admin pode **exigir 2FA** de todos em `/admin` › Geral.
+Cada pessoa ativa em `/account`, com um app autenticador (Google Authenticator, Aegis, 1Password…). Ao ativar, recebe 10 códigos de recuperação, que valem uma vez cada. O admin pode **exigir 2FA** de todos em `/admin` › Geral.
 
 ## Recuperar o acesso
 
@@ -54,8 +54,8 @@ Se o servidor ainda não foi configurado, não há admin para recuperar: veja [o
 ### Transmissores e a própria senha
 
 - **Transmissor perdeu o celular do 2FA:** ele entra com um código de recuperação. Sem códigos, o admin, em `/admin` › Transmissores, remove o 2FA da conta ou gera códigos novos (e entrega por um canal seguro).
-- **Transmissor esqueceu a senha:** em `/admin` › Transmissores, clique em **Link de nova senha** e mande o link à pessoa por um canal seguro. Ele vale uma vez, por 24 horas; gerar outro invalida o anterior. A pessoa escolhe a senha nova em `/nova-senha`, as sessões abertas dela são encerradas e o 2FA continua como estava (se ela perdeu também o celular, use **Remover 2FA**). Não vale para contas revogadas, pendentes ou do login da empresa.
-- **Trocar a própria senha:** em `/conta`.
+- **Transmissor esqueceu a senha:** em `/admin` › Transmissores, clique em **Link de nova senha** e mande o link à pessoa por um canal seguro. Ele vale uma vez, por 24 horas; gerar outro invalida o anterior. A pessoa escolhe a senha nova em `/new-password`, as sessões abertas dela são encerradas e o 2FA continua como estava (se ela perdeu também o celular, use **Remover 2FA**). Não vale para contas revogadas, pendentes ou do login da empresa.
+- **Trocar a própria senha:** em `/account`.
 
 ## Login da empresa (SSO)
 

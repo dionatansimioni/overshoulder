@@ -10,7 +10,7 @@ let ticket = null;
 
 const showSignedIn = (user) => {
   // Servidor que exige 2FA: quem ainda não configurou vai direto para a conta
-  if (user.needs2fa) return location.replace('/conta');
+  if (user.needs2fa) return location.replace('/account');
   $('login-view').hidden = true;
   $('signed-in').hidden = false;
   $('me').textContent = user.username;
@@ -65,7 +65,7 @@ if (state.sso) {
   $('require-sso').disabled = state.sso.forceRooms;
 }
 if (!state.setupDone) {
-  location.replace('/configurar');
+  location.replace('/setup');
 } else if (state.user) {
   showSignedIn(state.user);
 } else {

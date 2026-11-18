@@ -65,7 +65,7 @@ Se as portas 80 e 443 já têm dono (Coolify, Dokploy, EasyPanel, um Nginx ou Tr
 
 ## Primeiro acesso
 
-1. Abra `https://live.seudominio.com/configurar`.
+1. Abra `https://live.seudominio.com/setup`.
 2. Pegue o **código de configuração** (formato `XXXX-XXXX-XXXX`). Ele só existe enquanto o servidor não tem administrador, e prova que é você quem instalou. Não é uma senha: está nos logs, na linha que tem `setupCode`:
    - **instalador:** `overshoulder config-code`;
    - **`docker run` ou Docker Compose:** `docker logs overshoulder 2>&1 | grep setupCode`;

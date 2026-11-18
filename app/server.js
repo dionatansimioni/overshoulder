@@ -83,14 +83,25 @@ const VENDOR_FILES = new Set(['livekit-client.esm.mjs', 'livekit-client.e2ee.wor
 // Páginas: caminho → arquivo em public/
 const PAGES = {
   '/': 'index.html',
-  '/configurar': 'setup.html',
-  '/conta': 'account.html',
+  '/setup': 'setup.html',
+  '/account': 'account.html',
   '/admin': 'admin.html',
-  '/convite': 'invite.html',
-  '/cadastro': 'invite.html',
-  '/redefinir': 'reset.html',
-  '/nova-senha': 'newpassword.html',
-  '/celular': 'mobile.html',
+  '/invite': 'invite.html',
+  '/signup': 'invite.html',
+  '/reset': 'reset.html',
+  '/new-password': 'newpassword.html',
+  '/mobile': 'mobile.html',
+};
+// Endereços antigos, em português: redirecionam para os novos. O que vem depois do # (chave da sala,
+// código do convite, token de redefinição) o navegador mantém sozinho no redirecionamento.
+const LEGACY_PAGES = {
+  '/configurar': '/setup',
+  '/conta': '/account',
+  '/convite': '/invite',
+  '/cadastro': '/signup',
+  '/redefinir': '/reset',
+  '/nova-senha': '/new-password',
+  '/celular': '/mobile',
 };
 // Arquivos do app instalável (PWA): o service worker precisa estar na raiz para valer no site todo
 const ROOT_FILES = { '/manifest.webmanifest': 'manifest.webmanifest', '/sw.js': 'sw.js' };
@@ -324,7 +335,7 @@ let setupCode = null;
 const newSetupCode = () => {
   const raw = crypto.randomBytes(10).toString('base64url').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
   setupCode = raw.match(/.{4}/g).join('-');
-  log.warn('configuração pendente: abra /configurar e use o código', { setupCode });
+  log.warn('configuração pendente: abra /setup e use o código', { setupCode });
 };
 
 // --- API: configuração inicial e login ----------------------------------------
@@ -687,7 +698,7 @@ const createInvite = async (req, res) => {
   const invite = { id: randomToken(9), hash: sha256(token), expiresAt: Date.now() + INVITE_TTL_MS, createdBy: user.username };
   store.update((st) => st.invites.push(invite));
   log.info('convite criado', { user: user.username });
-  json(res, 201, { id: invite.id, path: `/convite#${token}`, expiresAt: new Date(invite.expiresAt).toISOString() });
+  json(res, 201, { id: invite.id, path: `/invite#${token}`, expiresAt: new Date(invite.expiresAt).toISOString() });
 };
 
 const listInvites = async (req, res) => {
@@ -854,7 +865,7 @@ const passwordResetLink = async (req, res) => {
     st.passwordResets.push({ hash: sha256(token), userId: target.id, expiresAt });
   });
   log.warn('link de nova senha gerado', { user: user.username, conta: target.username });
-  json(res, 200, { path: `/nova-senha#${token}`, expiresAt: new Date(expiresAt).toISOString() });
+  json(res, 200, { path: `/new-password#${token}`, expiresAt: new Date(expiresAt).toISOString() });
 };
 
 const passwordReset = async (req, res) => {
@@ -1848,6 +1859,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Método não permitido.' });
 
     if (PAGES[p]) return await serveFile(res, path.join(PUBLIC_DIR, PAGES[p]));
+    if (LEGACY_PAGES[p]) return send(res, 301, '', { Location: LEGACY_PAGES[p] + url.search, 'Cache-Control': 'no-store' });
     if (ROOT_FILES[p]) return await serveFile(res, path.join(PUBLIC_DIR, ROOT_FILES[p]));
     if (/^\/r\/[A-Za-z0-9_-]{22}$/.test(p)) return await serveFile(res, path.join(PUBLIC_DIR, 'room.html'));
     if (p.startsWith('/vendor/')) {

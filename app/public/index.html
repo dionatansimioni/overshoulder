@@ -27,7 +27,7 @@
         <button type="submit">Entrar</button>
         <p id="login-error" class="error" hidden></p>
         <a id="sso-login" class="button secondary" href="/api/sso/start?next=/" hidden>Entrar com login da empresa</a>
-        <p id="signup-link" class="muted small" hidden>Quer transmitir por aqui? <a href="/cadastro">Criar conta</a></p>
+        <p id="signup-link" class="muted small" hidden>Quer transmitir por aqui? <a href="/signup">Criar conta</a></p>
       </form>
 
       <form id="totp-form" class="form" hidden>
@@ -60,7 +60,7 @@
       <div class="side-footer">
         <p class="muted small">Conectado como <b id="me"></b></p>
         <nav class="side-buttons" aria-label="Conta e configurações">
-          <a class="button secondary" href="/conta">Minha conta</a>
+          <a class="button secondary" href="/account">Minha conta</a>
           <a id="admin-link" class="button secondary" href="/admin" hidden>Administração</a>
           <button id="logout" type="button" class="secondary">Sair</button>
         </nav>
@@ -75,7 +75,7 @@
         <p class="muted">Crie uma sala, mande o link e pronto: quem recebe entra só com o nome, sem conta.</p>
         <a id="update-notice" class="notice" href="/admin" hidden></a>
         <a id="usage-notice" class="notice" href="/admin#uso" hidden></a>
-        <a id="recommend-2fa" class="notice" href="/conta" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
+        <a id="recommend-2fa" class="notice" href="/account" hidden>Proteja sua conta: ative a verificação em duas etapas (2FA).</a>
         <button id="new-room" type="button" class="big">Criar sala</button>
       </div>
     </main>

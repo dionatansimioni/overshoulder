@@ -96,7 +96,7 @@ $('settings-form').addEventListener('submit', (e) => {
         maxQuality: $('max-quality').value,
       });
       // A regra vale para o próprio admin: sem 2FA, ele precisa configurar antes de continuar
-      if ($('require2fa').checked && !state.user.totp) return location.replace('/conta');
+      if ($('require2fa').checked && !state.user.totp) return location.replace('/account');
       $('settings-ok').hidden = false;
     } catch (err) {
       showError($('settings-error'), err);

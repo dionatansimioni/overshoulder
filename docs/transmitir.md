@@ -50,4 +50,4 @@ Ligue a câmera junto com a tela: ela aparece no canto, por cima (picture-in-pic
 
 ## No celular
 
-Os navegadores de celular não compartilham a tela, mas dá para fazer uma live só com a câmera. Para transmitir um jogo de celular, espelhe a tela no computador (scrcpy no Android, AirPlay no iPhone) e compartilhe essa janela. O guia completo fica em `/celular`, no próprio servidor.
+Os navegadores de celular não compartilham a tela, mas dá para fazer uma live só com a câmera. Para transmitir um jogo de celular, espelhe a tela no computador (scrcpy no Android, AirPlay no iPhone) e compartilhe essa janela. O guia completo fica em `/mobile`, no próprio servidor.

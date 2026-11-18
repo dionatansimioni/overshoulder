@@ -190,7 +190,7 @@ describe('no navegador', () => {
     page.on('pageerror', (e) => errors.push(e.message));
 
     await page.goto(`${s.url}/`);
-    await page.waitForURL(`${s.url}/configurar`);
+    await page.waitForURL(`${s.url}/setup`);
     await page.fill('#code', await s.setupCode());
     await page.click('#next');
     await page.fill('#username', 'dona');
@@ -211,7 +211,7 @@ describe('no navegador', () => {
     await page.click('#create-together');
     await page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=.+&h=/);
 
-    await page.goto(`${s.url}/configurar`);
+    await page.goto(`${s.url}/setup`);
     await page.waitForURL(`${s.url}/`);
     assert.deepEqual(errors, []);
   });

@@ -74,7 +74,7 @@ describe('app instalável (PWA)', () => {
     assert.ok(await page.evaluate(() => !!navigator.serviceWorker.controller), 'o service worker controla a página');
 
     await context.setOffline(true);
-    await page.goto(`${s.url}/conta`);
+    await page.goto(`${s.url}/account`);
     await page.waitForSelector('#retry');
     assert.equal(await page.textContent('h2'), 'Sem conexão');
     assert.match(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), /rgb\(16, 13, 22\)/, 'com o visual do app');
@@ -105,14 +105,14 @@ describe('celular', () => {
     });
     await hostRoom(page);
     assert.ok(await page.isDisabled('#share'));
-    await page.waitForFunction(() => document.querySelector('#messages').textContent.includes('/celular'));
+    await page.waitForFunction(() => document.querySelector('#messages').textContent.includes('/mobile'));
     assert.ok(await page.isEnabled('#camera'), 'a câmera continua disponível');
     assert.deepEqual(errors, []);
   });
 
   test('o guia do celular abre e explica scrcpy e AirPlay', async () => {
     const { page, errors } = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
-    await page.goto(`${s.url}/celular`);
+    await page.goto(`${s.url}/mobile`);
     const text = await page.textContent('main');
     assert.match(text, /scrcpy/);
     assert.match(text, /AirPlay/);

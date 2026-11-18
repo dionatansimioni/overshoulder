@@ -81,21 +81,21 @@ describe('no navegador', () => {
     await page.goto(`${s.url}/`);
     await page.waitForSelector('#login-form:not([hidden])');
     assert.ok(await page.isHidden('#signup-link'));
-    await page.goto(`${s.url}/cadastro`);
+    await page.goto(`${s.url}/signup`);
     await page.waitForSelector('#signup-closed:not([hidden])');
     assert.ok(await page.isHidden('#invite-form'));
 
     await setMode('approval');
     await page.goto(`${s.url}/`);
     await page.click('#signup-link a');
-    await page.waitForURL(/\/cadastro$/);
+    await page.waitForURL(/\/signup$/);
     await page.waitForSelector('#intro-approval:not([hidden])');
     // O limite de cadastros deste IP acabou no teste anterior: o resto usa um servidor novo
     const s2 = await startServer(13141);
     try {
       const admin2 = await setupAdmin(s2);
       const p2 = await (await browser.newContext()).newPage();
-      await p2.goto(`${s2.url}/cadastro`);
+      await p2.goto(`${s2.url}/signup`);
       await p2.fill('#username', 'iris');
       await p2.fill('#password', PASSWORD);
       await p2.fill('#password2', PASSWORD);
@@ -118,7 +118,7 @@ describe('no navegador', () => {
       // Modo livre: cria a conta e já cai na página inicial logado
       await api(s2.url, '/api/admin/settings', { signup: 'open' }, admin2);
       const p3 = await (await browser.newContext()).newPage();
-      await p3.goto(`${s2.url}/cadastro`);
+      await p3.goto(`${s2.url}/signup`);
       await p3.waitForSelector('#intro-open:not([hidden])');
       await p3.fill('#username', 'joana');
       await p3.fill('#password', PASSWORD);

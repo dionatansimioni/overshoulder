@@ -17,6 +17,6 @@ Compartilhamento de tela self-hosted, direto no navegador, com criptografia de p
 
 ## Para quem assiste
 
-Não precisa de conta nem de instalação: basta abrir o link recebido, digitar um nome e entrar. Nos ajustes da sala dá para escolher a qualidade que você recebe. No celular, veja a página `/celular` do próprio servidor.
+Não precisa de conta nem de instalação: basta abrir o link recebido, digitar um nome e entrar. Nos ajustes da sala dá para escolher a qualidade que você recebe. No celular, veja a página `/mobile` do próprio servidor.
 
 O plano de desenvolvimento e as decisões do projeto ficam em [PLANO.md](PLANO.md).

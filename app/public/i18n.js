@@ -542,8 +542,8 @@ const EN = {
   'Só por convite': 'Invitation only',
   'Qualquer um pede; eu aprovo': 'Anyone can ask; I approve',
   'Livre: qualquer um cria conta e transmite': 'Open: anyone can create an account and broadcast',
-  'Com cadastro aberto, a página de entrada mostra "Criar conta" (endereço /cadastro).':
-    'With sign-up open, the home page shows "Create account" (address /cadastro).',
+  'Com cadastro aberto, a página de entrada mostra "Criar conta" (endereço /signup).':
+    'With sign-up open, the home page shows "Create account" (address /signup).',
   'aguardando aprovação': 'waiting for approval',
   'Salas fixas': 'Permanent rooms',
   'Salas que não somem: o link continua o mesmo, com os mesmos convites. Boa para o canal da comunidade ou a live semanal. A chave de criptografia é criada neste navegador e fica só nos links; o servidor nunca a vê.':

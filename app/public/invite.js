@@ -3,8 +3,8 @@ import { $, api, busy, showError } from '/static/ui.js';
 
 translatePage();
 
-// /convite#<token>: convite do admin. /cadastro: cadastro sem convite, se o admin permitir.
-const isSignup = location.pathname === '/cadastro';
+// /invite#<token>: convite do admin. /signup: cadastro sem convite, se o admin permitir.
+const isSignup = location.pathname === '/signup';
 // O convite vem no fragmento (#) e sai da barra de endereço, para não vazar num copiar/colar
 const token = location.hash.slice(1);
 history.replaceState(null, '', location.pathname);
