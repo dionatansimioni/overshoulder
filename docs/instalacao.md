@@ -66,7 +66,12 @@ Se as portas 80 e 443 já têm dono (Coolify, Dokploy, EasyPanel, um Nginx ou Tr
 ## Primeiro acesso
 
 1. Abra `https://live.seudominio.com/configurar`.
-2. Pegue o **código de configuração** nos logs: `docker logs overshoulder | grep setupCode`. Ele só existe enquanto o servidor não tem administrador, e prova que é você quem instalou.
+2. Pegue o **código de configuração** (formato `XXXX-XXXX-XXXX`). Ele só existe enquanto o servidor não tem administrador, e prova que é você quem instalou. Não é uma senha: está nos logs, na linha que tem `setupCode`:
+   - **instalador:** `overshoulder config-code`;
+   - **`docker run` ou Docker Compose:** `docker logs overshoulder 2>&1 | grep setupCode`;
+   - **Coolify, Dokploy, EasyPanel:** na aba *Logs* do serviço, procure `setupCode` (Ctrl+F); ou, no terminal do servidor, `docker logs $(docker ps -qf name=overshoulder) 2>&1 | grep setupCode`.
+
+   O código muda a cada vez que o container reinicia: use o da última linha `setupCode`.
 3. Siga os 3 passos: código, conta de administrador (usuário e senha de pelo menos 12 caracteres) e limite de pessoas por sala.
 
 Pronto: você entra logado e já pode criar salas. O resto fica em `/admin` (veja [Configuração](configuracao.md)).

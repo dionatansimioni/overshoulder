@@ -80,7 +80,8 @@ Or with Compose: `./setup.sh` writes the `.env` and `docker compose up -d --buil
 - **2FA (TOTP):** optional and recommended; each person turns it on at `/conta` with an authenticator app. The admin can **require 2FA** for everyone. The 10 recovery codes work once each, and only the admin can generate a new set (or remove 2FA for someone who lost their phone).
 - **Company sign-in (SSO):** optional, through OpenID Connect (Google Workspace, Microsoft Entra ID, Keycloak, Authentik…), configured at `/admin`. Only people with an email from the allowed domains can sign in. People in the broadcasters group (or on the email list) become broadcasters on their first sign-in. Each room can require a company sign-in to watch, and then the chat shows the provider's real name. The admin can make that the default or mandatory. The administrator always signs in with username and password, so they are never locked out if the provider goes down.
 - **Passwords:** at least 12 characters, not containing the username and not among the ~30 thousand most common leaked passwords.
-- **Admin lost the password or 2FA:** on the server, run `docker exec overshoulder overshoulder reset-admin`. It prints a single-use link, valid for 15 minutes, that changes the password and removes the admin's 2FA.
+- **Admin lost the password or 2FA:** on the server, run `docker exec overshoulder overshoulder reset-admin` (installer: `overshoulder reset-admin`; Coolify and similar: open the service's *Terminal* and run `overshoulder reset-admin`, or use `docker exec $(docker ps -qf name=overshoulder) overshoulder reset-admin`). It prints a single-use link, valid for 15 minutes, that changes the password and removes the admin's 2FA.
+- **Broadcaster forgot the password:** the admin creates a **new password link** at `/admin` › Broadcasters (single use, 24 hours).
 
 Open these in the firewall:
 
@@ -94,7 +95,7 @@ Open these in the firewall:
 
 **Bandwidth:** the server uploads roughly `bitrate × viewers`. At 1080p60 (about 7 Mbps) with 10 viewers, that is around 70 Mbps of upload, close to 30 GB per hour. Check your plan's data allowance. Broadcasts start at **720p** (about 3 Mbps per viewer); in `/admin`, the administrator picks the default quality and the maximum allowed. Above 720p, the room shows the estimated bandwidth, and the panel highlights the estimate for rooms with many people.
 
-**Health and logs:** `GET /healthz` answers `{"status":"ok"}` and feeds Docker's healthcheck. `docker logs overshoulder` shows JSON logs, one per line, without passwords or room IDs. Account security events (sign-in, failed sign-in, password change) record the username, to investigate unwanted access; viewers never appear in the logs. Logs and the `reset-admin` command are in Portuguese for now.
+**Health and logs:** `GET /healthz` answers `{"status":"ok"}` and feeds Docker's healthcheck. `docker logs overshoulder` shows JSON logs, one per line, without passwords or room IDs. Account security events (sign-in, failed sign-in, password change) record the username, to investigate unwanted access; viewers never appear in the logs. Logs are in Portuguese for now; the `reset-admin` command follows the system language (`OVERSHOULDER_LANG=pt` or `en` to choose).
 
 ## Local network (LAN)
 

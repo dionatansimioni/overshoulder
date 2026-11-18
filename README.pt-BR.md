@@ -80,7 +80,8 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 - **2FA (TOTP):** opcional e recomendado; cada um ativa em `/conta` com um app autenticador. O admin pode **exigir 2FA** de todos. Os 10 códigos de recuperação valem uma vez cada, e só o admin gera um conjunto novo (ou remove o 2FA de quem perdeu o celular).
 - **Login da empresa (SSO):** opcional, por OpenID Connect (Google Workspace, Microsoft Entra ID, Keycloak, Authentik…), configurado em `/admin`. Só entra quem tem e-mail dos domínios permitidos. Quem está no grupo de transmissores (ou na lista de e-mails) vira transmissor no primeiro login. Cada sala pode exigir o login da empresa para assistir, e aí o nome no chat é o nome real do provedor. O admin pode tornar isso padrão ou obrigatório. O administrador sempre entra com usuário e senha, para não ficar trancado fora se o provedor cair.
 - **Senhas:** no mínimo 12 caracteres, sem conter o usuário e fora das ~30 mil senhas vazadas mais comuns.
-- **Admin perdeu a senha ou o 2FA:** no servidor, rode `docker exec overshoulder overshoulder reset-admin`. Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin.
+- **Admin perdeu a senha ou o 2FA:** no servidor, rode `docker exec overshoulder overshoulder reset-admin` (instalador: `overshoulder reset-admin`; Coolify e similares: abra o *Terminal* do serviço e rode `overshoulder reset-admin`, ou use `docker exec $(docker ps -qf name=overshoulder) overshoulder reset-admin`). Ele mostra um link de uso único, válido por 15 minutos, que troca a senha e remove o 2FA do admin.
+- **Transmissor esqueceu a senha:** o admin gera um **link de nova senha** em `/admin` › Transmissores (uso único, 24 horas).
 
 Libere no firewall:
 

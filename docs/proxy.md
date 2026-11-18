@@ -34,7 +34,7 @@ Por padrão, o Overshoulder usa as portas 80 e 443 e cuida sozinho do HTTPS. Se 
 
 2. No serviço `overshoulder`, preencha o domínio com a porta interna: `https://live.seudominio.com:80`. O `:80` indica ao Coolify a porta do container. O endereço público continua sem porta.
 3. Use o mesmo domínio em `DOMAIN`, sem `https://`.
-4. Faça o deploy e siga o [primeiro acesso](instalacao.md#primeiro-acesso): o código de configuração aparece nos logs do serviço, no próprio Coolify.
+4. Faça o deploy e siga o [primeiro acesso](instalacao.md#primeiro-acesso): o código de configuração aparece na aba *Logs* do serviço, na linha que tem `setupCode`. Perdeu a senha do admin depois? Abra a aba *Terminal* do serviço e rode `overshoulder reset-admin` (veja [Recuperar o acesso](contas.md#recuperar-o-acesso)).
 5. Libere 7881/TCP e 7882/UDP no firewall do servidor e no painel do provedor.
 
 Não publique a porta 80 do container no servidor (`ports: "80:80"`): o acesso ao site deve passar sempre pelo proxy do Coolify.

@@ -34,4 +34,9 @@ Siga o aviso de rede e baixe a qualidade, ou escolha 720p em Ajustes. Em casa, o
 
 ## Esqueci a senha
 
-Veja [Contas › Recuperar o acesso](contas.md#recuperar-o-acesso).
+- **Admin:** rode `reset-admin` no servidor; ele dá um link de uso único, válido por 15 minutos. O comando certo para cada tipo de instalação (inclusive Coolify) está em [Contas › Recuperar o acesso](contas.md#o-admin-perdeu-a-senha-ou-o-2fa).
+- **Transmissor:** o admin gera um **Link de nova senha** em `/admin` › Transmissores. Veja [Contas › Recuperar o acesso](contas.md#transmissores-e-a-própria-senha).
+
+## Não acho o código da primeira configuração
+
+Ele fica nos logs, na linha com `setupCode`, e muda a cada reinício do container. Veja onde procurar em cada tipo de instalação em [Instalação › Primeiro acesso](instalacao.md#primeiro-acesso).
