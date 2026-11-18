@@ -10,6 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoDocs = path.resolve(here, '../../docs');
 const out = path.resolve(here, '../src/content/docs');
 const BASE = '/overshoulder/';
+const GITHUB = 'https://github.com/dionatansimioni/overshoulder/blob/main/';
 // O plano de trabalho fica no repositório, não no site
 const SKIP = new Set(['PLANO.md']);
 
@@ -24,6 +25,8 @@ const convert = (source, prefix) => {
     .filter((l) => !/^\[← (Documentation|Documentação)\]|^English · \[Português\]|^\[English\]\(\.\.\/README\.md\) · Português/.test(l))
     .join('\n')
     .replace(/\]\((?!https?:|#)([\w-]+\.md)(?:#([^)]+))?\)/g, (_, file, anchor) => `](${pageUrl(prefix, file, anchor)})`)
+    // Arquivos fora dos guias (../deploy/…, ../../app/…): no site, apontam para o arquivo no GitHub
+    .replace(/\]\((\.\.\/[^)\s]+)\)/g, (_, rel) => `](${GITHUB}${path.posix.join(prefix ? 'docs/pt-BR' : 'docs', rel)})`)
     .replace(/^\n+/, '');
   return `---\ntitle: ${JSON.stringify(title)}\n---\n\n${body}`;
 };

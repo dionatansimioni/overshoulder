@@ -8,14 +8,15 @@ Passed to the container with `-e NAME=value` (or in the Compose `.env`). Changin
 
 | Variable | Default | Used for |
 |---|---|---|
-| `DOMAIN` | (required) | The server's domain or IP. With a public IP and `TLS=acme`, the certificate is issued for the IP (see [Without a domain](install.md#without-a-domain)) |
+| `DOMAIN` | your public IP | The server's domain or IP. With a public IP and `TLS=acme`, the certificate is issued for the IP (see [Without a domain](install.md#without-a-domain)). Empty with `TLS=acme`: the server finds its public IP over STUN and uses it. Required with `local`, `custom` and `proxy` |
+| `STUN_SERVER` | `stun.l.google.com:19302` | STUN server used to find the public IP when `DOMAIN` is empty |
 | `TLS` | `acme` | `acme`: Let's Encrypt certificate; `local`: self-signed certificate (local network); `custom`: your own certificate, such as the company's (see [Company certificate](install.md#company-certificate)); `proxy`: behind another proxy, such as Coolify's, that handles HTTPS (see [Behind another proxy](proxy.md)) |
 | `TLS_CERT`, `TLS_KEY` | `/data/certs/cert.pem`, `/data/certs/key.pem` | Only with `TLS=custom`: certificate (with the chain) and key without a passphrase |
 | `NODE_IP` | detected automatically | IP that the video server announces to browsers (use it on a local network) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones in `-p`. With `TLS=proxy`, only `HTTP_PORT` is used, and the public address has no port |
 | `TRUSTED_PROXIES` | `private_ranges` | Only with `TLS=proxy`: where the visitor's IP and protocol are accepted from (IPs and ranges separated by spaces) |
 | `UPDATE_CHECK` | on | `off` turns off the new-version check for good (e.g. a server without internet) |
-| `INSTALL_METHOD` | (empty) | How the server was installed (`installer`, `compose`, `compose-build`, `docker`, `coolify`): the new-version notice shows that method's steps first. The installer and the examples fill it in |
+| `INSTALL_METHOD` | (empty) | How the server was installed (`installer`, `compose`, `compose-build`, `docker`, `coolify`, `hostinger`): the new-version notice shows that method's steps first. The installer and the examples fill it in |
 | `MAX_PARTICIPANTS` | `16` | Initial limit of people per room, suggested during setup (2 to 5000) |
 | `TURN_DOMAIN` | off | **Experimental.** A subdomain just for TURN (e.g. `turn.live.yourdomain.com`), for networks that only allow port 443. Requires `HTTPS_PORT=443` and the subdomain pointing to the server; doesn't work with `TLS=proxy` |
 
@@ -32,6 +33,7 @@ Only the administrator can open it. The side menu has six sections; each has its
 - **Limit of people per room:** from 2 to 5000. The panel estimates the bandwidth with a full room and highlights the estimate from 200 people on.
 - **Default broadcast quality:** starts at 720p · 30 fps.
 - **Maximum allowed quality:** broadcasters only see options up to it. It is a limit in the page: a modified browser could still send more, because the video server doesn't limit the bitrate per connection.
+- **Discord:** the webhook of a Discord channel. With it, broadcasters get an **Announce on Discord** button in the room (see [Rooms](rooms.md#announce-on-discord)). To create one in Discord: Edit channel › Integrations › Webhooks › New webhook › Copy webhook URL. Leave it empty to turn it off.
 - **Broadcaster sign-up:** invitation only, with approval (default) or open. See [Accounts](accounts.md#broadcasters).
 
 ### Usage

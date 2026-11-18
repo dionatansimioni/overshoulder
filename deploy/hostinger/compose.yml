@@ -1,0 +1,21 @@
+# Overshoulder no Docker Manager da Hostinger (botão "Deploy on Hostinger").
+# Sem nenhuma variável obrigatória: com DOMAIN vazio, o servidor descobre o próprio IP público e
+# emite o certificado HTTPS para ele. Para usar um domínio, aponte-o para a VPS e preencha DOMAIN.
+# Depois de subir: abra https://<ip ou domínio>/setup e use o código que aparece nos logs (setupCode).
+services:
+  overshoulder:
+    image: ghcr.io/dionatansimioni/overshoulder:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "7881:7881"
+      - "7882:7882/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-}
+      INSTALL_METHOD: hostinger
+    volumes:
+      - data:/data
+
+volumes:
+  data:

@@ -31,6 +31,12 @@ The default link has no limit. Under **People › Invitations and entry**, the h
 
 The **waiting room** makes each person wait for the host to let them in.
 
+## Announce on Discord
+
+If the admin set up a Discord channel webhook (at `/admin` › General), the host of a room who has an account gets an **Announce on Discord** button next to the invitation link. It posts a card to the channel with the room and the invitation link.
+
+The post goes straight from the host's browser to Discord: the server never sees the link, which carries the room key. Everyone in the Discord channel gets the link, just as if someone pasted it there. The webhook is only sent to people with an account; viewers never receive it.
+
 ## Permanent rooms
 
 The admin creates, at `/admin` › Permanent rooms, rooms that don't go away, with the same link and the same invitations forever (the community channel, the weekly live). The room goes on air when someone joins. The key is created in the admin's browser; in another browser, the admin needs the link or a new key (which invalidates the old links).

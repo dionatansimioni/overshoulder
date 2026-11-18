@@ -181,7 +181,11 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ Site em https://dionatansimioni.github.io/overshoulder/ (`site/`, fluxo `site.yml`). Exige o repositório público (GitHub Pages em repositório privado depende de plano pago).
 - ✅ Fim da sala: anfitrião e quem tem conta voltam ao início; quem assiste vê "A live acabou".
 - ✅ Modo proxy redireciona `http://` para `https://` (o Coolify atende os dois).
-- **A fazer:** redesign do app no estilo shadcn (JS puro). Esta máquina é uma VM sem AVX2: o compilador do Astro 7 e o Pagefind não rodam nativos aqui (`site/build.sh` contorna).
+- ✅ Redesign do app no estilo shadcn (JS puro); `scripts/screenshots.sh` tira capturas das telas.
+- ✅ Anunciar no Discord (opção A, decidida pelo usuário): webhook do canal em `/admin`, botão na sala, envio direto do navegador (o servidor não vê o link). Bot com `/live` (opção B) ficou para depois: o servidor passaria a conhecer a chave das salas criadas pelo bot.
+- ✅ Corrigido: `/api/admin/settings` devolvia o segredo do cliente do SSO.
+- ✅ Preparação para a Hostinger: `deploy/hostinger/compose.yml` sem variáveis obrigatórias (DOMAIN vazio → IP público por STUN, certificado no IP), botão "Deploy on Hostinger" no README e no site, material de cadastro em `deploy/hostinger/README.md`. **Falta testar numa VPS da Hostinger** e o usuário fazer o cadastro no catálogo.
+- Pendente: gravação com estalos (mistura do AudioContext) e vídeo travado; aguarda o `ffprobe` do usuário. Nota: esta máquina é uma VM sem AVX2: o compilador do Astro 7 e o Pagefind não rodam nativos aqui (`site/build.sh` contorna).
 
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.

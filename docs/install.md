@@ -42,6 +42,18 @@ The installer and the `overshoulder` command speak Portuguese when the system la
 
 Don't use `curl … | sudo bash`: on some systems, such as Ubuntu 25.10, an installer read through the pipe doesn't receive what you type, nor CTRL+C.
 
+## Hostinger (one click)
+
+[![Deploy on Hostinger](https://assets.hostinger.com/vps/deploy.svg)](https://www.hostinger.com/docker-hosting?compose_url=https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/deploy/hostinger/compose.yml)
+
+The button opens Hostinger's checkout with Overshoulder's Compose file ([deploy/hostinger/compose.yml](../deploy/hostinger/compose.yml)). After the purchase, the VPS's Docker Manager opens with it, ready to deploy.
+
+- **No domain needed to start:** with `DOMAIN` empty, the server finds its own public IP and gets an HTTPS certificate for it. Open `https://<VPS IP>/setup`.
+- **Setup code:** in the project's logs in Docker Manager, on the line with `setupCode`.
+- **With a domain:** point it to the VPS, fill in `DOMAIN` in the project's environment variables and redeploy.
+- **Firewall:** the Hostinger panel firewall only applies if you assign a rule group to the VPS. If you do, open 80/TCP, 443/TCP, 7881/TCP and 7882/UDP.
+- **Updating:** in Docker Manager, update (redeploy) the project; the data stays in the volume.
+
 ## Running with Docker
 
 Without the installer: it is a single image, with LiveKit (video), the app and Caddy (automatic HTTPS) in the same container.
@@ -93,6 +105,7 @@ First, read the new version's release notes (on the project's releases page) and
 | Docker Compose with the prebuilt image | In the `compose.yml` folder: `docker compose pull`, then `docker compose up -d` |
 | Docker Compose building from source | In the project folder: `git pull`, then `docker compose up -d --build` |
 | `docker run` | `docker pull ghcr.io/dionatansimioni/overshoulder:latest`, `docker rm -f overshoulder` and the same `docker run` as when installing |
+| Hostinger (Docker Manager) | Update (redeploy) the project in Docker Manager |
 | Coolify, Dokploy, EasyPanel | **Redeploy** the service. With the `latest` tag, the new image is downloaded; with a pinned version (e.g. `:0.2.0`), change the tag first |
 
 To pin a version instead of following `latest`: with the installer, change `OVERSHOULDER_VERSION` in `/opt/overshoulder/.env` and run `sudo overshoulder update`.

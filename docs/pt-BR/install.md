@@ -42,6 +42,18 @@ O instalador e o comando `overshoulder` falam português quando o idioma do sist
 
 Não use `curl … | sudo bash`: em alguns sistemas, como o Ubuntu 25.10, o instalador lido pelo cano não recebe o que você digita, nem o CTRL+C.
 
+## Hostinger (um clique)
+
+[![Deploy on Hostinger](https://assets.hostinger.com/vps/deploy.svg)](https://www.hostinger.com/docker-hosting?compose_url=https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/deploy/hostinger/compose.yml)
+
+O botão abre a compra da Hostinger com o Compose do Overshoulder ([deploy/hostinger/compose.yml](../../deploy/hostinger/compose.yml)). Depois da compra, o Docker Manager da VPS abre com ele, pronto para subir.
+
+- **Não precisa de domínio para começar:** com `DOMAIN` vazio, o servidor descobre o próprio IP público e pede o certificado HTTPS para ele. Abra `https://<IP da VPS>/setup`.
+- **Código de configuração:** nos logs do projeto no Docker Manager, na linha com `setupCode`.
+- **Com domínio:** aponte-o para a VPS, preencha `DOMAIN` nas variáveis de ambiente do projeto e suba de novo.
+- **Firewall:** o firewall do painel da Hostinger só vale se você aplicar um grupo de regras à VPS. Se aplicar, libere 80/TCP, 443/TCP, 7881/TCP e 7882/UDP.
+- **Atualizar:** no Docker Manager, atualize (redeploy) o projeto; os dados ficam no volume.
+
 ## Subir com Docker
 
 Sem o instalador: a imagem é única, com LiveKit (vídeo), o app e o Caddy (HTTPS automático) no mesmo container.
@@ -93,6 +105,7 @@ Antes, leia as notas da versão nova (na página de releases do projeto) e faça
 | Docker Compose com a imagem pronta | Na pasta do `compose.yml`: `docker compose pull` e depois `docker compose up -d` |
 | Docker Compose compilando o código | Na pasta do projeto: `git pull` e depois `docker compose up -d --build` |
 | `docker run` | `docker pull ghcr.io/dionatansimioni/overshoulder:latest`, `docker rm -f overshoulder` e o mesmo `docker run` da instalação |
+| Hostinger (Docker Manager) | Atualize (redeploy) o projeto no Docker Manager |
 | Coolify, Dokploy, EasyPanel | **Redeploy** do serviço. Com a tag `latest`, a imagem nova é baixada; com uma versão fixa (ex.: `:0.2.0`), troque a tag antes |
 
 Para fixar uma versão em vez de seguir a `latest`: no instalador, troque `OVERSHOULDER_VERSION` no `/opt/overshoulder/.env` e rode `sudo overshoulder update`.

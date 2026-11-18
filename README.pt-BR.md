@@ -46,6 +46,10 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/ove
 
 O instalador pergunta se há domínio, abre o firewall, sobe o container e instala o comando `overshoulder` (`update`, `status`, `logs`, `backup`…). Detalhes em [docs/pt-BR/install.md](docs/pt-BR/install.md). Para Coolify, Dokploy, EasyPanel ou outro proxy já existente, veja [docs/pt-BR/proxy.md](docs/pt-BR/proxy.md).
 
+Na Hostinger, com um clique (não precisa de domínio para começar; veja [o guia](docs/pt-BR/install.md#hostinger-um-clique)):
+
+[![Deploy on Hostinger](https://assets.hostinger.com/vps/deploy.svg)](https://www.hostinger.com/docker-hosting?compose_url=https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/deploy/hostinger/compose.yml)
+
 Sem o instalador, com Docker e um domínio (ou subdomínio) apontando para o IP do servidor:
 
 ```bash

@@ -31,6 +31,12 @@ O link padrão não tem limite. Em **Pessoas › Convites e entrada**, o anfitri
 
 A **sala de espera** faz cada pessoa aguardar o anfitrião deixar entrar.
 
+## Anunciar no Discord
+
+Se o admin configurou o webhook de um canal do Discord (em `/admin` › Geral), o anfitrião que tem conta ganha, ao lado do link de convite, o botão **Anunciar no Discord**. Ele posta no canal um cartão com a sala e o link de convite.
+
+O anúncio sai direto do navegador do anfitrião para o Discord: o servidor não vê o link, que leva a chave da sala. Quem está no canal do Discord recebe o link, como se alguém o colasse lá. O webhook só chega a quem tem conta; quem assiste nunca o recebe.
+
 ## Salas fixas
 
 O admin cria em `/admin` › Salas fixas salas que não somem, com o mesmo link e os mesmos convites para sempre (o canal da comunidade, a live semanal). A sala vai ao ar quando alguém entra. A chave é criada no navegador do admin; em outro navegador, ele precisa do link ou de uma chave nova (que invalida os links antigos).
