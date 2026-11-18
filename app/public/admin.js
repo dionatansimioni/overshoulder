@@ -1,4 +1,4 @@
-import { t, translatePage } from '/static/i18n.js';
+import { lang, t, translatePage } from '/static/i18n.js';
 import { MANY_PEOPLE, QUALITIES, QUALITY_LABELS, bandwidth } from '/static/quality.js';
 import { getFixedKey as getKey, randomKey, setFixedKey as setKey } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
@@ -149,7 +149,11 @@ $('quota-form').addEventListener('submit', (e) => {
 // --- versão e aviso de atualização --------------------------------------------
 
 const IMAGE = 'ghcr.io/dionatansimioni/overshoulder';
-const UPDATE_DOCS = 'https://github.com/dionatansimioni/overshoulder/blob/main/docs/instalacao.md#atualizar';
+// Guia de atualização no idioma da página
+const UPDATE_DOCS =
+  lang === 'pt-BR'
+    ? 'https://github.com/dionatansimioni/overshoulder/blob/main/docs/pt-BR/install.md#atualizar'
+    : 'https://github.com/dionatansimioni/overshoulder/blob/main/docs/install.md#updating';
 // Passos para atualizar em cada forma de instalação: [título, explicação, comandos]
 const UPDATE_STEPS = {
   installer: ['Instalador de um comando', 'No servidor, rode:', ['sudo overshoulder update']],

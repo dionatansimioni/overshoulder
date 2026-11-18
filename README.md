@@ -17,7 +17,7 @@ Self-hosted screen sharing, right in the browser: for playing games with friends
 - **Accounts with 2FA, invited broadcasters and company sign-in (SSO)**, described below.
 - **Interface in English and Portuguese**, picked from the browser's language (switchable at the bottom of the page).
 
-**Full documentation** (in Portuguese for now: install, configuration, accounts, rooms, broadcasting and troubleshooting): [docs/](docs/README.md).
+**Full documentation** (install, configuration, accounts, rooms, broadcasting and troubleshooting): [docs/](docs/README.md).
 
 ## How it works
 
@@ -44,7 +44,7 @@ The easiest way, on Ubuntu or Debian:
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"
 ```
 
-The installer asks whether you have a domain, opens the firewall, starts the container and installs the `overshoulder` command (`update`, `status`, `logs`, `backup`…). Details (in Portuguese) in [docs/instalacao.md](docs/instalacao.md). For Coolify, Dokploy, EasyPanel or an existing proxy, see [docs/proxy.md](docs/proxy.md).
+The installer asks whether you have a domain, opens the firewall, starts the container and installs the `overshoulder` command (`update`, `status`, `logs`, `backup`…). Details in [docs/install.md](docs/install.md). For Coolify, Dokploy, EasyPanel or an existing proxy, see [docs/proxy.md](docs/proxy.md).
 
 Without the installer, with Docker and a domain (or subdomain) pointing at the server's IP:
 
@@ -64,7 +64,7 @@ Or with Compose: `./setup.sh` writes the `.env` and `docker compose up -d --buil
 | Variable | Default | Purpose |
 |---|---|---|
 | `DOMAIN` | (required) | The server's domain or IP |
-| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = self-signed certificate (local network); `custom` = your own certificate (`TLS_CERT`, `TLS_KEY`); `proxy` = behind another proxy, such as Coolify's ([guide, in Portuguese](docs/proxy.md)) |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = self-signed certificate (local network); `custom` = your own certificate (`TLS_CERT`, `TLS_KEY`); `proxy` = behind another proxy, such as Coolify's ([guide](docs/proxy.md)) |
 | `NODE_IP` | auto-detected | IP that WebRTC announces to browsers (use it on a local network) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Site ports; map the same ones with `-p`. With `TLS=proxy`, only `HTTP_PORT` is used |
 | `TRUSTED_PROXIES` | `private_ranges` | `TLS=proxy` only: where the visitor's IP and protocol are accepted from |
@@ -113,7 +113,7 @@ To remove the warning for good on a device, install Caddy's CA on it:
   - **Firefox:** pick your sound output's **"Monitor of …"** device (PipeWire/PulseAudio).
   - **Chrome, Chromium, Edge, Brave:** they deliberately hide "Monitor of …" devices. Run this in a terminal, click “List” again and pick **"Overshoulder-jogo"** (the room chat shows the same command with a copy button):
     `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`
-  - To broadcast only the game, not Discord or other apps, see [docs/transmitir.md](docs/transmitir.md#áudio-do-jogo) (in Portuguese).
+  - To broadcast only the game, not Discord or other apps, see [docs/broadcasting.md](docs/broadcasting.md#game-audio).
 
 ## Quality tips
 

@@ -1,6 +1,6 @@
 # Salas
 
-[← Documentação](README.md)
+[← Documentação](README.md) · [English](../rooms.md) · Português
 
 ## Criar uma sala
 
@@ -42,6 +42,10 @@ Na aba **Pessoas**, o anfitrião:
 - aprova pedidos de palavra e de tela, e libera ou tira a fala e a tela de cada pessoa;
 - remove alguém (a pessoa vê "A live foi encerrada" e o link usado por ela é trocado);
 - desliga o chat de quem assiste e gera um link novo para a sala.
+
+## Encerrar a sala
+
+**Encerrar** fecha a sala para todos. O anfitrião, e quem tem conta no servidor, volta para a página inicial (se havia gravação, ela é salva antes). Quem assiste vê a tela "A live acabou".
 
 ## Gravação
 

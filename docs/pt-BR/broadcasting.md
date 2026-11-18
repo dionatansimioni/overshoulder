@@ -1,6 +1,6 @@
 # Transmitir
 
-[← Documentação](README.md)
+[← Documentação](README.md) · [English](../broadcasting.md) · Português
 
 ## Antes de entrar
 

@@ -76,8 +76,8 @@ case "$(uname -m)" in
 esac
 os_id=$( . /etc/os-release 2>/dev/null && echo "${ID:-} ${ID_LIKE:-}" || true)
 if [[ ! "$os_id" =~ (ubuntu|debian) ]]; then
-  warn "$(m "o instalador foi feito para Ubuntu e Debian. Em outros sistemas, prefira o Docker Compose manual: $DOCS/instalacao.md" \
-    "the installer was made for Ubuntu and Debian. On other systems, prefer a manual Docker Compose setup: $DOCS/instalacao.md")"
+  warn "$(m "o instalador foi feito para Ubuntu e Debian. Em outros sistemas, prefira o Docker Compose manual: $DOCS/pt-BR/install.md" \
+    "the installer was made for Ubuntu and Debian. On other systems, prefer a manual Docker Compose setup: $DOCS/install.md")"
   confirm "$(m 'Continuar mesmo assim?' 'Continue anyway?')" || exit 1
 fi
 
@@ -115,7 +115,7 @@ if [ -n "$busy" ]; then
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'coolify-proxy'; then
     say "$(m 'Este servidor usa o Coolify. Instale o Overshoulder pelo próprio Coolify, como um recurso Docker Compose:' \
       'This server runs Coolify. Install Overshoulder through Coolify itself, as a Docker Compose resource:')"
-    say "  $DOCS/proxy.md#coolify"
+    say "  $DOCS/$(m pt-BR/proxy.md#coolify proxy.md#coolify)"
     confirm "$(m 'Instalar mesmo assim, atrás de outro proxy (opção 4)?' 'Install anyway, behind another proxy (option 4)?')" || exit 0
   fi
 fi
@@ -368,7 +368,7 @@ case "$mode" in
     say ""
     say "$(m "Configure o seu proxy para repassar $domain para http://127.0.0.1:$proxy_port (com WebSocket)." \
       "Set up your proxy to forward $domain to http://127.0.0.1:$proxy_port (with WebSocket).")"
-    say "$(m 'Exemplos para Nginx, Caddy e Traefik:' 'Examples for Nginx, Caddy and Traefik:') $DOCS/proxy.md"
+    say "$(m 'Exemplos para Nginx, Caddy e Traefik:' 'Examples for Nginx, Caddy and Traefik:') $DOCS/$(m pt-BR/proxy.md proxy.md)"
     ;;
   lan)
     say ""
@@ -378,7 +378,7 @@ case "$mode" in
   ip)
     say ""
     say "$(m "O certificado no IP precisa da porta $HTTP_PORT aberta para a internet. Se ele falhar, veja" \
-      "The IP certificate needs port $HTTP_PORT open to the internet. If it fails, see") $DOCS/instalacao.md#sem-domínio"
+      "The IP certificate needs port $HTTP_PORT open to the internet. If it fails, see") $DOCS/$(m pt-BR/install.md#sem-domínio install.md#without-a-domain)"
     ;;
 esac
 say ""

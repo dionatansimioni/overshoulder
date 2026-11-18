@@ -1,22 +1,22 @@
-# Documentação do Overshoulder
+# Overshoulder documentation
 
-Compartilhamento de tela self-hosted, direto no navegador, com criptografia de ponta a ponta. Esta documentação explica como instalar, configurar e usar o servidor.
+English · [Português](pt-BR/README.md)
 
-## Para quem instala e administra
+Self-hosted screen sharing, right in the browser, with end-to-end encryption. This documentation explains how to install, configure and use the server.
 
-- [Instalação](instalacao.md): requisitos, subir com Docker, primeiro acesso, firewall, atualizar e fazer backup.
-- [Configuração](configuracao.md): variáveis do servidor e cada seção do painel `/admin`.
-- [Atrás de outro proxy](proxy.md): Coolify, Dokploy, EasyPanel, Nginx, Caddy ou Traefik cuidando do HTTPS.
-- [Contas e usuários](contas.md): administrador, transmissores, convites, aprovação, 2FA, login da empresa e recuperação de senha.
-- [Solução de problemas](problemas.md): certificado, portas, vídeo que não chega, áudio no Linux, gravação.
+## For people who install and run it
 
-## Para quem transmite
+- [Installation](install.md): requirements, running with Docker, first access, firewall, updating and backups.
+- [Configuration](configuration.md): server variables and each section of the `/admin` panel.
+- [Behind another proxy](proxy.md): Coolify, Dokploy, EasyPanel, Nginx, Caddy or Traefik handling HTTPS.
+- [Accounts and users](accounts.md): administrator, broadcasters, invitations, approval, 2FA, company sign-in and password recovery.
+- [Troubleshooting](troubleshooting.md): certificate, ports, video that doesn't arrive, audio on Linux, recording.
 
-- [Salas](salas.md): tipos de sala, convites, sala de espera, sala privada, salas fixas, moderação e gravação.
-- [Transmitir](transmitir.md): compartilhar a tela, áudio do jogo, câmera, qualidade, avisos de rede e celular.
+## For people who broadcast
 
-## Para quem assiste
+- [Rooms](rooms.md): room types, invitations, waiting room, private room, permanent rooms, moderation and recording.
+- [Broadcasting](broadcasting.md): sharing the screen, game audio, camera, quality, network warnings and phones.
 
-Não precisa de conta nem de instalação: basta abrir o link recebido, digitar um nome e entrar. Nos ajustes da sala dá para escolher a qualidade que você recebe. No celular, veja a página `/mobile` do próprio servidor.
+## For people who watch
 
-O plano de desenvolvimento e as decisões do projeto ficam em [PLANO.md](PLANO.md).
+No account or installation needed: just open the link you received, type a name and join. In the room's settings you can choose the quality you receive. On a phone, see the server's own `/mobile` page.

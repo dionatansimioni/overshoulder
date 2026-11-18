@@ -17,7 +17,7 @@ Compartilhamento de tela self-hosted, direto no navegador: para jogar com os ami
 - **Contas com 2FA, transmissores convidados e login da empresa (SSO)**, descritos abaixo.
 - **Interface em português e inglês**, escolhida pelo idioma do navegador (dá para trocar no rodapé).
 
-**Documentação completa** (instalar, configurar, contas, salas, transmitir e solução de problemas): [docs/](docs/README.md).
+**Documentação completa** (instalar, configurar, contas, salas, transmitir e solução de problemas): [docs/pt-BR/](docs/pt-BR/README.md).
 
 ## Como funciona
 
@@ -44,7 +44,7 @@ O jeito mais fácil, em Ubuntu ou Debian:
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"
 ```
 
-O instalador pergunta se há domínio, abre o firewall, sobe o container e instala o comando `overshoulder` (`update`, `status`, `logs`, `backup`…). Detalhes em [docs/instalacao.md](docs/instalacao.md). Para Coolify, Dokploy, EasyPanel ou outro proxy já existente, veja [docs/proxy.md](docs/proxy.md).
+O instalador pergunta se há domínio, abre o firewall, sobe o container e instala o comando `overshoulder` (`update`, `status`, `logs`, `backup`…). Detalhes em [docs/pt-BR/install.md](docs/pt-BR/install.md). Para Coolify, Dokploy, EasyPanel ou outro proxy já existente, veja [docs/pt-BR/proxy.md](docs/pt-BR/proxy.md).
 
 Sem o instalador, com Docker e um domínio (ou subdomínio) apontando para o IP do servidor:
 
@@ -64,7 +64,7 @@ Ou com o Compose: `./setup.sh` gera o `.env` e `docker compose up -d --build` so
 | Variável | Padrão | Uso |
 |---|---|---|
 | `DOMAIN` | (obrigatória) | Domínio ou IP do servidor |
-| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local); `custom` = certificado seu (`TLS_CERT`, `TLS_KEY`); `proxy` = atrás de outro proxy, como o do Coolify ([guia](docs/proxy.md)) |
+| `TLS` | `acme` | `acme` = Let's Encrypt; `local` = certificado próprio (rede local); `custom` = certificado seu (`TLS_CERT`, `TLS_KEY`); `proxy` = atrás de outro proxy, como o do Coolify ([guia](docs/pt-BR/proxy.md)) |
 | `NODE_IP` | descoberto sozinho | IP que o WebRTC anuncia aos navegadores (use na rede local) |
 | `HTTP_PORT`, `HTTPS_PORT` | `80`, `443` | Portas do site; mapeie as mesmas no `-p`. Com `TLS=proxy`, só a `HTTP_PORT` é usada |
 | `TRUSTED_PROXIES` | `private_ranges` | Só com `TLS=proxy`: de onde o IP e o protocolo de quem acessa são aceitos |
@@ -113,7 +113,7 @@ Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
   - **Firefox:** escolha o **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio).
   - **Chrome, Chromium, Edge e Brave:** eles escondem de propósito os "Monitor of …". Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha **"Overshoulder-jogo"** (o chat da sala mostra o mesmo comando, com botão de copiar):
     `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`
-  - Para transmitir só o jogo, sem o Discord ou outros apps, veja [docs/transmitir.md](docs/transmitir.md#áudio-do-jogo).
+  - Para transmitir só o jogo, sem o Discord ou outros apps, veja [docs/pt-BR/broadcasting.md](docs/pt-BR/broadcasting.md#áudio-do-jogo).
 
 ## Dicas de qualidade
 

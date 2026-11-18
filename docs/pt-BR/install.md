@@ -1,6 +1,6 @@
 # Instalação
 
-[← Documentação](README.md)
+[← Documentação](README.md) · [English](../install.md) · Português
 
 ## Requisitos
 
@@ -47,19 +47,16 @@ Não use `curl … | sudo bash`: em alguns sistemas, como o Ubuntu 25.10, o inst
 Sem o instalador: a imagem é única, com LiveKit (vídeo), o app e o Caddy (HTTPS automático) no mesmo container.
 
 ```bash
-git clone https://github.com/dionatansimioni/overshoulder.git
-cd overshoulder
-docker build -t overshoulder .
 docker run -d --name overshoulder --restart unless-stopped \
   -p 80:80 -p 443:443 -p 7881:7881 -p 7882:7882/udp \
   -v overshoulder-data:/data \
   -e DOMAIN=live.seudominio.com \
-  overshoulder
+  ghcr.io/dionatansimioni/overshoulder:latest
 ```
 
-Com o Docker Compose: `./setup.sh` pergunta o domínio e gera o `.env`; depois, `docker compose up -d --build`.
+Para compilar a partir do código: `git clone https://github.com/dionatansimioni/overshoulder.git` e, na pasta, `docker build -t overshoulder .`. Com o Docker Compose: `./setup.sh` pergunta o domínio e gera o `.env`; depois, `docker compose up -d --build`.
 
-As outras variáveis (certificado próprio, portas, TURN) estão em [Configuração](configuracao.md#variáveis-do-servidor).
+As outras variáveis (certificado próprio, portas, TURN) estão em [Configuração](configuration.md#variáveis-do-servidor).
 
 Se as portas 80 e 443 já têm dono (Coolify, Dokploy, EasyPanel, um Nginx ou Traefik), veja [Atrás de outro proxy](proxy.md).
 
@@ -74,7 +71,7 @@ Se as portas 80 e 443 já têm dono (Coolify, Dokploy, EasyPanel, um Nginx ou Tr
    O código muda a cada vez que o container reinicia: use o da última linha `setupCode`.
 3. Siga os 3 passos: código, conta de administrador (usuário e senha de pelo menos 12 caracteres) e limite de pessoas por sala.
 
-Pronto: você entra logado e já pode criar salas. O resto fica em `/admin` (veja [Configuração](configuracao.md)).
+Pronto: você entra logado e já pode criar salas. O resto fica em `/admin` (veja [Configuração](configuration.md)).
 
 ## Firewall
 
@@ -140,7 +137,7 @@ docker run -d --name overshoulder --restart unless-stopped \
   -p 443:443 -p 7881:7881 -p 7882:7882/udp \
   -v overshoulder-data:/data -v /etc/overshoulder/certs:/data/certs:ro \
   -e DOMAIN=live.empresa.local -e TLS=custom -e NODE_IP=192.168.0.10 \
-  overshoulder
+  ghcr.io/dionatansimioni/overshoulder:latest
 ```
 
 - Outros caminhos: `TLS_CERT` e `TLS_KEY`.
