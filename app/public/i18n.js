@@ -467,6 +467,9 @@ const EN = {
   'Com o webhook de um canal, quem transmite ganha na sala o botão "Anunciar no Discord", que posta o convite no canal. O anúncio sai direto do navegador de quem transmite: o servidor não vê o link da sala.':
     'With a channel webhook, broadcasters get an "Announce on Discord" button in the room that posts the invitation to the channel. The announcement goes straight from the broadcaster\'s browser: the server never sees the room link.',
   'Webhook do canal': 'Channel webhook',
+  'Hostinger (Docker Manager)': 'Hostinger (Docker Manager)',
+  'No hPanel, abra a VPS › Docker Manager e, no projeto do Overshoulder, clique em atualizar (ou Redeploy) para baixar a imagem nova. Os dados ficam no volume.':
+    'In hPanel, open the VPS › Docker Manager and, on the Overshoulder project, click update (or Redeploy) to download the new image. The data stays in the volume.',
   'https://discord.com/api/webhooks/…': 'https://discord.com/api/webhooks/…',
   'No Discord: Editar canal › Integrações › Webhooks › Novo webhook › Copiar URL do webhook. Deixe vazio para desligar.':
     'In Discord: Edit channel › Integrations › Webhooks › New webhook › Copy webhook URL. Leave it empty to turn it off.',

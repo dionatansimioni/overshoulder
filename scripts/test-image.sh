@@ -285,6 +285,28 @@ ok "fora de TRUSTED_PROXIES, X-Forwarded-For e X-Forwarded-Proto são ignorados"
   || die "TRUSTED_PROXIES malformado deveria ser recusado"
 ok "TLS=proxy recusa TURN_DOMAIN e TRUSTED_PROXIES malformado, com explicação"
 
+# --- sem DOMAIN (instalação de um clique): usa o IP público descoberto por STUN ------------------
+python3 -I scripts/stun-fake.py 13478 203.0.113.7 &
+STUN_PID=$!
+NODOMAIN=overshoulder-test-nodomain
+docker rm -f "$NODOMAIN" >/dev/null 2>&1 || true
+docker run -d --name "$NODOMAIN" --add-host=host.docker.internal:host-gateway \
+  -e STUN_SERVER=host.docker.internal:13478 "$IMAGE" >/dev/null
+nodomain_logs() { docker logs "$NODOMAIN" 2>&1; }
+logs=''
+for _ in $(seq 30); do
+  logs=$(nodomain_logs)
+  grep -q '"DOMAIN vazio: usando o IP público' <<<"$logs" && break
+  sleep 1
+done
+docker rm -f "$NODOMAIN" >/dev/null; kill "$STUN_PID" 2>/dev/null || true
+grep -q '"DOMAIN vazio: usando o IP público.*"ip":"203.0.113.7"' <<<"$logs" \
+  || die "sem DOMAIN, o servidor deveria usar o IP público descoberto por STUN: $(tail -5 <<<"$logs")"
+out=$(docker run --rm -e STUN_SERVER=127.0.0.1:9 "$IMAGE" 2>&1 || true)
+grep -q 'DOMAIN vazio e não foi possível descobrir o IP público' <<<"$out" || die "sem DOMAIN e sem STUN, deveria parar com explicação: $out"
+[ "$(docker run --rm -e TLS=local "$IMAGE" 2>&1 | grep -c 'DOMAIN ausente ou inválido')" = 1 ] || die "TLS=local sem DOMAIN deveria ser recusado"
+ok "sem DOMAIN, usa o IP público descoberto por STUN; sem resposta, para com explicação; TLS=local ainda exige DOMAIN"
+
 docker stop "$NAME" >/dev/null
 [ "$(docker inspect -f '{{.State.ExitCode}}' "$NAME")" = 0 ] || die "desligamento não foi limpo"
 ok "desliga limpo com docker stop"

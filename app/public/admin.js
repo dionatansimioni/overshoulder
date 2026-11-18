@@ -185,6 +185,11 @@ const UPDATE_STEPS = {
     'Baixe a imagem nova e recrie o container com o mesmo comando usado na instalação:',
     [`docker pull ${IMAGE}:latest`, 'docker rm -f overshoulder', 'docker run … (o mesmo comando da instalação)'],
   ],
+  hostinger: [
+    'Hostinger (Docker Manager)',
+    'No hPanel, abra a VPS › Docker Manager e, no projeto do Overshoulder, clique em atualizar (ou Redeploy) para baixar a imagem nova. Os dados ficam no volume.',
+    [],
+  ],
   coolify: [
     'Coolify, Dokploy ou EasyPanel',
     'Abra o serviço no painel e clique em Redeploy. Com a tag latest, a imagem nova é baixada; com uma versão fixa, troque antes a tag da imagem para {version}.',

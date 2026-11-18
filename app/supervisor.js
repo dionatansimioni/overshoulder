@@ -8,6 +8,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { log } from './log.js';
+import { DEFAULT_STUN, discoverPublicIp } from './stun.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.DATA_DIR ?? '/data';
@@ -46,6 +47,18 @@ const config = {
   maxParticipants: Number(process.env.MAX_PARTICIPANTS ?? 16),
   watchdogMs: Number(process.env.WATCHDOG_INTERVAL_MS ?? 15_000),
 };
+
+// Sem DOMAIN e com o Let's Encrypt (instalação de um clique, como na Hostinger): usa o IP público,
+// descoberto por STUN, e o certificado sai para o IP. Nos outros modos o DOMAIN continua obrigatório.
+if (!config.domain && config.tls === 'acme') {
+  const stun = process.env.STUN_SERVER || DEFAULT_STUN;
+  try {
+    config.domain = await discoverPublicIp({ server: stun });
+    log.warn('DOMAIN vazio: usando o IP público, com certificado no IP. Para usar um domínio, defina DOMAIN', { ip: config.domain });
+  } catch (err) {
+    fail(`DOMAIN vazio e não foi possível descobrir o IP público (${err.message}): informe DOMAIN com o domínio ou o IP do servidor.`);
+  }
+}
 
 // Os domínios vão para o Caddyfile: só nomes de host e IPv4, nada que mude a sintaxe
 const HOST_RE = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;

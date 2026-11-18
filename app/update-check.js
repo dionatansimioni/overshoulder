@@ -3,7 +3,7 @@
 
 export const RELEASES_PAGE = 'https://github.com/dionatansimioni/overshoulder/releases';
 export const DEFAULT_URL = 'https://api.github.com/repos/dionatansimioni/overshoulder/releases/latest';
-export const INSTALL_METHODS = ['installer', 'compose', 'compose-build', 'docker', 'coolify'];
+export const INSTALL_METHODS = ['installer', 'compose', 'compose-build', 'docker', 'coolify', 'hostinger'];
 
 const SEMVER_RE = /^v?(\d{1,6})\.(\d{1,6})\.(\d{1,6})$/;
 
