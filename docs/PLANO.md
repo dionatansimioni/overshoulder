@@ -173,6 +173,16 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 
 - **Sala privada (15/11/2026, pedido do usuário):** opção em "Mais opções" ao criar sala. A sala privada não fica guardada no navegador (a chave de anfitrião fica só na aba) e acaba quando o anfitrião sai por mais de 30 s (`PRIVATE_GRACE_MS`), tolerância para recarregar a página ou a rede cair. Ao fechar a aba, o anfitrião avisa o servidor (`POST /api/rooms/host-left`, com a chave de anfitrião), porque o LiveKit leva ~22 s para notar a queda. Antes de o anfitrião entrar pela primeira vez, a sala não acaba. Na página inicial, "Ao sair, esquecer as salas deste navegador". Testes em `app/test/home.test.js`.
 
+### Design, site e inglês por padrão (18/11/2026)
+- Decisões do usuário: o app mantém JS puro e adota o visual no estilo shadcn (referências em memória: shadcn, Radix, Sonner, Vaul, cmdk, Magic UI…); o site usa Astro + Starlight; **inglês é o padrão** no site, no GitHub e nas rotas, com português opcional detectado pelo navegador.
+- ✅ Rotas em inglês (`/setup`, `/account`, `/invite`, `/signup`, `/reset`, `/new-password`, `/mobile`); as antigas respondem 301.
+- ✅ Guias em inglês em `docs/`, português em `docs/pt-BR/` (mesmos nomes de arquivo).
+- ✅ Logo novo (opção "E": pessoa de costas com headset olhando a tela).
+- ✅ Site em https://dionatansimioni.github.io/overshoulder/ (`site/`, fluxo `site.yml`). Exige o repositório público (GitHub Pages em repositório privado depende de plano pago).
+- ✅ Fim da sala: anfitrião e quem tem conta voltam ao início; quem assiste vê "A live acabou".
+- ✅ Modo proxy redireciona `http://` para `https://` (o Coolify atende os dois).
+- **A fazer:** redesign do app no estilo shadcn (JS puro). Esta máquina é uma VM sem AVX2: o compilador do Astro 7 e o Pagefind não rodam nativos aqui (`site/build.sh` contorna).
+
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.
 - ✅ Instalador, comando `overshoulder` e `cli.js` em inglês e português (`LANG` ou `OVERSHOULDER_LANG`; inglês por padrão).

@@ -1,6 +1,6 @@
 # Overshoulder
 
-[English](README.md) · **Português**
+[English](README.md) · **Português** · **Site e documentação:** [dionatansimioni.github.io/overshoulder/pt-br](https://dionatansimioni.github.io/overshoulder/pt-br/)
 
 Compartilhamento de tela self-hosted, direto no navegador: para jogar com os amigos, fazer lives e dar treinamentos. Quem transmite e quem assiste só precisam abrir um link.
 
