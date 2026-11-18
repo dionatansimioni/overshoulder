@@ -275,7 +275,7 @@ describe('no navegador', () => {
     await row.locator('button', { hasText: 'Revogar' }).click();
     await adminPage.waitForFunction(() => document.querySelector('#users li[data-username="bia"]').textContent.includes('revogado'));
 
-    await viewer.waitForFunction(() => document.querySelector('#overlay').textContent.includes('encerrada'));
+    await viewer.waitForSelector('#ended:not([hidden])');
     await bia.goto(`${s.url}/`);
     await bia.waitForSelector('#login-form:not([hidden])');
     for (const p of [adminPage, bia, viewer]) assert.deepEqual(p.errors, []);

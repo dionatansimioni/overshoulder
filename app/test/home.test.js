@@ -127,9 +127,10 @@ describe('página inicial (navegador)', () => {
     await page.waitForURL(/#k=/);
     await enterRoom(page);
     page.on('dialog', (d) => d.accept());
-    await Promise.all([page.waitForResponse('**/api/rooms/end'), page.click('#end')]);
-
-    await page.goto(s.url);
+    // Ao encerrar, o anfitrião volta sozinho para a página inicial (o aviso do LiveKit pode chegar antes da
+    // resposta de /api/rooms/end, e a navegação cancela essa resposta: por isso o teste espera só a URL)
+    await page.click('#end');
+    await page.waitForURL(`${s.url}/`);
     await page.waitForSelector('#signed-in:not([hidden])');
     await page.waitForFunction(() => document.querySelectorAll('#my-rooms li').length === 0);
     assert.ok(await page.isVisible('#no-rooms'));

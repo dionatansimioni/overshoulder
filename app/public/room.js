@@ -139,6 +139,8 @@ const setToggle = (id, on, labels, icons) => {
 
 let room;
 let isHost = false;
+// Quem tem conta neste servidor (admin ou transmissor): ao fim da sala, volta para a página inicial
+let signedIn = false;
 let token = null;
 // Estado da sala que o anfitrião controla, recebido pelos metadados da sala
 let meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [] };
@@ -535,7 +537,23 @@ const wireRoomEvents = () => {
     .on(RoomEvent.EncryptionError, () => {
       showOverlay(t('Não foi possível descriptografar a transmissão. O link está completo?'));
     })
-    .on(RoomEvent.Disconnected, (reason) => {
+    .on(RoomEvent.Disconnected, async (reason) => {
+      if (reason === DisconnectReason.ROOM_DELETED) {
+        // Fim da sala: quem transmite (anfitrião ou quem tem conta) volta para a página inicial, depois
+        // de salvar a gravação; quem assiste vê que a live acabou
+        voiceTrack?.stop();
+        cameraTrack?.stop();
+        if (isHost || signedIn) {
+          if (recorder?.active) await stopRecording().catch(() => {});
+          location.assign('/');
+          return;
+        }
+        $('ended-title').textContent = t('A live acabou');
+        $('ended-text').textContent = t('Quem estava transmitindo encerrou a sala. Obrigado por assistir!');
+        $('room').hidden = true;
+        $('ended').hidden = false;
+        return;
+      }
       if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
         $('room').hidden = true;
         $('ended').hidden = false;
@@ -1614,6 +1632,7 @@ setupPreview();
 const setupNav = async () => {
   const { user } = await api('/api/state').catch(() => ({}));
   if (!user || user.needs2fa) return;
+  signedIn = true;
   $('nav-toggle').hidden = false;
   $('nav-admin').hidden = user.role !== 'admin';
   let list = null;

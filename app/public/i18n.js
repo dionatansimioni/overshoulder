@@ -449,6 +449,8 @@ const EN = {
   'Não foi possível trocar o microfone.': 'Could not switch the microphone.',
   'Permissão de áudio negada.': 'Audio permission denied.',
   'Não foi possível descriptografar a transmissão. O link está completo?': 'Could not decrypt the broadcast. Is the link complete?',
+  'A live acabou': 'The live has ended',
+  'Quem estava transmitindo encerrou a sala. Obrigado por assistir!': 'The broadcaster ended the room. Thanks for watching!',
   'A sala foi encerrada.': 'The room has ended.',
   'A live foi encerrada': 'The live has ended',
   'Se isso foi um engano, entre em contato com o dono do servidor.': 'If this was a mistake, contact the server owner.',

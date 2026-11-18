@@ -116,7 +116,13 @@ test('anfitrião encerra a sala e o amigo é avisado', async () => {
 
   host.page.once('dialog', (d) => d.accept());
   await host.page.click('#end');
-  await viewer.page.waitForFunction(() => document.querySelector('#overlay').textContent.includes('encerrada'));
+  // Quem assiste vê que a live acabou; o anfitrião volta para a página inicial
+  await viewer.page.waitForSelector('#ended:not([hidden])');
+  assert.equal(await viewer.page.textContent('#ended-title'), 'A live acabou');
+  assert.ok(await viewer.page.isHidden('#room'));
+  await host.page.waitForURL(`${server.url}/`);
+  await host.page.waitForSelector('#signed-in:not([hidden])');
+  assert.deepEqual(viewer.errors, []);
 });
 
 test('painel de ajustes do anfitrião abre e fecha', async () => {
