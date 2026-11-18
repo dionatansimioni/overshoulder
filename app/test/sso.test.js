@@ -65,6 +65,11 @@ describe('configuração pelo admin', () => {
     assert.equal(r.body.clientSecret, undefined);
     assert.ok(!JSON.stringify(r.body).includes(CLIENT.secret));
     assert.equal(r.body.redirectUri, `${s.url}/api/sso/callback`);
+    // Nem pelas configurações gerais do painel, que antes devolviam o objeto do SSO inteiro
+    const general = await get(s.url, '/api/admin/settings', admin);
+    assert.equal(general.status, 200);
+    assert.ok(!JSON.stringify(general.body).includes(CLIENT.secret), 'segredo nas configurações gerais');
+    assert.equal(general.body.sso, undefined);
     assert.equal((await get(s.url, '/api/admin/sso')).status, 401);
     assert.equal((await api(s.url, '/api/admin/sso', { enabled: false })).status, 401);
   });
