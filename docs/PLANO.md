@@ -173,6 +173,15 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 
 - **Sala privada (15/11/2026, pedido do usuário):** opção em "Mais opções" ao criar sala. A sala privada não fica guardada no navegador (a chave de anfitrião fica só na aba) e acaba quando o anfitrião sai por mais de 30 s (`PRIVATE_GRACE_MS`), tolerância para recarregar a página ou a rede cair. Ao fechar a aba, o anfitrião avisa o servidor (`POST /api/rooms/host-left`, com a chave de anfitrião), porque o LiveKit leva ~22 s para notar a queda. Antes de o anfitrião entrar pela primeira vez, a sala não acaba. Na página inicial, "Ao sair, esquecer as salas deste navegador". Testes em `app/test/home.test.js`.
 
+### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
+- ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.
+- ✅ Instalador, comando `overshoulder` e `cli.js` em inglês e português (`LANG` ou `OVERSHOULDER_LANG`; inglês por padrão).
+- ✅ Firewall: na Hostinger o do painel só vale se aplicado; no Oracle Cloud vem fechado (só SSH). Mensagem e guia ajustados.
+- ✅ Áudio do jogo no Linux: o Chrome esconde os "Monitor of …" de propósito; o chat mostra o comando `module-remap-source` que cria a fonte "Overshoulder-jogo" (conferido com PipeWire e Chromium num container).
+- ✅ "Convites" do painel virou "Convidar transmissor"; links abaixo de "Conectado como" viraram botões.
+- **Gravação com áudio estalando e vídeo travado** (só no arquivo; Chrome, Fedora 45, 720p, própria tela). Medido em container com carga: a mistura do `AudioContext` estala (gravar a faixa direto, não); `latencyHint: 'playback'` não ajudou ali, mas o container não tem placa de som. Vídeo: suspeita do segundo codificador H.264 (6 Mbps, no processador), sem medida. Próximo passo: o usuário manda o `ffprobe` do arquivo; versão de teste com `latencyHint: 'playback'` e `sinkId: { type: 'none' }` na mistura e gravação a 30 fps com bitrate menor.
+- Idioma pelo navegador já existia (a escolha salva no seletor tem prioridade); falta o usuário dizer o que viu.
+
 ### Lapidações pedidas em 15/11/2026 (testes do usuário)
 Ordem de execução, um commit por item:
 1. ✅ **Removido da sala:** quem é removido vai para uma tela "A live foi encerrada. Se isso foi um engano, entre em contato com o dono do servidor." (sem dizer que o anfitrião removeu).
