@@ -184,9 +184,9 @@ describe('áudio do jogo (Linux: "Monitor of …")', () => {
     };
   };
 
-  test('sem som da captura no Linux, o chat explica onde escolher o monitor da saída de som', async () => {
+  test('sem som da captura no Linux, o chat explica onde escolher o áudio do jogo', async () => {
     const { host } = await sharing({ hostInit: linuxCapture });
-    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Monitor of'));
+    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Áudio do jogo, clique em “Listar”: o chat mostra o que escolher'));
   });
 
   test('escolher o áudio com a tela já compartilhada vale na hora, e desligar para de enviar', async () => {

@@ -1087,11 +1087,16 @@ const startShare = async () => {
   // No Linux o navegador não captura o som do computador junto com a tela: explica onde escolher
   const captured = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
   if (!captured && IS_LINUX) {
-    addMessage(t('No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar” e escolha o “Monitor of …” da sua saída de som.'));
+    addMessage(t('No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar”: o chat mostra o que escolher.'));
   }
 };
 
 const IS_LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+// O Chrome e o Chromium no Linux escondem de propósito as fontes "Monitor of …" (o Firefox mostra). Uma fonte
+// remapeada a partir do monitor da saída padrão aparece para eles como um microfone comum. Funciona com
+// PulseAudio e com PipeWire (pipewire-pulse) e vale até reiniciar o computador.
+const LINUX_MONITOR_COMMAND =
+  'pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo';
 
 // Áudio do jogo por um dispositivo de entrada (no Linux, o "Monitor of …" da saída de som), enviado como
 // áudio da tela: sem filtros de voz e em estéreo
@@ -1261,12 +1266,29 @@ const setupPublishControls = () => {
     }
     const audioSelects = [$('mic-device'), $('audio-device')];
     for (const select of [...audioSelects, $('camera-device')]) select.length = 1;
+    const labels = [];
     for (const d of await navigator.mediaDevices.enumerateDevices()) {
       if (d.deviceId === 'default' || d.deviceId === 'communications') continue;
-      if (d.kind === 'audioinput') for (const select of audioSelects) select.add(new Option(d.label || d.deviceId, d.deviceId));
+      if (d.kind === 'audioinput') {
+        labels.push(d.label);
+        for (const select of audioSelects) select.add(new Option(d.label || d.deviceId, d.deviceId));
+      }
       if (d.kind === 'videoinput') $('camera-device').add(new Option(d.label || d.deviceId, d.deviceId));
     }
-    addMessage(t('Dispositivos carregados. No Linux, escolha o “Monitor of …” da sua saída de som.'));
+    if (!IS_LINUX) addMessage(t('Dispositivos carregados.'));
+    else if (labels.some((l) => /monitor|overshoulder-jogo/i.test(l)))
+      addMessage(t('Dispositivos carregados. Em Áudio do jogo, escolha o “Monitor of …” da sua saída de som (ou o “Overshoulder-jogo”).'));
+    else {
+      addMessage(t('Nenhum “Monitor of …” na lista: o Chrome no Linux esconde esses dispositivos. Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha “Overshoulder-jogo” em Áudio do jogo:'));
+      // O comando vai num bloco à parte, com botão de copiar: a mensagem do sistema é texto corrido
+      const box = el('div', 'command-box');
+      const code = el('code', 'linux-monitor-command', LINUX_MONITOR_COMMAND);
+      const copy = el('button', 'secondary', t('Copiar'));
+      copy.type = 'button';
+      copy.addEventListener('click', () => copyText(LINUX_MONITOR_COMMAND, copy));
+      box.append(code, copy);
+      $('messages').lastElementChild.append(box);
+    }
   });
 };
 

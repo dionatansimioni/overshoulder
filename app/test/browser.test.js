@@ -186,6 +186,24 @@ test('lista de dispositivos preenche microfone e áudio do jogo', async () => {
   await host.page.click('#load-devices');
   await host.page.waitForFunction(() => document.querySelector('#mic-device').options.length > 1);
   assert.ok((await host.page.locator('#audio-device option').count()) > 1);
+  // O Chrome de teste roda no Linux e só tem dispositivos falsos, sem nenhum "Monitor of": o chat explica
+  // como criar a fonte que o Chrome enxerga e mostra o comando para copiar
+  await host.page.waitForSelector('#messages .linux-monitor-command');
+  assert.match(await host.page.textContent('#messages'), /o Chrome no Linux esconde esses dispositivos/);
+  assert.match(await host.page.textContent('.linux-monitor-command'), /^pactl load-module module-remap-source master="\$\(pactl get-default-sink\)\.monitor" .*device\.description=Overshoulder-jogo$/);
+});
+
+test('fora do Linux, listar dispositivos não mostra o comando do PulseAudio', async () => {
+  const context = await browser.newContext({
+    permissions: ['microphone'],
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  });
+  const page = await context.newPage();
+  await createRoomAsHost(page);
+  await page.click('#settings-btn');
+  await page.click('#load-devices');
+  await page.waitForFunction(() => /Dispositivos carregados\./.test(document.querySelector('#messages').textContent));
+  assert.equal(await page.locator('.linux-monitor-command').count(), 0);
 });
 
 test('seletor de emojis insere no cursor, troca de categoria e guarda recentes', async () => {

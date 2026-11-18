@@ -108,9 +108,11 @@ Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
 ## Áudio do jogo
 
 - **Windows (Chrome/Edge):** ao escolher "Tela inteira", marque "Compartilhar áudio do sistema".
-- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, abra os ajustes da transmissão na sala, clique em “Listar” e escolha em “Áudio do jogo” o dispositivo **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio). Ele é enviado em estéreo, sem filtros de voz.
-  Dica: para não transmitir o som do Discord ou de outros apps, crie uma saída virtual só para o jogo:
-  `pactl load-module module-null-sink sink_name=jogo` e escolha "Monitor of jogo".
+- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, abra os ajustes da transmissão na sala, clique em “Listar” e escolha em “Áudio do jogo” a fonte do som do computador. Ele é enviado em estéreo, sem filtros de voz.
+  - **Firefox:** escolha o **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio).
+  - **Chrome, Chromium, Edge e Brave:** eles escondem de propósito os "Monitor of …". Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha **"Overshoulder-jogo"** (o chat da sala mostra o mesmo comando, com botão de copiar):
+    `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`
+  - Para transmitir só o jogo, sem o Discord ou outros apps, veja [docs/transmitir.md](docs/transmitir.md#áudio-do-jogo).
 
 ## Dicas de qualidade
 

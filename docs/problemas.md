@@ -21,7 +21,7 @@ O link perdeu a parte depois do `#` (alguns apps cortam). Peça o link de novo, 
 
 ## Quem assiste não ouve o jogo (Linux)
 
-Escolha o "Monitor of …" em Ajustes › Áudio do jogo e confira se os ajustes mostram "Enviando o áudio de: …". Se o "Monitor of" não aparecer na lista, clique em "Listar" de novo depois de permitir o microfone. Veja [Transmitir](transmitir.md#áudio-do-jogo).
+Escolha a fonte do som do computador em Ajustes › Áudio do jogo e confira se os ajustes mostram "Enviando o áudio de: …". No Chrome e nos navegadores baseados nele, os "Monitor of …" não aparecem de propósito: rode o comando que o chat da sala mostra e escolha "Overshoulder-jogo". No Firefox, se o "Monitor of" não aparecer, clique em "Listar" de novo depois de permitir o microfone. Veja [Transmitir](transmitir.md#áudio-do-jogo).
 
 ## A internet não dá conta
 
