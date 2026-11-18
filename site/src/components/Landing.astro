@@ -1,0 +1,297 @@
+---
+// Página inicial do site, nos dois idiomas. Os textos ficam aqui, lado a lado, para nenhum faltar.
+import '../styles/landing.css';
+
+interface Props {
+  lang: 'en' | 'pt';
+}
+const { lang } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const docs = `${base}${lang === 'pt' ? 'pt-br/' : ''}docs/`;
+const INSTALL = 'sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/dionatansimioni/overshoulder/main/install.sh)"';
+const COMPOSE = `services:
+  overshoulder:
+    image: ghcr.io/dionatansimioni/overshoulder:latest
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "7881:7881", "7882:7882/udp"]
+    environment:
+      DOMAIN: live.yourdomain.com
+    volumes: [data:/data]
+volumes:
+  data:`;
+
+const T = {
+  en: {
+    title: 'Overshoulder · Screen sharing for playing with friends',
+    description: 'Self-hosted screen sharing in the browser: up to 1440p60, game audio, voice and chat, end-to-end encrypted.',
+    nav: { docs: 'Docs', install: 'Install', other: 'Português', otherHref: `${base}pt-br/`, otherLang: 'pt' },
+    badge: 'Free and open source · AGPL-3.0',
+    h1a: 'Share your game with friends,',
+    h1b: 'on your own server.',
+    lead: 'Overshoulder is screen sharing that runs in the browser and on a server you control. Up to 1440p at 60 fps, game audio, voice and chat, all end-to-end encrypted. Your friends just open a link.',
+    ctaInstall: 'Install in one command',
+    ctaDocs: 'Read the docs',
+    mock: { live: 'LIVE', you: 'You', chat: ['gg, that clutch!', 'can you switch to 60 fps?', 'audio is perfect'] },
+    featuresTitle: 'Everything a game night needs',
+    features: [
+      ['End-to-end encrypted', 'The room key lives only in the link. The server relays video it cannot open.'],
+      ['Sharp and smooth', 'Up to 1440p at 60 fps with H.264, VP9 or AV1. Change quality live, without stopping.'],
+      ['Game audio and voice', 'System audio, microphone with a level meter, and a chat with emoji.'],
+      ['Two kinds of room', 'Playing together, where everyone talks and shares, or Live, with an audience that asks to speak.'],
+      ['Your server, your rules', 'Accounts for broadcasters, invitations, 2FA, a waiting room and moderation.'],
+      ['Record in the browser', 'The host records screen and audio locally. Nothing is stored on the server.'],
+    ],
+    installTitle: 'Up and running in minutes',
+    installLead: 'One image with everything inside: the video server, the app and automatic HTTPS. Pick how you want to run it.',
+    tabs: [
+      ['One command', 'On Ubuntu or Debian. It asks a few questions, opens the firewall and sets everything up.'],
+      ['Docker Compose', 'Point a domain at the server, set DOMAIN and start it. HTTPS is automatic.'],
+      ['Coolify and friends', 'Already have Coolify, Dokploy or EasyPanel? Overshoulder runs behind their proxy.'],
+    ],
+    coolifyCta: 'Read the Coolify guide',
+    copy: 'Copy',
+    copied: 'Copied!',
+    stepsTitle: 'How it works',
+    steps: [
+      ['Install', 'Run Overshoulder on a VPS, at home or behind your proxy.'],
+      ['Create a room', 'Pick a room type and copy the invitation link.'],
+      ['Share', 'Friends open the link in the browser. No account, no download.'],
+    ],
+    footer: 'Overshoulder is free software under the AGPL-3.0.',
+  },
+  pt: {
+    title: 'Overshoulder · Compartilhamento de tela para jogar com os amigos',
+    description: 'Compartilhamento de tela self-hosted, no navegador: até 1440p60, áudio do jogo, voz e chat, com criptografia de ponta a ponta.',
+    nav: { docs: 'Documentação', install: 'Instalar', other: 'English', otherHref: base, otherLang: 'en' },
+    badge: 'Livre e de código aberto · AGPL-3.0',
+    h1a: 'Mostre seu jogo aos amigos,',
+    h1b: 'no seu próprio servidor.',
+    lead: 'O Overshoulder é um compartilhamento de tela que roda no navegador e num servidor seu. Até 1440p a 60 fps, áudio do jogo, voz e chat, tudo com criptografia de ponta a ponta. Os amigos só abrem um link.',
+    ctaInstall: 'Instale com um comando',
+    ctaDocs: 'Leia a documentação',
+    mock: { live: 'AO VIVO', you: 'Você', chat: ['gg, que clutch!', 'dá pra pôr 60 fps?', 'áudio perfeito'] },
+    featuresTitle: 'Tudo o que uma noite de jogo precisa',
+    features: [
+      ['Criptografia de ponta a ponta', 'A chave da sala fica só no link. O servidor repassa um vídeo que não consegue abrir.'],
+      ['Nítido e fluido', 'Até 1440p a 60 fps com H.264, VP9 ou AV1. Troque a qualidade ao vivo, sem parar.'],
+      ['Áudio do jogo e voz', 'Som do sistema, microfone com medidor de volume e chat com emojis.'],
+      ['Dois tipos de sala', 'Jogando juntos, em que todos falam e mostram a tela, ou Live, com público que pede a palavra.'],
+      ['Seu servidor, suas regras', 'Contas para quem transmite, convites, 2FA, sala de espera e moderação.'],
+      ['Grave no navegador', 'O anfitrião grava tela e áudio no próprio computador. Nada fica guardado no servidor.'],
+    ],
+    installTitle: 'No ar em minutos',
+    installLead: 'Uma imagem com tudo dentro: o servidor de vídeo, o app e o HTTPS automático. Escolha como rodar.',
+    tabs: [
+      ['Um comando', 'Em Ubuntu ou Debian. Ele faz algumas perguntas, abre o firewall e configura tudo.'],
+      ['Docker Compose', 'Aponte um domínio para o servidor, defina DOMAIN e suba. O HTTPS é automático.'],
+      ['Coolify e similares', 'Já usa Coolify, Dokploy ou EasyPanel? O Overshoulder roda atrás do proxy deles.'],
+    ],
+    coolifyCta: 'Leia o guia do Coolify',
+    copy: 'Copiar',
+    copied: 'Copiado!',
+    stepsTitle: 'Como funciona',
+    steps: [
+      ['Instale', 'Rode o Overshoulder numa VPS, em casa ou atrás do seu proxy.'],
+      ['Crie uma sala', 'Escolha o tipo de sala e copie o link de convite.'],
+      ['Compartilhe', 'Os amigos abrem o link no navegador. Sem conta, sem download.'],
+    ],
+    footer: 'O Overshoulder é software livre, sob a AGPL-3.0.',
+  },
+}[lang];
+const icons = [
+  'M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 0 1 6 0v3Z',
+  'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6v2h3v2H8v-2h3v-2H5a2 2 0 0 1-2-2Zm7 2v6l5-3Z',
+  'M4 13a8 8 0 0 1 16 0v5a3 3 0 0 1-3 3h-1v-7h2v-1a6 6 0 0 0-12 0v1h2v7H7a3 3 0 0 1-3-3Z',
+  'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20a6 6 0 0 1 12 0v1H2Zm13 1v-1a7.9 7.9 0 0 0-1.8-5A5 5 0 0 1 22 19v2Z',
+  'M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5Zm-1 13-4-4 1.4-1.4 2.6 2.6 5.6-5.6L18 8Z',
+  'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z',
+];
+---
+
+<!doctype html>
+<html lang={lang === 'pt' ? 'pt-BR' : 'en'} class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{T.title}</title>
+    <meta name="description" content={T.description} />
+    <meta name="theme-color" content="#0b0716" />
+    <link rel="icon" href={`${base}icon.svg`} type="image/svg+xml" />
+    <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
+    <link rel="alternate" hreflang="en" href={`https://dionatansimioni.github.io${base}`} />
+    <link rel="alternate" hreflang="pt-BR" href={`https://dionatansimioni.github.io${base}pt-br/`} />
+    <meta property="og:title" content={T.title} />
+    <meta property="og:description" content={T.description} />
+    {
+      lang === 'en' && (
+        <script is:inline define:vars={{ pt: `${base}pt-br/` }}>
+          // Primeira visita com o navegador em português: vai para a versão em português. Quem escolheu um
+          // idioma no seletor fica com a escolha.
+          try {
+            const chosen = localStorage.getItem('overshoulder-site-lang');
+            const langs = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
+            if (!chosen && /^pt\b/i.test(langs[0] || '')) location.replace(pt);
+          } catch {}
+        </script>
+      )
+    }
+  </head>
+  <body class="min-h-dvh bg-ink text-white antialiased">
+    <div class="pointer-events-none fixed inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]"></div>
+    <div class="pointer-events-none fixed -top-40 left-1/2 h-[36rem] w-[60rem] -translate-x-1/2 rounded-full bg-violet-600/25 blur-[120px]"></div>
+
+    <header class="sticky top-0 z-20 border-b border-white/5 bg-ink/70 backdrop-blur-xl">
+      <nav class="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
+        <a href={lang === 'pt' ? `${base}pt-br/` : base} class="flex items-center gap-2.5 font-semibold tracking-tight">
+          <img src={`${base}icon.svg`} alt="" width="30" height="30" class="rounded-lg" />Overshoulder
+        </a>
+        <div class="ml-auto flex items-center gap-1 text-sm text-white/70">
+          <a href="#install" class="hidden rounded-md px-3 py-2 hover:bg-white/5 hover:text-white sm:block">{T.nav.install}</a>
+          <a href={docs} class="rounded-md px-3 py-2 hover:bg-white/5 hover:text-white">{T.nav.docs}</a>
+          <a href={T.nav.otherHref} data-lang={T.nav.otherLang} class="rounded-md px-3 py-2 hover:bg-white/5 hover:text-white">{T.nav.other}</a>
+          <a href="https://github.com/dionatansimioni/overshoulder" class="rounded-md p-2 hover:bg-white/5 hover:text-white" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2Z"></path></svg>
+          </a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="relative z-10">
+      <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-24">
+        <div class="reveal">
+          <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+            <span class="size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px] shadow-cyan-300"></span>{T.badge}
+          </span>
+          <h1 class="mt-6 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+            {T.h1a}<br /><span class="text-gradient">{T.h1b}</span>
+          </h1>
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-white/65">{T.lead}</p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href="#install" class="btn-shine inline-flex items-center rounded-xl px-5 py-3 font-medium text-white">{T.ctaInstall}</a>
+            <a href={docs} class="inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-medium text-white/90 transition hover:bg-white/10">{T.ctaDocs} →</a>
+          </div>
+        </div>
+
+        <div class="reveal [animation-delay:120ms]" aria-hidden="true">
+          <div class="gradient-border rounded-2xl">
+            <div class="overflow-hidden rounded-2xl bg-[#0f0a1f]">
+              <div class="flex items-center gap-1.5 border-b border-white/5 px-4 py-3">
+                <span class="size-2.5 rounded-full bg-white/15"></span><span class="size-2.5 rounded-full bg-white/15"></span><span class="size-2.5 rounded-full bg-white/15"></span>
+              </div>
+              <div class="grid grid-cols-[1fr_9.5rem] gap-3 p-3 sm:grid-cols-[1fr_11rem]">
+                <div class="relative aspect-video overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 via-indigo-500 to-cyan-400">
+                  <div class="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,.35),transparent_45%)]"></div>
+                  <div class="absolute bottom-[18%] left-[12%] h-[38%] w-[30%] rounded-[50%_50%_10%_10%] bg-black/25"></div>
+                  <span class="absolute left-3 top-3 rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-bold tracking-wider">{T.mock.live}</span>
+                  <span class="absolute bottom-3 right-3 rounded-md bg-black/40 px-2 py-0.5 font-mono text-[10px] backdrop-blur">1440p · 60 fps</span>
+                </div>
+                <div class="flex flex-col gap-2 text-[11px]">
+                  {T.mock.chat.map((m, i) => (
+                    <div class="chat-pop rounded-lg bg-white/5 px-2.5 py-2 text-white/80" style={`animation-delay:${600 + i * 450}ms`}>
+                      <b class="block text-[10px] text-cyan-300">{['Ana', 'Beto', 'Caio'][i]}</b>{m}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div class="flex items-center justify-center gap-2 border-t border-white/5 py-3">
+                {[0, 1, 2, 3].map((i) => <span class={`size-8 rounded-full ${i === 3 ? 'bg-red-500/80' : 'bg-white/10'}`}></span>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <h2 class="text-center text-3xl font-semibold tracking-tight sm:text-4xl">{T.featuresTitle}</h2>
+        <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {T.features.map(([title, text], i) => (
+            <div class="card-glow group rounded-2xl border border-white/8 bg-white/[.03] p-6 transition hover:border-white/15">
+              <span class="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500/25 to-cyan-400/25 text-cyan-200">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d={icons[i]} /></svg>
+              </span>
+              <h3 class="mt-4 font-semibold">{title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-white/60">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="install" class="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
+        <h2 class="text-center text-3xl font-semibold tracking-tight sm:text-4xl">{T.installTitle}</h2>
+        <p class="mx-auto mt-4 max-w-2xl text-center text-white/60">{T.installLead}</p>
+        <div class="mx-auto mt-10 max-w-3xl">
+          <div class="flex gap-1 rounded-xl border border-white/8 bg-white/[.03] p-1" role="tablist">
+            {T.tabs.map(([label], i) => (
+              <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'} class="tab flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition">{label}</button>
+            ))}
+          </div>
+          {T.tabs.map(([, text], i) => (
+            <div class="panel mt-4" data-panel={i} hidden={i !== 0}>
+              <p class="text-sm text-white/60">{text}</p>
+              {i < 2 ? (
+                <div class="mt-3 overflow-hidden rounded-xl border border-white/8 bg-black/40">
+                  <div class="flex items-center justify-between border-b border-white/8 px-4 py-2">
+                    <span class="font-mono text-xs text-white/40">{i === 0 ? 'bash' : 'compose.yml'}</span>
+                    <button type="button" class="copy rounded-lg border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium hover:bg-white/15" data-copy={i === 0 ? INSTALL : COMPOSE} data-done={T.copied}>{T.copy}</button>
+                  </div>
+                  <pre class="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed text-cyan-100"><code>{i === 0 ? INSTALL : COMPOSE}</code></pre>
+                </div>
+              ) : (
+                <a href={`${docs}proxy/#coolify`} class="mt-3 inline-flex rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium hover:bg-white/10">{T.coolifyCta} →</a>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <h2 class="text-center text-3xl font-semibold tracking-tight sm:text-4xl">{T.stepsTitle}</h2>
+        <ol class="mt-12 grid gap-4 sm:grid-cols-3">
+          {T.steps.map(([title, text], i) => (
+            <li class="rounded-2xl border border-white/8 bg-white/[.03] p-6">
+              <span class="font-mono text-sm text-gradient">0{i + 1}</span>
+              <h3 class="mt-3 font-semibold">{title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-white/60">{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </main>
+
+    <footer class="relative z-10 border-t border-white/5">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-8 text-sm text-white/50 sm:px-6">
+        <img src={`${base}icon.svg`} alt="" width="22" height="22" class="rounded-md" />
+        <span>{T.footer}</span>
+        <a href={docs} class="ml-auto hover:text-white">{T.nav.docs}</a>
+        <a href="https://github.com/dionatansimioni/overshoulder" class="hover:text-white">GitHub</a>
+      </div>
+    </footer>
+
+    <script>
+      // Abas da instalação
+      const tabs = [...document.querySelectorAll<HTMLButtonElement>('.tab')];
+      for (const tab of tabs)
+        tab.addEventListener('click', () => {
+          for (const t of tabs) t.setAttribute('aria-selected', String(t === tab));
+          for (const p of document.querySelectorAll<HTMLElement>('.panel')) p.hidden = p.dataset.panel !== tab.dataset.tab;
+        });
+      // Copiar o comando
+      for (const btn of document.querySelectorAll<HTMLButtonElement>('.copy'))
+        btn.addEventListener('click', async () => {
+          const label = btn.textContent;
+          try {
+            await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+            btn.textContent = btn.dataset.done ?? label;
+            setTimeout(() => (btn.textContent = label), 1500);
+          } catch {}
+        });
+      // Escolha de idioma: lembrada para a detecção automática não desfazer
+      for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-lang]'))
+        a.addEventListener('click', () => {
+          try {
+            localStorage.setItem('overshoulder-site-lang', a.dataset.lang ?? '');
+          } catch {}
+        });
+    </script>
+  </body>
+</html>

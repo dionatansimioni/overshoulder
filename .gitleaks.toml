@@ -7,4 +7,6 @@ description = "Segredos locais de cada instalação (fora do git) e dependência
 paths = [
   '''(^|/)\.env$''',
   '''(^|/)node_modules/''',
+  # Saída da compilação do site (fora do git)
+  '''(^|/)site/(dist|\.astro)/''',
 ]

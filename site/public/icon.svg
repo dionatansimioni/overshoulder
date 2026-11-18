@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Overshoulder">
+  <!-- Overshoulder: alguém de costas, com headset, olhando por cima do ombro uma tela ao vivo -->
+  <defs>
+    <linearGradient id="g" x1="96" y1="400" x2="440" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B2FF2"/><stop offset="1" stop-color="#1DD8FC"/>
+    </linearGradient>
+    <clipPath id="t"><rect width="512" height="512" rx="120"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#120A24"/>
+  <g clip-path="url(#t)">
+    <rect x="128" y="84" width="300" height="208" rx="36" fill="url(#g)"/>
+    <path d="M48 540c0-104 74-170 168-170s168 66 168 170Z" fill="#35226A" stroke="#120A24" stroke-width="28" paint-order="stroke"/>
+    <circle cx="216" cy="300" r="78" fill="#35226A" stroke="#120A24" stroke-width="28" paint-order="stroke"/>
+    <path d="M124 312a92 92 0 0 1 184 0" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+    <rect x="106" y="296" width="36" height="62" rx="14" fill="#fff"/>
+    <rect x="290" y="296" width="36" height="62" rx="14" fill="#fff"/>
+  </g>
+</svg>
