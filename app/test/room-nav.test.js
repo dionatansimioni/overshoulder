@@ -86,6 +86,8 @@ describe('gaveta lateral na sala', () => {
   test('no celular a gaveta cabe na tela', async () => {
     const { page, errors } = await hostRoom({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await page.click('#nav-toggle');
+    // A gaveta desliza ao abrir: mede depois que a animação termina
+    await page.locator('#room-nav').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const box = await page.locator('#room-nav').boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 390, 'gaveta dentro da tela');
     await page.click('#nav-backdrop', { position: { x: 380, y: 400 } });

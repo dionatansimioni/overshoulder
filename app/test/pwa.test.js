@@ -77,7 +77,7 @@ describe('app instalável (PWA)', () => {
     await page.goto(`${s.url}/account`);
     await page.waitForSelector('#retry');
     assert.equal(await page.textContent('h2'), 'Sem conexão');
-    assert.match(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), /rgb\(16, 13, 22\)/, 'com o visual do app');
+    assert.match(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), /rgb\(11, 8, 20\)/, 'com o visual do app');
     await context.setOffline(false);
     assert.deepEqual(errors, []);
   });
