@@ -167,7 +167,7 @@ describe('redefinição do admin pelo comando no servidor', () => {
   const resetCommand = async (dataDir, env = {}) => {
     const { stdout } = await promisify(execFile)(process.execPath, ['cli.js', 'reset-admin'], {
       cwd: APP_DIR,
-      env: { ...process.env, DATA_DIR: dataDir, DOMAIN: 'live.exemplo.com', HTTPS_PORT: '443', ...env },
+      env: { ...process.env, DATA_DIR: dataDir, DOMAIN: 'live.exemplo.com', HTTPS_PORT: '443', OVERSHOULDER_LANG: 'pt', ...env },
     });
     return stdout.match(/https:\/\/live\.exemplo\.com\/redefinir#([A-Za-z0-9_-]+)/)[1];
   };
@@ -199,6 +199,23 @@ describe('redefinição do admin pelo comando no servidor', () => {
 
     const empty = await fresh(13069);
     await assert.rejects(resetCommand(empty.dataDir), /não foi configurado/);
+  });
+
+  test('o comando fala inglês, ou português com OVERSHOULDER_LANG ou LANG em pt', async () => {
+    const s = await fresh(13072);
+    await setupAdmin(s);
+    const run = async (env) =>
+      (
+        await promisify(execFile)(process.execPath, ['cli.js', 'reset-admin'], {
+          cwd: APP_DIR,
+          env: { PATH: process.env.PATH, DATA_DIR: s.dataDir, DOMAIN: 'live.exemplo.com', ...env },
+        })
+      ).stdout;
+    assert.match(await run({}), /^Link to reset the "admin" account/);
+    assert.match(await run({ LANG: 'en_US.UTF-8' }), /^Link to reset/);
+    assert.match(await run({ LANG: 'pt_BR.UTF-8' }), /^Link para redefinir a conta "admin"/);
+    assert.match(await run({ LANG: 'pt_BR.UTF-8', OVERSHOULDER_LANG: 'en' }), /^Link to reset/);
+    assert.match(await run({ OVERSHOULDER_LANG: 'pt' }), /A senha será trocada/);
   });
 });
 

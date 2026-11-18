@@ -38,6 +38,10 @@ Depois, o comando `overshoulder` cuida do dia a dia:
 
 Para instalar sem perguntas (automação), passe as respostas pelo ambiente: `MODE=domain DOMAIN=live.seudominio.com OVERSHOULDER_YES=1`. Os modos são `domain`, `ip`, `lan` e `proxy` (com `PROXY_PORT`, padrão 8080).
 
+O instalador e o comando `overshoulder` falam português quando o idioma do sistema (`LANG`) é português, e inglês nos outros casos. Para escolher, use `OVERSHOULDER_LANG=pt` ou `OVERSHOULDER_LANG=en`.
+
+Não use `curl … | sudo bash`: em alguns sistemas, como o Ubuntu 25.10, o instalador lido pelo cano não recebe o que você digita, nem o CTRL+C.
+
 ## Subir com Docker
 
 Sem o instalador: a imagem é única, com LiveKit (vídeo), o app e o Caddy (HTTPS automático) no mesmo container.
@@ -75,7 +79,7 @@ Pronto: você entra logado e já pode criar salas. O resto fica em `/admin` (vej
 | 7881 | TCP | Vídeo por TCP, para redes que bloqueiam UDP |
 | 7882 | UDP | Vídeo (o caminho normal, mais rápido) |
 
-Libere também no painel do provedor (Hostinger, Oracle etc.): o firewall de lá é separado do sistema.
+Se o provedor tem firewall no painel, libere as portas lá também, porque ele é separado do firewall do sistema. Ele vem ligado no Oracle Cloud (a lista de segurança padrão só deixa passar o SSH), na AWS e no Google Cloud. Na Hostinger, o firewall do painel só passa a valer quando você aplica um grupo de regras ao servidor; sem isso, não bloqueia nada.
 
 ## Atualizar
 

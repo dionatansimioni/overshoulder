@@ -40,7 +40,7 @@ docker push -q "$REG/overshoulder:test" >/dev/null
 
 export OVERSHOULDER_IMAGE="$REG/overshoulder" OVERSHOULDER_VERSION=test OVERSHOULDER_NAME="$NAME" \
   OVERSHOULDER_DIR="$TMP/opt" OVERSHOULDER_BIN="$TMP/bin/overshoulder" OVERSHOULDER_YES=1 OVERSHOULDER_SKIP_FIREWALL=1 \
-  HTTP_PORT=18090 HTTPS_PORT=18493 RTC_TCP_PORT=17891 RTC_UDP_PORT=17892
+  HTTP_PORT=18090 HTTPS_PORT=18493 RTC_TCP_PORT=17891 RTC_UDP_PORT=17892 OVERSHOULDER_LANG=pt
 BIN="$TMP/bin/overshoulder"
 BASE=https://127.0.0.1:18493
 install_with() { env "$@" $SUDO bash install.sh </dev/null 2>&1; }
@@ -54,6 +54,15 @@ out=$(install_with MODE=nenhum DOMAIN=x.example.test || true)
 grep -q 'MODE inválido' <<<"$out" || die "MODE inválido deveria ser recusado: $out"
 [ ! -e "$TMP/opt/.env" ] || die "instalação recusada deixou arquivos para trás"
 ok "respostas inválidas (IP privado sem domínio, domínio malformado, modo) são recusadas sem instalar nada"
+
+# --- idioma: inglês por padrão, português pelo LANG ou por OVERSHOULDER_LANG ------------------
+out=$(install_with OVERSHOULDER_LANG= LANG=C.UTF-8 MODE=nenhum DOMAIN=x.example.test || true)
+grep -q 'invalid MODE' <<<"$out" && grep -q 'Overshoulder: installation' <<<"$out" || die "sem LANG em português, o instalador deveria falar inglês: $out"
+out=$(install_with OVERSHOULDER_LANG= LANG=pt_BR.UTF-8 MODE=nenhum DOMAIN=x.example.test || true)
+grep -q 'MODE inválido' <<<"$out" || die "com LANG=pt_BR, o instalador deveria falar português: $out"
+out=$(install_with OVERSHOULDER_LANG=en LANG=pt_BR.UTF-8 MODE=ip DOMAIN=192.168.1.5 || true)
+grep -q 'private network IP' <<<"$out" || die "OVERSHOULDER_LANG=en deveria valer sobre o LANG: $out"
+ok "o instalador fala inglês por padrão e português com LANG ou OVERSHOULDER_LANG em pt"
 
 # --- terminal que não entrega o que se digita ---------------------------------------
 # No Ubuntu 25.10, "curl | sudo bash" abre o /dev/tty, mas a leitura falha. Aqui o terminal é um pty
@@ -108,9 +117,14 @@ grep -q 'Versão: ' <<<"$status" && ! grep -q 'Versão: desconhecida' <<<"$statu
 setup=$(curl -sk -X POST "$BASE/api/setup" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$code\",\"username\":\"admin\",\"password\":\"frase comprida do instalador\"}")
 grep -q '"role":"admin"' <<<"$setup" || die "configuração inicial: $setup"
-$BIN config-code | grep -q 'já foi configurado' || die "config-code depois de configurado"
-$BIN reset-admin | grep -q '^https://127.0.0.1:18493/redefinir#' || die "overshoulder reset-admin"
-ok "overshoulder status, config-code e reset-admin funcionam"
+# Saídas em variáveis: com pipefail, "comando | grep -q" falha à toa quando o grep fecha o cano antes
+cc=$($BIN config-code); grep -q 'já foi configurado' <<<"$cc" || die "config-code depois de configurado: $cc"
+ra=$($BIN reset-admin)
+grep -q '^https://127.0.0.1:18493/redefinir#' <<<"$ra" && grep -q '^Link para redefinir' <<<"$ra" || die "overshoulder reset-admin: $ra"
+out=$(OVERSHOULDER_LANG=en $BIN help); grep -q '^Usage: overshoulder <command>' <<<"$out" || die "overshoulder help em inglês: $out"
+out=$(OVERSHOULDER_LANG=en $BIN status); grep -q 'Health: healthy · Version: ' <<<"$out" || die "overshoulder status em inglês: $out"
+out=$(OVERSHOULDER_LANG=en $BIN reset-admin); grep -q '^Link to reset' <<<"$out" || die "overshoulder reset-admin em inglês: $out"
+ok "overshoulder status, config-code e reset-admin funcionam, em português e em inglês"
 
 out=$(install_with MODE=lan DOMAIN=127.0.0.1)
 grep -q 'já está instalado' <<<"$out" || die "segunda instalação deveria parar: $out"
@@ -127,7 +141,7 @@ ok "overshoulder update baixa a versão nova, reinicia saudável e mantém os da
 
 (cd "$TMP" && $SUDO "$BIN" backup >/dev/null)
 backup=$(ls "$TMP"/overshoulder-backup-*.tgz)
-tar tzf "$backup" | grep -q 'state.json' || die "backup sem state.json"
+files=$(tar tzf "$backup"); grep -q 'state.json' <<<"$files" || die "backup sem state.json"
 ok "overshoulder backup salva os dados num arquivo"
 
 $SUDO "$BIN" uninstall --purge >/dev/null
