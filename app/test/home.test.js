@@ -177,6 +177,18 @@ describe('página inicial (navegador)', () => {
     assert.equal(new URL(page.url()).pathname, '/');
   });
 
+  test('abaixo de "Conectado como", conta, administração e sair são botões', async () => {
+    const { page } = await newPage();
+    await loginInBrowser(page, s.url);
+    const footer = page.locator('.side-footer');
+    for (const name of ['Minha conta', 'Administração']) {
+      const link = footer.getByRole('link', { name });
+      assert.ok(await link.isVisible(), `${name} visível`);
+      assert.match(await link.getAttribute('class'), /\bbutton\b/, `${name} com cara de botão`);
+    }
+    assert.doesNotMatch((await page.getAttribute('#logout', 'class')) ?? '', /\blink\b/, 'Sair é um botão, não um link');
+  });
+
   test('no celular nada some: criar sala e a lista de salas continuam à mão', async () => {
     const { page, errors } = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await loginInBrowser(page, s.url);

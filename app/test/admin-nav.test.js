@@ -106,6 +106,10 @@ describe('administração com menu lateral', () => {
     await page.keyboard.press('Enter');
     await page.waitForSelector('#convites:not([hidden])');
     assert.equal(await current(page), '#convites');
+    // O convite daqui cria conta de transmissor; quem só assiste entra pelo link da sala
+    assert.equal(await page.textContent('#convites h1'), 'Convidar transmissor');
+    assert.match(await page.textContent('#convites'), /só para assistir, não use isto/);
+    assert.equal(await page.textContent('#new-invite'), 'Gerar convite de transmissor');
   });
 
   test('no celular o menu fica em cima e cabe na tela', async () => {

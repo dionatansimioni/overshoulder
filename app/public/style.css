@@ -297,7 +297,7 @@ button.forget:hover { background: var(--hover); color: var(--text); }
 .side-footer p { margin: 0 0 6px; }
 .forget-on-logout { margin-bottom: 8px; font-size: 13px; color: var(--muted); }
 .forget-on-logout input { width: 14px; height: 14px; }
-.side-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; font-size: 14px; }
+.side-footer .side-buttons { margin: 8px 0; }
 button.link { padding: 0; background: none; color: var(--accent); font-size: 14px; text-decoration: underline; }
 button.link:hover { background: none; color: var(--accent-hover); }
 button.new-room { width: 100%; }

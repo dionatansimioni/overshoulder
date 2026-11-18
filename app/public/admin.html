@@ -22,7 +22,7 @@
         <button type="button" data-page="uso">Uso</button>
         <button type="button" data-page="salas">Salas fixas</button>
         <button type="button" data-page="transmissores">Transmissores</button>
-        <button type="button" data-page="convites">Convites</button>
+        <button type="button" data-page="convites">Convidar transmissor</button>
         <button type="button" data-page="avancado">Avançado</button>
       </nav>
       <div class="side-buttons">
@@ -135,11 +135,13 @@
         <p id="users-error" class="error" hidden></p>
       </section>
       <section id="convites" class="admin-page" hidden>
-        <h1>Convites</h1>
+        <h1>Convidar transmissor</h1>
+        <p>Para quem vai <b>transmitir</b> por este servidor: a pessoa ganha uma conta para criar salas e compartilhar a tela.</p>
+        <p class="notice small">Para chamar alguém só para <b>assistir</b>, não use isto: mande o link de convite da sala, que aparece dentro dela.</p>
         <p class="muted small">O convite é um link de uso único que vale 48 horas. A pessoa escolhe o próprio usuário e senha; você nunca vê a senha.</p>
-        <button id="new-invite" type="button">Gerar convite</button>
+        <button id="new-invite" type="button">Gerar convite de transmissor</button>
         <div id="invite-box" class="invite-box" hidden>
-          <input id="invite-link" readonly aria-label="Link do convite">
+          <input id="invite-link" readonly aria-label="Link do convite de transmissor">
           <button id="copy-invite" type="button" class="secondary">Copiar</button>
         </div>
         <ul id="invites" class="list"></ul>

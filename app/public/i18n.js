@@ -34,6 +34,7 @@ const EN = {
   'Copiados!': 'Copied!',
   Cancelar: 'Cancel',
   'Conectado como': 'Signed in as',
+  'Conta e configurações': 'Account and settings',
   Português: 'Português',
   English: 'English',
 
@@ -348,10 +349,19 @@ const EN = {
   'Novos códigos de recuperação de': 'New recovery codes for',
   '. Entregue por um canal seguro; os antigos deixaram de valer.':
     '. Hand them over through a secure channel; the old ones no longer work.',
-  Convites: 'Invitations',
+  'Convidar transmissor': 'Invite a broadcaster',
+  'Para quem vai': 'For people who will',
+  transmitir: 'broadcast',
+  'por este servidor: a pessoa ganha uma conta para criar salas e compartilhar a tela.':
+    'on this server: they get an account to create rooms and share their screen.',
+  'Para chamar alguém só para': 'To bring someone in just to',
+  assistir: 'watch',
+  ', não use isto: mande o link de convite da sala, que aparece dentro dela.':
+    ", don't use this: send the room's invitation link, shown inside the room.",
   'O convite é um link de uso único que vale 48 horas. A pessoa escolhe o próprio usuário e senha; você nunca vê a senha.':
     'An invitation is a single-use link valid for 48 hours. The person picks their own username and password; you never see the password.',
-  'Gerar convite': 'Create invitation',
+  'Gerar convite de transmissor': 'Create broadcaster invitation',
+  'Link do convite de transmissor': 'Broadcaster invitation link',
   'Link do convite': 'Invitation link',
   administrador: 'administrator',
   transmissor: 'broadcaster',
