@@ -86,10 +86,11 @@ describe('cabeçalhos de segurança em todas as respostas', () => {
     }
   });
 
-  test('CSP só permite WebSocket para o próprio site e o LiveKit configurado', async () => {
+  test('CSP só permite conexões ao próprio site, ao LiveKit configurado e ao Discord', async () => {
     const csp = (await rawRequest('/')).headers.get('content-security-policy');
     const connect = csp.match(/connect-src ([^;]+)/)[1].split(/\s+/);
-    assert.deepEqual(connect.sort(), ["'self'", 'ws://127.0.0.1:17880'].sort());
+    // discord.com: o anúncio da sala no Discord sai direto do navegador de quem transmite
+    assert.deepEqual(connect.sort(), ["'self'", 'ws://127.0.0.1:17880', 'https://discord.com'].sort());
   });
 
   test('respostas da API não ficam em cache', async () => {

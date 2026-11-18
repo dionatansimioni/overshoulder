@@ -104,6 +104,27 @@ $('settings-form').addEventListener('submit', (e) => {
   });
 });
 
+// --- Discord -----------------------------------------------------------------
+api('/api/discord')
+  .then(({ webhook }) => ($('discord-webhook').value = webhook ?? ''))
+  .catch(() => {});
+
+$('discord-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  $('discord-error').hidden = true;
+  $('discord-ok').hidden = true;
+  busy(e.target, async () => {
+    try {
+      const { webhook } = await api('/api/admin/discord', { webhook: $('discord-webhook').value });
+      $('discord-webhook').value = webhook ?? '';
+      $('discord-ok').textContent = t(webhook ? 'Webhook salvo.' : 'Anúncio no Discord desligado.');
+      $('discord-ok').hidden = false;
+    } catch (err) {
+      showError($('discord-error'), err);
+    }
+  });
+});
+
 // --- uso -------------------------------------------------------------------
 
 const gb = (bytes) => (bytes / 1e9).toLocaleString([], { maximumFractionDigits: bytes < 1e10 ? 2 : 1 });

@@ -141,6 +141,8 @@ let room;
 let isHost = false;
 // Quem tem conta neste servidor (admin ou transmissor): ao fim da sala, volta para a página inicial
 let signedIn = false;
+// Webhook do canal do Discord configurado pelo admin (só chega a quem tem conta)
+let discordWebhook = null;
 let token = null;
 // Estado da sala que o anfitrião controla, recebido pelos metadados da sala
 let meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [] };
@@ -1312,7 +1314,46 @@ const setupPublishControls = () => {
 
 // --- anfitrião: convite, chat, encerrar, gravar --------------------------------
 
+// --- anunciar no Discord ------------------------------------------------------------------------
+// O navegador de quem transmite posta direto no webhook: o link (com a chave da sala) não passa pelo
+// servidor. Quem está no canal do Discord passa a ver o link, como se alguém o colasse lá.
+const updateDiscordButton = () => ($('discord-announce').hidden = !(isHost && discordWebhook));
+
+$('discord-announce').addEventListener('click', async () => {
+  if (!discordWebhook) return;
+  if (!confirm(t('Anunciar esta sala no canal do Discord? Quem está no canal recebe o link de convite.'))) return;
+  const name = room?.localParticipant?.name || t('Alguém');
+  const live = meta.type === 'live';
+  const body = {
+    username: 'Overshoulder',
+    avatar_url: `${location.origin}/static/icon-192.png`,
+    content: inviteLink(),
+    embeds: [
+      {
+        title: t(live ? '{name} está ao vivo' : '{name} chamou para jogar junto', { name }),
+        description: t(
+          live
+            ? 'Live no Overshoulder. Abra o link para assistir no navegador, sem conta.'
+            : 'Sala "Jogando juntos" no Overshoulder. Abra o link para entrar no navegador, sem conta.',
+        ),
+        url: inviteLink(),
+        color: 0x7c3aed,
+      },
+    ],
+  };
+  $('discord-announce').disabled = true;
+  try {
+    const res = await fetch(discordWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    addMessage(t(res.ok ? 'Convite anunciado no Discord.' : 'O Discord recusou o anúncio. Confira o webhook em Administração.'));
+  } catch {
+    addMessage(t('Não foi possível falar com o Discord.'));
+  } finally {
+    $('discord-announce').disabled = false;
+  }
+});
+
 const setupHost = () => {
+  updateDiscordButton();
   $('invite').hidden = false;
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
@@ -1633,6 +1674,12 @@ const setupNav = async () => {
   const { user } = await api('/api/state').catch(() => ({}));
   if (!user || user.needs2fa) return;
   signedIn = true;
+  api('/api/discord')
+    .then(({ webhook }) => {
+      discordWebhook = webhook;
+      updateDiscordButton();
+    })
+    .catch(() => {});
   $('nav-toggle').hidden = false;
   $('nav-admin').hidden = user.role !== 'admin';
   let list = null;

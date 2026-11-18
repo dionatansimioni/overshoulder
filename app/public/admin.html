@@ -75,6 +75,17 @@
           <p id="settings-error" class="error" hidden></p>
           <p id="settings-ok" class="ok" hidden>Configurações salvas.</p>
         </form>
+
+        <h2>Discord</h2>
+        <p class="muted small">Com o webhook de um canal, quem transmite ganha na sala o botão "Anunciar no Discord", que posta o convite no canal. O anúncio sai direto do navegador de quem transmite: o servidor não vê o link da sala.</p>
+        <form id="discord-form" class="form">
+          <label for="discord-webhook">Webhook do canal</label>
+          <input id="discord-webhook" type="url" placeholder="https://discord.com/api/webhooks/…" autocomplete="off" spellcheck="false">
+          <p class="muted small field-hint">No Discord: Editar canal › Integrações › Webhooks › Novo webhook › Copiar URL do webhook. Deixe vazio para desligar.</p>
+          <button type="submit">Salvar webhook</button>
+          <p id="discord-error" class="error" hidden></p>
+          <p id="discord-ok" class="ok" hidden>Webhook salvo.</p>
+        </form>
       </section>
       <section id="uso" class="admin-page" hidden>
         <h1>Uso</h1>

@@ -164,7 +164,8 @@ const LIVEKIT_ORIGIN = new URL(PUBLIC_URL).origin;
 const SECURITY_HEADERS = {
   'Content-Security-Policy':
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
-    `media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ${LIVEKIT_ORIGIN}; ` +
+    // discord.com: o anfitrião anuncia a sala no Discord direto do navegador (o servidor não vê o link)
+    `media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' ${LIVEKIT_ORIGIN} https://discord.com; ` +
     "frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
@@ -549,9 +550,16 @@ const disable2fa = async (req, res) => {
 
 // --- API: administração -----------------------------------------------------
 
+// O que a tela Geral mostra: sem o SSO (o segredo do cliente é só de escrita, com rota própria) e
+// sem o webhook do Discord (também com rota própria)
+const settingsView = () => {
+  const { sso, discordWebhook, ...rest } = settings();
+  return rest;
+};
+
 const getSettings = async (req, res) => {
   requireUser(req, { role: 'admin' });
-  json(res, 200, { ...settings(), turnDomain: TURN_DOMAIN });
+  json(res, 200, { ...settingsView(), turnDomain: TURN_DOMAIN });
 };
 
 const updateSettings = async (req, res) => {
@@ -589,7 +597,7 @@ const updateSettings = async (req, res) => {
     return json(res, 400, { error: 'A qualidade padrão não pode passar da máxima.' });
   store.update((s) => Object.assign(s.settings, changes));
   log.info('configuração alterada', { user: user.username, ...changes });
-  json(res, 200, settings());
+  json(res, 200, settingsView());
 };
 
 // --- API: painel de uso -------------------------------------------------------
@@ -941,6 +949,32 @@ const updateSso = async (req, res) => {
   log.info('login corporativo configurado', { user: user.username, ativo: next.enabled, emissor: next.issuer });
   const { clientSecret, ...rest } = next;
   json(res, 200, { ...rest, hasClientSecret: !!clientSecret, redirectUri: SSO_REDIRECT_URI });
+};
+
+// --- anúncio no Discord ----------------------------------------------------------------------
+// O admin guarda o webhook de um canal; quem tem conta o recebe e anuncia a sala direto do navegador,
+// para o link (que leva a chave da sala) nunca passar pelo servidor. O token do webhook funciona como
+// senha do canal: não vai para os logs nem para quem não tem conta.
+const DISCORD_WEBHOOK_RE = /^https:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/api\/webhooks\/(\d{15,25})\/([\w-]{20,128})\/?$/;
+
+const getDiscord = async (req, res) => {
+  requireUser(req);
+  json(res, 200, { webhook: store.state.settings.discordWebhook || null });
+};
+
+const updateDiscord = async (req, res) => {
+  const { user } = requireUser(req, { role: 'admin' });
+  const { webhook } = await readJson(req);
+  if (typeof webhook !== 'string' || webhook.length > 300) return json(res, 400, { error: 'Webhook inválido.' });
+  let value = '';
+  if (webhook.trim()) {
+    const m = webhook.trim().match(DISCORD_WEBHOOK_RE);
+    if (!m) return json(res, 400, { error: 'Isso não é um webhook do Discord. Copie a URL em Editar canal › Integrações › Webhooks.' });
+    value = `https://discord.com/api/webhooks/${m[1]}/${m[2]}`;
+  }
+  store.update((st) => (st.settings.discordWebhook = value));
+  log.info(value ? 'webhook do discord configurado' : 'webhook do discord removido', { user: user.username });
+  json(res, 200, { webhook: value || null });
 };
 
 // Depois do login, só volta para páginas do próprio site (nada de redirecionamento aberto)
@@ -1806,6 +1840,8 @@ const routes = {
   'POST /api/admin/rooms/delete': deleteFixedRoom,
   'POST /api/admin-reset': adminReset,
   'GET /api/admin/sso': getSso,
+  'GET /api/discord': getDiscord,
+  'POST /api/admin/discord': updateDiscord,
   'POST /api/admin/sso': updateSso,
   'GET /api/admin/update': getUpdate,
   'GET /api/admin/usage': getUsage,

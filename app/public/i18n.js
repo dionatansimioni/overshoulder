@@ -450,6 +450,29 @@ const EN = {
   'Permissão de áudio negada.': 'Audio permission denied.',
   'Não foi possível descriptografar a transmissão. O link está completo?': 'Could not decrypt the broadcast. Is the link complete?',
   'A live acabou': 'The live has ended',
+  'Anunciar no Discord': 'Announce on Discord',
+  'Anunciar esta sala no canal do Discord? Quem está no canal recebe o link de convite.':
+    'Announce this room in the Discord channel? Everyone in the channel gets the invitation link.',
+  Alguém: 'Someone',
+  '{name} está ao vivo': '{name} is live',
+  '{name} chamou para jogar junto': '{name} invited you to play together',
+  'Live no Overshoulder. Abra o link para assistir no navegador, sem conta.':
+    'Live on Overshoulder. Open the link to watch in the browser, no account needed.',
+  'Sala "Jogando juntos" no Overshoulder. Abra o link para entrar no navegador, sem conta.':
+    '"Playing together" room on Overshoulder. Open the link to join in the browser, no account needed.',
+  'Convite anunciado no Discord.': 'Invitation announced on Discord.',
+  'O Discord recusou o anúncio. Confira o webhook em Administração.': 'Discord refused the announcement. Check the webhook in Administration.',
+  'Não foi possível falar com o Discord.': 'Could not reach Discord.',
+  Discord: 'Discord',
+  'Com o webhook de um canal, quem transmite ganha na sala o botão "Anunciar no Discord", que posta o convite no canal. O anúncio sai direto do navegador de quem transmite: o servidor não vê o link da sala.':
+    'With a channel webhook, broadcasters get an "Announce on Discord" button in the room that posts the invitation to the channel. The announcement goes straight from the broadcaster\'s browser: the server never sees the room link.',
+  'Webhook do canal': 'Channel webhook',
+  'https://discord.com/api/webhooks/…': 'https://discord.com/api/webhooks/…',
+  'No Discord: Editar canal › Integrações › Webhooks › Novo webhook › Copiar URL do webhook. Deixe vazio para desligar.':
+    'In Discord: Edit channel › Integrations › Webhooks › New webhook › Copy webhook URL. Leave it empty to turn it off.',
+  'Salvar webhook': 'Save webhook',
+  'Webhook salvo.': 'Webhook saved.',
+  'Anúncio no Discord desligado.': 'Discord announcements turned off.',
   'Quem estava transmitindo encerrou a sala. Obrigado por assistir!': 'The broadcaster ended the room. Thanks for watching!',
   'A sala foi encerrada.': 'The room has ended.',
   'A live foi encerrada': 'The live has ended',

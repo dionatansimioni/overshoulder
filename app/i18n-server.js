@@ -4,6 +4,9 @@
 const EN = {
   'Requisição grande demais.': 'Request too large.',
   'JSON inválido.': 'Invalid JSON.',
+  'Webhook inválido.': 'Invalid webhook.',
+  'Isso não é um webhook do Discord. Copie a URL em Editar canal › Integrações › Webhooks.':
+    'That is not a Discord webhook. Copy the URL from Edit channel › Integrations › Webhooks.',
   'Formato de requisição inválido.': 'Invalid request format.',
   'Faça login para continuar.': 'Sign in to continue.',
   'Este servidor exige verificação em duas etapas. Configure o 2FA para continuar.':
