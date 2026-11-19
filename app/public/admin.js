@@ -1,4 +1,5 @@
 import { lang, t, translatePage } from '/static/i18n.js';
+import { recordingWarning } from '/static/recorder.js';
 import { MANY_PEOPLE, QUALITIES, QUALITY_LABELS, bandwidth } from '/static/quality.js';
 import { getFixedKey as getKey, randomKey, setFixedKey as setKey } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
@@ -81,6 +82,11 @@ updateMaxHint();
 $('max').addEventListener('input', updateMaxHint);
 $('default-quality').addEventListener('change', updateMaxHint);
 $('signup-mode').value = settings.signup;
+$('recording').checked = settings.recording;
+// Gravar enquanto transmite pesa no computador: avisa antes de ligar
+$('recording').addEventListener('change', (e) => {
+  if (e.target.checked && !confirm(recordingWarning())) e.target.checked = false;
+});
 
 $('settings-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -94,6 +100,7 @@ $('settings-form').addEventListener('submit', (e) => {
         signup: $('signup-mode').value,
         defaultQuality: $('default-quality').value,
         maxQuality: $('max-quality').value,
+        recording: $('recording').checked,
       });
       // A regra vale para o próprio admin: sem 2FA, ele precisa configurar antes de continuar
       if ($('require2fa').checked && !state.user.totp) return location.replace('/account');

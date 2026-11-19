@@ -31,6 +31,8 @@ Follow the network warning and lower the quality, or pick 720p in Settings. At h
 
 - MP4 with Opus audio (Chromium) doesn't open in some players and editors. Convert the audio: `ffmpeg -i recording.mp4 -c:v copy -c:a aac recording-aac.mp4`.
 - VLC, mpv, Kdenlive and Shotcut open every format Overshoulder records.
+- The video freezes on one frame, or the picture is stuck while the audio plays: the game is probably in exclusive fullscreen. Use windowed or borderless mode, or share the whole screen. See [Recording](rooms.md#recording-experimental).
+- Recording is experimental and off by default: turn it on in the room settings (gear) or in Administration › General.
 
 ## I forgot the password
 

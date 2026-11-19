@@ -271,6 +271,7 @@ const settings = () => ({
   defaultQuality: '720p30',
   maxQuality: '1440p60',
   updateCheck: true,
+  recording: false,
   monthlyQuotaGb: 0,
   ...store.state.settings,
 });
@@ -566,12 +567,16 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   const { user } = requireUser(req, { role: 'admin' });
-  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality, updateCheck, monthlyQuotaGb } = await readJson(req);
+  const { require2fa, maxParticipants, signup, defaultQuality, maxQuality, updateCheck, monthlyQuotaGb, recording } = await readJson(req);
   const changes = {};
   if (monthlyQuotaGb !== undefined) {
     if (typeof monthlyQuotaGb !== 'number' || !Number.isFinite(monthlyQuotaGb) || monthlyQuotaGb < 0 || monthlyQuotaGb > 1_000_000)
       return json(res, 400, { error: 'Franquia mensal: de 0 (sem franquia) a 1000000 GB.' });
     changes.monthlyQuotaGb = Math.round(monthlyQuotaGb * 10) / 10;
+  }
+  if (recording !== undefined) {
+    if (typeof recording !== 'boolean') return json(res, 400, { error: 'recording deve ser verdadeiro ou falso.' });
+    changes.recording = recording;
   }
   if (updateCheck !== undefined) {
     if (typeof updateCheck !== 'boolean') return json(res, 400, { error: 'updateCheck deve ser verdadeiro ou falso.' });
@@ -1548,6 +1553,8 @@ const issueToken = async (req, res) => {
     identity,
     // A página só oferece qualidades até a máxima do servidor (limite da interface, não do LiveKit)
     quality: { default: settings().defaultQuality, max: settings().maxQuality },
+    // Gravação é experimental: o admin liga por padrão no servidor e o anfitrião ajusta no próprio navegador
+    recording: settings().recording,
     // Para a lista "suas salas" da página inicial, guardada só no navegador
     room: { type: found.room.type, private: found.room.private, ...(found.room.fixed && { title: found.room.title }) },
     ...(admitted?.ticket && { ticket: admitted.ticket }),

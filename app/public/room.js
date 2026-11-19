@@ -17,7 +17,7 @@ import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { PRESETS, HEAVY_HEIGHT, QUALITY_LABELS, bandwidthWarning, limitQualitySelect } from '/static/quality.js';
 import { CONNECTION_LABELS, connectionType } from '/static/connection-type.js';
 import { createNetworkWatch, summarizeSend } from '/static/send-stats.js';
-import { Recorder, recordingFormat } from '/static/recorder.js';
+import { Recorder, recordingFormat, recordingWarning } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { mountRoomList } from '/static/room-list.js';
@@ -210,6 +210,13 @@ let token = null;
 // Estado da sala que o anfitrião controla, recebido pelos metadados da sala
 let meta = { type: 'live', openScreens: false, chat: true, recording: false, requests: [] };
 let recorder = null;
+// Gravação é experimental: começa desligada, o admin pode ligar por padrão no servidor e cada anfitrião
+// escolhe nos ajustes da sala (a escolha fica neste navegador e vale mais que o padrão do servidor)
+let recordingDefault = false;
+const recordingOn = () => {
+  const own = storage.get(localStorage, 'recording');
+  return own === null || own === undefined ? recordingDefault : own === '1';
+};
 // De quem é a tela (ou câmera) que estou assistindo
 let watching = null;
 let mainTrack = null;
@@ -482,7 +489,8 @@ const updateControls = () => {
   $('mic').hidden = !mic;
   $('share').hidden = !screen;
   $('camera').hidden = !screen;
-  $('record').hidden = !isHost || !recordingFormat();
+  $('record').hidden = !isHost || !recordingFormat() || !recordingOn();
+  $('recording-settings').hidden = !isHost || !recordingFormat();
   $('end').hidden = !isHost;
   // Ajustes valem para todos (o que se recebe); os da transmissão, só para quem pode transmitir
   $('broadcast-settings').hidden = !(mic || screen);
@@ -749,6 +757,7 @@ const connect = async (name) => {
   const data = await requestToken(name);
   isHost = data.role === 'host';
   token = data.token;
+  recordingDefault = data.recording === true;
   if (data.quality) limitQualitySelect($('quality'), data.quality);
   // Sala privada não fica guardada no navegador: a chave de anfitrião fica só nesta aba
   if (!data.room?.private) rememberRoom({ code: roomId, k: e2eeKey, h: isHost ? hostKey : undefined, type: data.room?.type, title: data.room?.title });
@@ -1234,6 +1243,8 @@ const startShare = async () => {
       systemAudio: 'include',
       contentHint: 'motion',
       resolution: { width: p.width, height: p.height, frameRate: p.fps },
+      // Jogos escondem o cursor do sistema; 'always' pede ao navegador que desenhe o ponteiro na captura
+      video: { cursor: 'always' },
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',
     },
@@ -1497,6 +1508,13 @@ const setupHost = () => {
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
   $('tab-log').hidden = false;
+  $('recording-enabled').checked = recordingOn();
+  $('recording-enabled').addEventListener('change', async (e) => {
+    if (e.target.checked && !confirm(recordingWarning())) return (e.target.checked = false);
+    storage.set(localStorage, 'recording', e.target.checked ? '1' : '0');
+    if (!e.target.checked && recorder?.active) await stopRecording().catch(() => {});
+    updateControls();
+  });
   $('open-screens').addEventListener('change', async (e) => {
     const data = await hostAction('/api/rooms/open-screens', { enabled: e.target.checked });
     if (!data) return (e.target.checked = !e.target.checked);

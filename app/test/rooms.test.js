@@ -219,6 +219,8 @@ describe('no navegador', () => {
 
   const page = async (initScript) => {
     const context = await browser.newContext({ permissions: ['microphone', 'camera'], acceptDownloads: true });
+    // A gravação é experimental e vem desligada: estes testes ligam como o anfitrião faria nos ajustes
+    await context.addInitScript(() => { try { localStorage.setItem('recording', '1'); } catch {} });
     if (initScript) await context.addInitScript(initScript);
     const p = await context.newPage();
     p.errors = [];

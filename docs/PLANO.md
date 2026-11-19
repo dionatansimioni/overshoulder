@@ -209,6 +209,14 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ (19/11) Logo novo (opção 4 "Cor" de quatro mostradas): fundo em gradiente da marca, tela translúcida e a pessoa em uma linha só, com a cabeça como O e os ombros como um S deitado. `icon.svg` gera os PNGs com `rsvg-convert`: 192 e 512 com cantos, 180 (iPhone) sem cantos e o maskable do Android com o desenho dentro do círculo seguro. O site usa os mesmos arquivos.
 - ✅ (19/11) Link velho (sala encerrada ou link trocado): `POST /api/rooms/check` responde antes da tela de entrada e, se a sala não existe, aparece "Essa sala não existe mais" com o botão da página inicial, a dica de falar com o anfitrião e, para quem não tem sessão, o atalho para `/login`. A verificação não traz sala fixa de volta ao ar.
 
+### Playtests de 19/11/2026 (v0.2.7)
+- ✅ Cursor sumindo no Valorant: a captura passa a pedir `video: { cursor: 'always' }` ao `getDisplayMedia`. **Falta confirmar no Windows com o jogo.** Se continuar, o jogo desenha o próprio cursor e a captura de janela não o vê (compartilhar a tela inteira resolve).
+- Decisão do usuário: os avisos do sistema **continuam no chat** (a ideia de mandá-los para o Registro foi testada e desfeita).
+- ✅ **Gravação virou recurso experimental, desligada por padrão.** Liga em Administração › Geral (padrão do servidor, `settings.recording`, informado no token) ou nos ajustes da sala (`localStorage.recording`, vale mais que o padrão). Os dois mostram o aviso de que gravar enquanto transmite pesa no computador.
+- ✅ **MP4 que abre em qualquer player:** `public/mp4.js` reescreve o MP4 fragmentado do MediaRecorder como MP4 comum (ftyp + moov com tabelas + mdat, sem recodificar; o mdat é montado com fatias do Blob). Vale no download e no arquivo da pasta (reescrito ao parar; se falhar, fica o original). Comparado com o ffmpeg: mesmos pacotes e duração, com B-frames. Testes em `mp4.test.js` (fixture `fixtures/fragmented.mp4`) e `recording.test.js`.
+- **Não resolvido:** janela de jogo em tela cheia exclusiva grava um quadro só (o Chrome só entrega quadros quando a janela muda). Documentado; sem correção limpa no navegador. Uma gravação em taxa fixa por `canvas.captureStream` pesaria no PC de quem joga e não resolve se nenhum quadro chegar.
+- A suspeita de estalos no áudio (mistura do `AudioContext`) segue aberta.
+
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.
 - ✅ Instalador, comando `overshoulder` e `cli.js` em inglês e português (`LANG` ou `OVERSHOULDER_LANG`; inglês por padrão).

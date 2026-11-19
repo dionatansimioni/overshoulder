@@ -3,6 +3,7 @@
 // O servidor nunca vê o conteúdo (a transmissão continua cifrada de ponta a ponta).
 // Cada canal grava em partes: quando a fonte do vídeo muda, a parte atual fecha e outra começa.
 import { t } from '/static/i18n.js';
+import { toProgressiveMp4 } from '/static/mp4.js';
 import { withWebmDuration } from '/static/webm.js';
 
 // Do formato que abre em mais programas para o menos: MP4 com áudio AAC (players e editores em geral);
@@ -16,6 +17,10 @@ const FORMATS = [
   ['video/webm;codecs=vp8,opus', 'webm'],
   ['video/webm', 'webm'],
 ];
+
+// Aviso mostrado ao ligar a gravação (nos ajustes da sala e no painel de administração)
+export const recordingWarning = () =>
+  t('A gravação é um recurso experimental. Gravar enquanto transmite usa o processador do computador e pode deixar o jogo e a transmissão mais lentos. Ligar mesmo assim?');
 
 export const recordingFormat = () => FORMATS.find(([type]) => window.MediaRecorder?.isTypeSupported(type));
 
@@ -116,7 +121,8 @@ export class Recorder {
       videoBitsPerSecond: withAudio ? 6_000_000 : 1_500_000,
       audioBitsPerSecond: 128_000,
     });
-    const file = this.folder && (await (await this.folder.getFileHandle(name, { create: true })).createWritable());
+    const handle = this.folder && (await this.folder.getFileHandle(name, { create: true }));
+    const file = handle && (await handle.createWritable());
     const chunks = [];
     let writing = Promise.resolve();
     recorder.ondataavailable = (e) => {
@@ -128,11 +134,15 @@ export class Recorder {
     const done = new Promise((resolve) => {
       recorder.onstop = async () => {
         await writing;
-        if (file) await file.close();
-        else {
+        if (file) {
+          await file.close();
+          if (ext === 'mp4') await this.#makeSeekable(handle);
+        } else {
           let blob = new Blob(chunks, { type: mimeType });
           // O WebM do MediaRecorder sai sem duração: sem ela, muitos players não avançam nem abrem
           if (ext === 'webm') blob = await withWebmDuration(blob, performance.now() - startedAt).catch(() => blob);
+          // O MP4 do MediaRecorder é fragmentado, sem índice: o Windows e muitos editores não conseguem pular
+          else blob = await toProgressiveMp4(blob).catch(() => blob);
           download(blob, name);
         }
         resolve();
@@ -142,6 +152,19 @@ export class Recorder {
     recorder.start(1000);
     ch.current = { recorder, done, track };
     this.parts.push(name);
+  }
+
+  // Reescreve o arquivo da pasta como MP4 comum. Se algo falhar, o original (que já toca) fica como está.
+  async #makeSeekable(handle) {
+    let writable;
+    try {
+      const fixed = await toProgressiveMp4(await handle.getFile());
+      writable = await handle.createWritable();
+      await writable.write(fixed);
+      await writable.close();
+    } catch {
+      await writable?.abort?.().catch(() => {});
+    }
   }
 
   async #endPart(ch) {

@@ -354,6 +354,15 @@ const EN = {
     'Make a backup first. The data lives in the volume and stays after the update.',
   'Outras formas de instalação': 'Other ways of installing',
   'Verificar novas versões uma vez por dia': 'Check for new versions once a day',
+  'Gravação da transmissão (experimental)': 'Broadcast recording (experimental)',
+  'Mostra o botão de gravar para os anfitriões. A gravação é feita no navegador de quem transmite e pode deixar o computador mais lento durante o jogo. Cada anfitrião pode ligar ou desligar nos ajustes da sala.':
+    "Shows the record button to hosts. Recording happens in the broadcaster's browser and can slow the computer down during the game. Each host can turn it on or off in the room settings.",
+  'Gravação': 'Recording',
+  'Mostrar o botão de gravar': 'Show the record button',
+  'Grava no seu computador enquanto você transmite, o que pode deixá-lo mais lento. Vale só neste navegador.':
+    'Records on your computer while you broadcast, which can slow it down. Applies to this browser only.',
+  'A gravação é um recurso experimental. Gravar enquanto transmite usa o processador do computador e pode deixar o jogo e a transmissão mais lentos. Ligar mesmo assim?':
+    'Recording is an experimental feature. Recording while you broadcast uses the computer’s processor and can make the game and the broadcast slower. Turn it on anyway?',
   'Consulta a última versão publicada no GitHub. Nenhum dado do servidor é enviado; o GitHub vê só o IP dele.':
     "Looks up the latest version published on GitHub. No server data is sent; GitHub only sees the server's IP.",
   'Verificar agora': 'Check now',

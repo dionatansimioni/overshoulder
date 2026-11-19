@@ -75,11 +75,18 @@ O link de uma sala que acabou, ou cujo link o anfitrião trocou, não abre mais 
 
 **Encerrar** fecha a sala para todos. O anfitrião, e quem tem conta no servidor, volta para a página inicial (se havia gravação, ela é salva antes). Quem assiste vê a tela "A live acabou".
 
-## Gravação
+## Gravação (experimental)
+
+A gravação é **experimental e vem desligada**. Ela acontece no computador do anfitrião, ao mesmo tempo que a transmissão e o jogo, então usa processador e pode deixar os dois mais lentos. Dá para ligar em dois lugares; os dois mostram antes um aviso de desempenho:
+
+- **Ajustes da sala** (a engrenagem): *Gravação › Mostrar o botão de gravar*. Vale só naquele navegador e tem prioridade sobre o padrão do servidor.
+- **Administração › Geral › Gravação da transmissão (experimental)**: mostra o botão para todos os anfitriões por padrão.
 
 O anfitrião grava no próprio navegador o vídeo que está na tela e todo o áudio da sala; o servidor nunca vê o conteúdo. Todos na sala veem **● Gravando**.
 
 - No Chrome e no Edge, o arquivo vai para uma pasta escolhida; nos outros navegadores, é baixado ao parar.
 - Formato: MP4 com áudio AAC quando o navegador consegue (Chrome no Windows e no Mac); MP4 com áudio Opus no Chromium; WebM no Firefox.
 - Tela (com o áudio) e câmera ficam em arquivos separados. Cada trecho de vídeo vira uma parte (por exemplo, parar e voltar a compartilhar).
+- Ao parar, o arquivo é reescrito como um MP4 comum (com índice e duração), então players comuns, como o Filmes e TV do Windows, conseguem pular na timeline. Vídeo e áudio não são recodificados. Se a reescrita falhar, o original é mantido; ele toca no Chrome e no VLC, mas pode não pular em todos os players.
+- **Jogos em tela cheia exclusiva:** o navegador só recebe quadros novos de uma janela quando o conteúdo muda, e um jogo em tela cheia exclusiva não passa pelo compositor do Windows. Gravar uma *janela* nesse caso trava num quadro só. Coloque o jogo em modo janela ou sem bordas, ou compartilhe a tela inteira. O mesmo limite pode afetar a transmissão ao vivo.
 - Editor que não abre Opus: `ffmpeg -i gravacao.mp4 -c:v copy -c:a aac gravacao-aac.mp4`.

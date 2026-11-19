@@ -31,6 +31,8 @@ Siga o aviso de rede e baixe a qualidade, ou escolha 720p em Ajustes. Em casa, o
 
 - MP4 com áudio Opus (Chromium) não abre em alguns players e editores. Converta o áudio: `ffmpeg -i gravacao.mp4 -c:v copy -c:a aac gravacao-aac.mp4`.
 - VLC, mpv, Kdenlive e Shotcut abrem todos os formatos que o Overshoulder grava.
+- O vídeo trava num quadro só, ou a imagem fica parada com o áudio tocando: o jogo provavelmente está em tela cheia exclusiva. Use o modo janela ou sem bordas, ou compartilhe a tela inteira. Veja [Gravação](rooms.md#gravação-experimental).
+- A gravação é experimental e vem desligada: ligue nos ajustes da sala (engrenagem) ou em Administração › Geral.
 
 ## Esqueci a senha
 

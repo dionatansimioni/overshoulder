@@ -75,11 +75,18 @@ A link to a room that has ended, or whose link the host has changed, no longer o
 
 **End room** closes the room for everyone. The host, and anyone signed in to the server, goes back to the home page (if a recording was running, it is saved first). Viewers see a "The live has ended" screen.
 
-## Recording
+## Recording (experimental)
+
+Recording is **experimental and off by default**. Recording happens on the host's computer, at the same time as the broadcast and the game, so it uses processor and can make both slower. Turn it on in one of two places; both show a performance warning first:
+
+- **Settings in the room** (the gear): *Recording › Show the record button*. Applies to that browser only and wins over the server default.
+- **Administration › General › Broadcast recording (experimental)**: shows the button to every host by default.
 
 The host records, in their own browser, the video on screen and all the room's audio; the server never sees the content. Everyone in the room sees **● Recording**.
 
 - In Chrome and Edge, the file goes to a folder you choose; in other browsers, it is downloaded when you stop.
 - Format: MP4 with AAC audio when the browser can (Chrome on Windows and Mac); MP4 with Opus audio on Chromium; WebM on Firefox.
 - Screen (with the audio) and camera go to separate files. Each stretch of video becomes a part (for example, stopping and sharing again).
+- When recording stops, the file is rewritten as a regular MP4 (with index and duration), so ordinary players, such as Windows' Movies & TV, can seek on the timeline. The video and audio are not re-encoded. If the rewrite fails, the original file is kept; it plays in Chrome and VLC, but may not seek everywhere.
+- **Games in exclusive fullscreen:** the browser only receives new frames of a window when its content changes, and a game in exclusive fullscreen doesn't go through Windows' compositor. Recording a *window* then freezes on one frame. Put the game in windowed or borderless mode, or share the whole screen. The same limit can affect the live broadcast.
 - Editor that doesn't open Opus: `ffmpeg -i recording.mp4 -c:v copy -c:a aac recording-aac.mp4`.
