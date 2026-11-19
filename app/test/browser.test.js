@@ -165,7 +165,7 @@ test('mensagem enviada logo ao entrar chega com o nome certo', async () => {
   assert.equal(await msg.locator('.author').textContent(), 'Beto');
 });
 
-test('anfitrião liga e desliga o microfone e o amigo vê o aviso', async () => {
+test('anfitrião liga e desliga o microfone; quem só assiste não vê o selo sobre o vídeo', async () => {
   const host = await newPage();
   await createRoomAsHost(host.page);
   const viewer = await newPage();
@@ -175,11 +175,13 @@ test('anfitrião liga e desliga o microfone e o amigo vê o aviso', async () => 
 
   await host.page.click('#mic');
   await host.page.waitForSelector('#mic.on[aria-pressed="true"]');
-  await viewer.page.waitForSelector('#mic-badge:not([hidden])');
+  // A voz chega, mas o selo "microfone ligado" é coisa de quem transmite
+  await viewer.page.waitForSelector('#audio-sink audio', { state: 'attached' });
+  await viewer.page.waitForTimeout(500);
+  assert.ok(await viewer.page.isHidden('#mic-badge'));
 
   await host.page.click('#mic');
   await host.page.waitForSelector('#mic:not(.on)[aria-pressed="false"]');
-  await viewer.page.waitForSelector('#mic-badge', { state: 'hidden' });
 
   assert.deepEqual(host.errors, []);
   assert.deepEqual(viewer.errors, []);

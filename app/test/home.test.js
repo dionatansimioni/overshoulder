@@ -88,7 +88,7 @@ describe('página inicial (navegador)', () => {
     assert.ok(await page.isVisible('#create-dialog'));
     await page.click('#create-live');
     await page.waitForURL(/\/r\/[A-Za-z0-9_-]{22}#k=/);
-    assert.ok(await page.isVisible('#join-invite-link'));
+    assert.ok(await page.isVisible('#join-copy'), 'o botão de copiar o convite já está na tela');
     const link = await page.inputValue('#join-invite-link');
     assert.match(link, /\/r\/[A-Za-z0-9_-]{22}#k=[A-Za-z0-9_-]+$/);
     assert.doesNotMatch(link, /h=/, 'o convite não leva a chave de anfitrião');
@@ -113,6 +113,11 @@ describe('página inicial (navegador)', () => {
     // O link da lista abre a sala como anfitrião
     assert.match(await home.getAttribute('#my-rooms a', 'href'), /^\/r\/[A-Za-z0-9_-]{22}#k=.+&h=/);
 
+    // Esquecer é destrutivo: o X fica vermelho com o mouse em cima
+    await home.hover('#my-rooms button.forget');
+    await home.waitForTimeout(250);
+    const [r, g] = (await home.$eval('#my-rooms button.forget', (b) => getComputedStyle(b).color)).match(/\d+/g).map(Number);
+    assert.ok(r > 200 && g < 140, `X vermelho no hover (rgb ${r}, ${g})`);
     await home.click('#my-rooms button.forget');
     assert.equal(await home.locator('#my-rooms li').count(), 0);
     assert.ok(await home.isVisible('#no-rooms'));
@@ -188,6 +193,10 @@ describe('página inicial (navegador)', () => {
       assert.match(await link.getAttribute('class'), /\bbutton\b/, `${name} com cara de botão`);
     }
     assert.doesNotMatch((await page.getAttribute('#logout', 'class')) ?? '', /\blink\b/, 'Sair é um botão, não um link');
+    // Cada botão tem um ícone, para ler mais rápido
+    for (const sel of ['.side-footer a[href="/account"]', '#admin-link', '#logout', '#new-room-side']) {
+      assert.ok(await page.isVisible(`${sel} svg.icon`), `${sel} com ícone`);
+    }
   });
 
   test('no celular nada some: criar sala e a lista de salas continuam à mão', async () => {

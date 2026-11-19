@@ -1,4 +1,4 @@
-import { mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
+import { lang, mountLanguageSwitch, t, translatePage } from '/static/i18n.js';
 import { mountRoomList } from '/static/room-list.js';
 import { forgetAllRooms, randomKey, rememberRoom, roomLink } from '/static/rooms-local.js';
 import { $, api, busy, showError } from '/static/ui.js';
@@ -7,12 +7,48 @@ translatePage();
 mountLanguageSwitch();
 
 let ticket = null;
+// /login: o formulário de entrar, mesmo quando a página inicial não o mostra (servidor só por convite)
+const loginPage = location.pathname === '/login';
+
+// Salvar a senha: o usuário fica neste navegador e a senha vai para o gerenciador de senhas dele
+// (o servidor nunca guarda nada no navegador além do cookie de sessão)
+const REMEMBER_KEY = 'login-username';
+const remembered = (() => {
+  try {
+    return localStorage.getItem(REMEMBER_KEY);
+  } catch {
+    return null;
+  }
+})();
+const rememberLogin = (username, password) => {
+  try {
+    if ($('remember').checked) localStorage.setItem(REMEMBER_KEY, username);
+    else localStorage.removeItem(REMEMBER_KEY);
+  } catch {}
+  if ($('remember').checked && window.PasswordCredential) {
+    navigator.credentials.store(new PasswordCredential({ id: username, password, name: username })).catch(() => {});
+  }
+};
+const prefillLogin = () => {
+  if (!remembered) return;
+  $('username').value = remembered;
+  if (!window.PasswordCredential) return;
+  // Sem janela: só preenche se o navegador já tem a senha guardada e liberada para este site
+  navigator.credentials
+    .get({ password: true, mediation: 'silent' })
+    .then((cred) => {
+      if (cred?.password && cred.id === $('username').value && !$('password').value) $('password').value = cred.password;
+    })
+    .catch(() => {});
+};
 
 const showSignedIn = (user) => {
   // Servidor que exige 2FA: quem ainda não configurou vai direto para a conta
   if (user.needs2fa) return location.replace('/account');
   $('login-view').hidden = true;
+  $('private-view').hidden = true;
   $('signed-in').hidden = false;
+  if (loginPage) history.replaceState(null, '', '/');
   $('me').textContent = user.username;
   $('recommend-2fa').hidden = user.totp;
   $('admin-link').hidden = user.role !== 'admin';
@@ -68,9 +104,14 @@ if (!state.setupDone) {
   location.replace('/setup');
 } else if (state.user) {
   showSignedIn(state.user);
+} else if (state.signup === 'invite' && !loginPage && !ssoError) {
+  // Servidor particular: nada de formulário na página inicial (menos tentativas de senha e de cadastro)
+  $('own-server').href = `https://dionatansimioni.github.io/overshoulder/${lang === 'pt-BR' ? 'pt-br/' : ''}`;
+  $('private-view').hidden = false;
 } else {
   $('login-view').hidden = false;
   $('login-form').hidden = false;
+  prefillLogin();
 }
 if (ssoError) showError($('login-error'), t(SSO_ERRORS[ssoError] ?? SSO_ERRORS.falhou));
 
@@ -79,7 +120,10 @@ $('login-form').addEventListener('submit', (e) => {
   $('login-error').hidden = true;
   busy(e.target, async () => {
     try {
-      const result = await api('/api/login', { username: $('username').value, password: $('password').value });
+      const username = $('username').value;
+      const password = $('password').value;
+      const result = await api('/api/login', { username, password });
+      rememberLogin(username, password);
       $('password').value = '';
       if (result.next === 'totp') {
         ticket = result.ticket;

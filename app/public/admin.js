@@ -206,6 +206,8 @@ const stepsBlock = (method, version) => {
 };
 
 const renderUpdate = (u) => {
+  $('about-version').textContent = u.current;
+  if (lang === 'pt-BR') $('about-site').href = 'https://dionatansimioni.github.io/overshoulder/pt-br/';
   const status = $('update-status');
   status.classList.toggle('update-status-new', u.available);
   status.textContent = u.devBuild

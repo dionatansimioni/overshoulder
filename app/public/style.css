@@ -338,7 +338,8 @@ fieldset.step p { margin: 0; }
 .dot.live { background: var(--live); box-shadow: 0 0 0 3px rgba(47, 179, 122, .25); }
 button.forget { padding: 4px 8px; margin-right: 4px; background: transparent; border: 0; box-shadow: none; color: var(--muted); font-size: 12px; opacity: 0; }
 .room-list li:hover button.forget, button.forget:focus-visible { opacity: 1; }
-button.forget:hover { background: var(--hover); color: var(--text); }
+/* Esquecer a sala é destrutivo: o X fica vermelho ao passar o mouse */
+button.forget:hover, button.forget:focus-visible { background: rgba(229, 72, 77, .16); color: #ff6b70; }
 #no-rooms { margin: 0 4px; }
 .side-footer { margin-top: auto; padding: 12px 4px 0; border-top: 1px solid var(--border); }
 .side-footer p { margin: 0 0 6px; }
@@ -351,6 +352,13 @@ button.forget:hover { background: var(--hover); color: var(--text); }
 button.link { padding: 0; background: none; border: 0; box-shadow: none; color: var(--accent-2); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 button.link:hover { background: none; color: #67e8f9; }
 button.new-room { width: 100%; }
+.new-room { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.new-room .icon { width: 18px; height: 18px; }
+/* Botões de navegação com ícone: Página inicial, Administração, Minha conta, Sair */
+.side-buttons .button, .side-buttons button { display: flex; align-items: center; gap: 10px; text-align: left; }
+.side-buttons .icon { width: 18px; height: 18px; opacity: .85; }
+a.button.icon-link { display: inline-flex; align-items: center; gap: 8px; }
+a.button.icon-link .icon { width: 18px; height: 18px; }
 
 .app-main { display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 32px; }
 .welcome { max-width: 520px; width: 100%; padding: 32px; display: flex; flex-direction: column; gap: 12px; }
@@ -521,9 +529,8 @@ button.round.nav-toggle { width: 40px; height: 40px; }
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  max-width: 560px;
-  padding: 4px 4px 4px 12px;
+  flex: none;
+  padding: 4px;
   background: rgba(255, 255, 255, .04);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -654,7 +661,7 @@ button.round.nav-toggle { width: 40px; height: 40px; }
 }
 .tabs { display: flex; gap: 4px; }
 .tabs { padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, .04); border: 1px solid var(--border); }
-.tab { padding: 5px 12px; background: transparent; border: 0; box-shadow: none; border-radius: 7px; color: var(--muted); font-size: 14px; }
+.tab { display: inline-flex; align-items: center; white-space: nowrap; padding: 5px 12px; background: transparent; border: 0; box-shadow: none; border-radius: 7px; color: var(--muted); font-size: 14px; }
 .tab:hover { background: transparent; color: var(--text); }
 .tab[aria-selected="true"] { background: rgba(255, 255, 255, .1); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
 .chat-tools { padding: 8px 12px 0; }
@@ -797,34 +804,6 @@ button.round.recording:hover { background: var(--danger-hover); }
 .emoji-grid button:hover { background: var(--hover); }
 .emoji-grid .empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 8px 4px; }
 
-@media (max-width: 800px) {
-  .room { grid-template-columns: 1fr; height: auto; }
-  .stage { padding: 12px; }
-  .player { aspect-ratio: 16 / 9; flex: none; }
-  .chat { height: 360px; border-left: 0; border-top: 1px solid var(--border); }
-  .popover { width: min(320px, calc(100vw - 32px)); }
-}
-
-/* Celular deitado: o vídeo ocupa a altura toda e o chat fica ao lado */
-/* Celular: barra de controles compacta, para caber numa linha só */
-@media (max-width: 800px), (orientation: landscape) and (max-height: 500px) {
-  .dock { gap: 8px; }
-  .dock-group { gap: 8px; }
-  .controls { gap: 6px; padding: 6px; }
-  .controls button.round { width: 42px; height: 42px; }
-  .volume { height: 42px; padding: 0 12px; }
-  .volume input { width: 70px; }
-}
-
-@media (orientation: landscape) and (max-height: 500px) {
-  .room { grid-template-columns: 1fr 260px; height: 100vh; height: 100dvh; }
-  /* No celular o volume se ajusta pelos botões do aparelho */
-  .volume { display: none; }
-  .stage { padding: 6px; gap: 6px; }
-  .player { aspect-ratio: auto; flex: 1; }
-  .chat { height: 100vh; height: 100dvh; border-top: 0; border-left: 1px solid var(--border); }
-}
-
 /* Guia do celular */
 .guide h1 { font-size: 24px; }
 .guide h2 { margin-top: 20px; }
@@ -866,6 +845,20 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 .seg button[aria-pressed="true"] { background: rgba(255, 255, 255, .12); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
 
 /* Pedidos (mão levantada, pedir a tela) e quem está falando */
+/* Quantas pessoas estão na sala: um olho e o número */
+.viewers { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: rgba(255, 255, 255, .05); border: 1px solid var(--border); color: var(--text-2);
+  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.viewers .icon { width: 16px; height: 16px; color: var(--accent-2); }
+.count-badge.muted-badge { background: rgba(255, 255, 255, .14); }
+/* Registro da sala: eventos em lista compacta, com a hora */
+.chat ul.log { padding: 10px 12px; gap: 2px; }
+.log-entry { display: flex; gap: 10px; align-items: baseline; padding: 4px 6px; border-radius: 6px; font-size: 13px; color: var(--text-2); animation: msg-in .2s var(--ease); }
+.log-entry:hover { background: rgba(255, 255, 255, .03); }
+.log-entry .time { flex: none; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.requests-options { margin: 12px 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: 8px; }
+.requests-options legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.requests-options .check { font-size: 13px; }
 .count-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px;
   border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; }
 .people-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
@@ -918,6 +911,69 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 #usage-bar.warn { accent-color: var(--warn); }
 .usage-history { margin: 4px 0; padding-left: 20px; }
 
+/* --- botões com ícone e texto, aviso rápido, campo de senha ------------------- */
+
+button.icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 12px; }
+button.icon-button .icon { width: 18px; height: 18px; }
+button.icon-button.wide { width: 100%; }
+button.primary-soft { background: rgba(124, 58, 237, .18); border-color: rgba(139, 92, 246, .45); color: #ddd0ff; box-shadow: none; }
+button.primary-soft:hover { background: rgba(124, 58, 237, .3); }
+button.icon-button.copied { background: rgba(47, 179, 122, .18); border-color: rgba(47, 179, 122, .5); color: #8ff0c3; }
+button.discord .icon { color: #a5b4fc; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 60;
+  translate: -50% 0;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(28, 24, 48, .96);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-size: 14px;
+  animation: toast-in .25s var(--ease);
+}
+.toast.leaving { opacity: 0; translate: -50% 8px; transition: opacity .2s, translate .2s; }
+
+/* Volume: o ícone liga e desliga o som */
+button.mute { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -8px; padding: 0; border-radius: 50%;
+  background: transparent; border: 0; box-shadow: none; color: var(--text); }
+button.mute:hover { background: rgba(255, 255, 255, .1); }
+button.mute.on { color: #ff6b70; }
+
+/* Mostrar a senha: um olho dentro do campo */
+.password-field { position: relative; display: flex; }
+.password-field input { flex: 1; min-width: 0; padding-right: 44px; }
+.password-field .reveal { position: absolute; right: 4px; top: 50%; translate: 0 -50%; display: grid; place-items: center;
+  width: 34px; height: 34px; padding: 0; border-radius: 8px; background: transparent; border: 0; box-shadow: none; color: var(--muted); }
+.password-field .reveal { cursor: pointer; }
+.password-field .reveal:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-2); }
+.password-field .reveal:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.password-field .reveal .icon { width: 18px; height: 18px; }
+
+/* Servidor privado (cadastro só por convite): a página inicial não tem login */
+.private-badge { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 4px 12px; border-radius: 999px;
+  background: rgba(124, 58, 237, .14); border: 1px solid rgba(139, 92, 246, .4); color: #ddd0ff; font-size: 13px; font-weight: 600; }
+.private-badge .icon { width: 16px; height: 16px; }
+
+/* Sobre: créditos, licença e versão */
+.about-card { display: flex; gap: 16px; align-items: center; margin: 12px 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: rgba(255, 255, 255, .03); }
+.about-card img { flex: none; }
+.about-card p { margin: 2px 0; }
+.about-list { margin: 8px 0; padding: 0; list-style: none; display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; }
+.about-list dt { color: var(--muted); font-size: 14px; }
+.about-list dd { margin: 0; font-size: 14px; }
+#sobre .row-actions > * { flex: none; }
+
+/* Esconder o chat: o vídeo fica com a largura toda */
+.room.chat-hidden { grid-template-columns: 1fr; }
+.room.chat-hidden .chat { display: none; }
+
 /* --- animações (no estilo Radix e Vaul) ---------------------------------------- */
 
 @keyframes rise { from { opacity: 0; translate: 0 10px; } }
@@ -925,7 +981,82 @@ button.link[aria-pressed="true"] { color: var(--text); text-decoration: none; fo
 @keyframes pop-in { from { opacity: 0; translate: 0 6px; scale: .97; } }
 @keyframes slide-in { from { translate: -100% 0; } }
 @keyframes msg-in { from { opacity: 0; translate: 0 6px; } }
+@keyframes toast-in { from { opacity: 0; translate: -50% 12px; scale: .96; } }
+@keyframes sheet-in { from { translate: 0 100%; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* --- sala no celular -----------------------------------------------------------
+   Em pé (como YouTube e Twitch): o vídeo de ponta a ponta no topo, a barra de controles logo abaixo e o
+   chat ocupando o resto da tela, sem a página rolar. Deitado: o vídeo com a altura toda e o chat ao lado,
+   que pode ser escondido. Os ajustes abrem numa folha que sobe de baixo (como o Vaul). */
+
+@media (max-width: 800px) and (orientation: portrait), (max-width: 560px) {
+  .room { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  .stage { flex: none; padding: 0; gap: 0; }
+  .topbar { flex-wrap: nowrap; gap: 8px; padding: 8px 10px; }
+  .topbar .small-brand { font-size: 0; gap: 0; }
+  .topbar:not(:has(#invite:not([hidden]), #nav-toggle:not([hidden]))) { display: none; }
+  .invite { flex: none; max-width: none; margin-left: auto; padding: 0; gap: 6px; background: none; border: 0; }
+  .invite button:not(#copy) .label { display: none; }
+  .invite button.icon-button { padding: 7px 10px; }
+  .screens { padding: 0 10px 8px; flex-wrap: nowrap; overflow-x: auto; }
+  .screen-chip { flex: none; }
+  .player { flex: none; aspect-ratio: 16 / 9; border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+  .dock { flex-wrap: nowrap; gap: 2px; padding: 6px 6px; overflow-x: auto; border-bottom: 1px solid var(--border); scrollbar-width: none; }
+  .dock-group { gap: 2px; }
+  .controls { gap: 2px; padding: 0; background: transparent; border: 0; box-shadow: none; backdrop-filter: none; }
+  .controls button.round { width: 40px; height: 40px; flex: none; }
+  .controls button.round .icon { width: 20px; height: 20px; }
+  /* No celular o volume vem dos botões do aparelho: fica só o mudo */
+  .volume { height: 40px; padding: 0; background: transparent; border: 0; }
+  .volume input { display: none; }
+  button.mute { margin: 0; width: 40px; height: 40px; }
+  .chat-hide { display: none !important; }
+  .room.chat-hidden .chat { display: flex; }
+  .chat { flex: 1; min-height: 0; height: auto; border-left: 0; background: transparent; }
+  .chat-header { padding: 8px 10px; }
+  .tab { padding: 5px 10px; }
+  .chat form { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .badge { top: 8px; left: 8px; font-size: 12px; }
+  .badge.presenter { right: 8px; }
+  #viewer-controls .popover, .popover {
+    position: fixed; inset: auto 0 0 0; transform: none; width: auto; max-height: 78dvh; overflow-y: auto;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; border-bottom: 0;
+    animation: sheet-in .28s var(--ease);
+  }
+  #viewer-controls .popover::before { content: ""; position: absolute; top: 8px; left: 50%; translate: -50% 0; width: 40px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+  .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .room { grid-template-columns: 1fr 280px; height: 100vh; height: 100dvh; }
+  .room.chat-hidden { grid-template-columns: 1fr; }
+  .stage { padding: 6px; gap: 6px; }
+  .topbar { flex-wrap: nowrap; gap: 8px; }
+  .topbar .small-brand { font-size: 0; gap: 0; }
+  .topbar:not(:has(#invite:not([hidden]), #nav-toggle:not([hidden]))) { display: none; }
+  .invite { max-width: none; padding: 2px; }
+  .invite button:not(#copy) .label { display: none; }
+  .invite button.icon-button { padding: 5px 10px; }
+  .player { aspect-ratio: auto; flex: 1; border-radius: 10px; }
+  .dock { flex-wrap: nowrap; gap: 6px; }
+  .dock-group { gap: 6px; }
+  .controls { gap: 4px; padding: 4px; }
+  .controls button.round { width: 38px; height: 38px; }
+  .volume { height: 38px; padding: 0 4px; background: transparent; border: 0; }
+  .volume input { display: none; }
+  button.mute { margin: 0; width: 38px; height: 38px; }
+  .chat { height: 100vh; height: 100dvh; border-top: 0; border-left: 1px solid var(--border); }
+  .chat-header { padding: 8px 10px; }
+  .tab { padding: 4px 8px; font-size: 13px; }
+  .chat form { padding: 8px; }
+  #viewer-controls .popover, .popover { position: fixed; inset: 8px 8px 8px auto; transform: none; width: min(340px, 60vw); max-height: none; overflow-y: auto; }
+}
+
+/* Barra de controles compacta em telas médias */
+@media (max-width: 1000px) and (min-width: 801px) {
+  .volume input { width: 70px; }
 }

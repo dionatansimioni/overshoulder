@@ -269,6 +269,7 @@ describe('tokens do LiveKit', () => {
     const cross = await api(base, '/api/token', { roomId: b.roomId, hostKey: a.hostKey });
     assert.equal(cross.body.role, 'viewer');
     assert.equal((await api(base, '/api/rooms/end', { roomId: b.roomId, hostKey: a.hostKey })).status, 403);
+    assert.equal((await api(base, '/api/rooms/allow-requests', { roomId: b.roomId, hostKey: a.hostKey, speak: true })).status, 403);
   });
 });
 

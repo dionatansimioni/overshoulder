@@ -62,7 +62,7 @@ describe('administração com menu lateral', () => {
     const s = await fresh(13206);
     const { page } = await newPage();
     await loginInBrowser(page, s.url);
-    for (const section of ['geral', 'uso', 'salas', 'transmissores', 'convites', 'avancado']) {
+    for (const section of ['geral', 'uso', 'salas', 'transmissores', 'convites', 'avancado', 'sobre']) {
       await page.goto(`${s.url}/admin#${section}`);
       await page.waitForSelector(`#${section}:not([hidden])`);
       await page.waitForLoadState('networkidle');
@@ -71,6 +71,21 @@ describe('administração com menu lateral', () => {
       );
       assert.deepEqual(plain, [], `links simples em ${section}`);
     }
+  });
+
+  test('Sobre: versão, créditos e licença', async () => {
+    const s = await fresh(13207);
+    const { page, errors } = await newPage();
+    await loginInBrowser(page, s.url);
+    await page.goto(`${s.url}/admin#sobre`);
+    await page.waitForSelector('#sobre:not([hidden])');
+    await page.waitForFunction(() => document.querySelector('#about-version').textContent !== '…');
+    const text = await page.textContent('#sobre');
+    assert.match(text, /Dionatan Simioni/);
+    assert.match(text, /software livre/);
+    assert.match(await page.getAttribute('#about-license', 'href'), /\/LICENSE$/);
+    assert.match(await page.textContent('#about-license'), /AGPL/);
+    assert.deepEqual(errors, []);
   });
 
   test('SSO e TURN ficam em Avançado; o TURN mostra se está ligado', async () => {

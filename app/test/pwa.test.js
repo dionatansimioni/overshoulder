@@ -135,6 +135,36 @@ describe('celular', () => {
     assert.deepEqual(errors, []);
   });
 
+  test('em pé: vídeo no topo de ponta a ponta, controles logo abaixo e o chat ocupando o resto', async () => {
+    const { page, errors } = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await hostRoom(page);
+    await page.click('#camera');
+    await page.waitForFunction(() => document.querySelector('#video').videoHeight > 0);
+    const player = await page.locator('#player').boundingBox();
+    assert.ok(player.width >= 388, `vídeo de ponta a ponta (${player.width}px)`);
+    assert.ok(player.y < 80, `vídeo no topo (${player.y}px)`);
+    const dock = await page.locator('.dock').boundingBox();
+    assert.ok(dock.y >= player.y + player.height - 1 && dock.y < player.y + player.height + 20, 'controles logo abaixo do vídeo');
+    const chat = await page.locator('.chat').boundingBox();
+    assert.ok(chat.y >= dock.y + dock.height - 1, 'chat embaixo dos controles');
+    assert.ok(chat.y + chat.height <= 845 && chat.height > 250, `chat ocupa o resto (${chat.height}px)`);
+    for (const id of ['#copy', '#mic', '#share', '#mute', '#fullscreen', '#settings-btn', '#end', '#chat-input']) {
+      const box = await page.locator(id).boundingBox();
+      assert.ok(box && box.x >= 0 && box.x + box.width <= 390 && box.y + box.height <= 844, `${id} dentro da tela`);
+    }
+    assert.ok(await page.isHidden('#volume'), 'no celular, o volume é o do aparelho: fica só o mudo');
+    assert.ok(await page.isHidden('#chat-hide'), 'em pé o chat não se esconde');
+    const doc = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
+    assert.ok(doc.w <= 390 && doc.h <= 844, `a página não rola (${doc.w}x${doc.h})`);
+
+    // Ajustes abrem como uma folha que sobe de baixo, com a largura toda
+    await page.click('#settings-btn');
+    await page.$eval('#settings', (e) => Promise.all(e.getAnimations().map((a) => a.finished)));
+    const sheet = await page.locator('#settings').boundingBox();
+    assert.ok(sheet.x <= 1 && sheet.width >= 388 && Math.abs(sheet.y + sheet.height - 844) <= 2, `folha embaixo (${JSON.stringify(sheet)})`);
+    assert.deepEqual(errors, []);
+  });
+
   test('deitado, com vídeo tocando, o vídeo ocupa a altura e nada sai da tela', async () => {
     const { page, errors } = await newPage({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
     await hostRoom(page);
@@ -143,12 +173,16 @@ describe('celular', () => {
     await page.waitForFunction(() => document.querySelector('#video').videoHeight > 0);
     const player = await page.locator('#player').boundingBox();
     assert.ok(player.height > 200, `vídeo alto o bastante (${player.height}px)`);
-    for (const id of ['#player', '#invite-link', '#chat-input', '#fullscreen', '#share', '#camera']) {
+    for (const id of ['#player', '#copy', '#mute', '#chat-input', '#fullscreen', '#share', '#camera']) {
       const box = await page.locator(id).boundingBox();
       assert.ok(box && box.x >= 0 && box.x + box.width <= 844, `${id} dentro da tela na horizontal`);
       assert.ok(box.y >= 0 && box.y + box.height <= 390, `${id} dentro da tela na vertical (${box.y}+${box.height})`);
     }
     assert.ok((await page.evaluate(() => document.documentElement.scrollWidth)) <= 844, 'sem rolagem lateral');
+    // Deitado, dá para esconder o chat e deixar o vídeo com a largura toda
+    await page.click('#chat-hide');
+    const wide = await page.locator('#player').boundingBox();
+    assert.ok(wide.width > player.width + 200, `vídeo mais largo sem o chat (${wide.width}px)`);
     assert.deepEqual(errors, []);
   });
 });

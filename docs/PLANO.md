@@ -187,6 +187,19 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ Preparação para a Hostinger: `deploy/hostinger/compose.yml` sem variáveis obrigatórias (DOMAIN vazio → IP público por STUN, certificado no IP), botão "Deploy on Hostinger" no README e no site, material de cadastro em `deploy/hostinger/README.md`. **Falta testar numa VPS da Hostinger** e o usuário fazer o cadastro no catálogo.
 - Pendente: gravação com estalos (mistura do AudioContext) e vídeo travado; aguarda o `ffprobe` do usuário. Nota: esta máquina é uma VM sem AVX2: o compilador do Astro 7 e o Pagefind não rodam nativos aqui (`site/build.sh` contorna).
 
+### Interface da sala e da conta (18/11/2026, pedidos do usuário)
+- ✅ Olho para mostrar a senha em todo campo de senha (um `span role="button"`, não `<button>`, para não virar o primeiro botão do formulário) e "Salvar a senha neste navegador" no login (guarda só o usuário no navegador; a senha vai para o gerenciador de senhas via `PasswordCredential`, quando existe).
+- ✅ Sala no celular no estilo YouTube/Twitch: em pé, vídeo no topo, controles logo abaixo e chat no resto, sem a página rolar; deitado, chat ao lado que pode ser escondido (botão também no computador); Ajustes como folha que sobe de baixo.
+- ✅ Quem só assiste não vê os selos "fulano está apresentando" e "microfone ligado" sobre o vídeo.
+- ✅ Ícone do volume silencia e devolve o som (guarda o volume escolhido).
+- ✅ Cadastro "Só por convite": a página inicial mostra "Servidor privado" e o link do site, sem login; quem tem conta entra por `/login`.
+- ✅ Na Live, "pedir a palavra" e "pedir a tela" só aparecem se o anfitrião ligar (Pessoas › Pedidos do público; `POST /api/rooms/allow-requests`; o servidor recusa pedido desligado com 403).
+- ✅ Convite em botões com ícone (Copiar convite, Novo link, Discord); o link não aparece, o botão copia e um aviso (estilo Sonner) diz onde colar.
+- ✅ X de esquecer sala fica vermelho no hover; botões de navegação com ícones.
+- ✅ Aba "Sobre" no painel: versão, créditos (Dionatan Simioni), licença AGPL v3, LiveKit e Caddy.
+- ✅ Aba "Registro" para o anfitrião (entrou, saiu, pedidos, sala de espera…); o chat fica só com conversas. Quem assiste não tem a aba.
+- ✅ Pessoas na sala: olho com o número (o texto completo fica no `title`).
+
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.
 - ✅ Instalador, comando `overshoulder` e `cli.js` em inglês e português (`LANG` ou `OVERSHOULDER_LANG`; inglês por padrão).

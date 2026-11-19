@@ -16,7 +16,7 @@ At least 12 characters, not containing the username and not among the ~30 thousa
 
 The sign-up mode is at `/admin` › General:
 
-- **Invitation only:** the admin creates an invitation at `/admin` › Invite a broadcaster and sends the link. The person picks their own username and password; the admin never sees the password. The link works once, for 48 hours.
+- **Invitation only:** the admin creates an invitation at `/admin` › Invite a broadcaster and sends the link. The person picks their own username and password; the admin never sees the password. The link works once, for 48 hours. In this mode the home page shows no sign-in form: it says the server is private and points to the Overshoulder site. People with an account sign in at **`/login`**.
 - **With approval (default):** anyone can request an account at `/signup`; the account stays pending until the admin approves it at `/admin` › Broadcasters. Requests are limited per IP, and there is a cap on accounts waiting.
 - **Open:** anyone creates an account at `/signup` and can broadcast right away. Only use it on servers for a group you trust.
 

@@ -9,11 +9,13 @@ On the home page, click **Create room** and pick the type. The room is created r
 | Type | How it works |
 |---|---|
 | **Playing together** | Everyone talks, like a call. By default, anyone can share their screen (you can turn that off in "More options", and then people ask) |
-| **Live** | Only presenters talk. The audience uses the chat and can **ask to speak** or **ask to share their screen** |
+| **Live** | Only presenters talk. The audience uses the chat; if the host allows it, they can also **ask to speak** or **ask to share their screen** |
 
 With several screens live, each person chooses which one to watch and only receives that one.
 
 ## Encryption and the link
+
+The invitation buttons sit at the top of the room: **Copy invite** (the link itself isn't shown; paste it on Discord, WhatsApp or anywhere), **New link** and, if set up, **Discord**.
 
 The room key is created in your browser and travels only in the link's `#`: the server never sees it and relays a video it can't open. Because of that:
 
@@ -45,9 +47,16 @@ The admin creates, at `/admin` › Permanent rooms, rooms that don't go away, wi
 
 In the **People** tab, the host:
 
+- in a Live, chooses under **Audience requests** whether viewers can ask to speak and ask to share their screen (both start off; turning one off drops the pending requests of that kind);
 - approves requests to speak and to share the screen, and grants or removes each person's voice and screen;
 - removes someone (the person sees "The live has ended" and the link they used is replaced);
 - turns off the chat for viewers and creates a new link for the room.
+
+## Chat, People and Log
+
+The side panel has the **Chat** (conversations only, for the host), **People** and, for the host, the **Log**: who joined, who left, requests to speak, the waiting room and the other room events. Viewers don't have the Log; they keep seeing these notices in the chat. The eye at the top shows how many people are in the room.
+
+On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button; Settings opens as a sheet from the bottom. The speaker icon mutes and unmutes the room.
 
 ## Ending the room
 

@@ -79,7 +79,9 @@ describe('no navegador', () => {
     const page = await (await browser.newContext()).newPage();
     await setMode('invite');
     await page.goto(`${s.url}/`);
-    await page.waitForSelector('#login-form:not([hidden])');
+    // Só por convite: a página inicial diz que o servidor é particular, sem login nem cadastro
+    await page.waitForSelector('#private-view:not([hidden])');
+    assert.ok(await page.isHidden('#login-form'));
     assert.ok(await page.isHidden('#signup-link'));
     await page.goto(`${s.url}/signup`);
     await page.waitForSelector('#signup-closed:not([hidden])');

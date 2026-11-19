@@ -72,6 +72,20 @@ test('capturas', { timeout: 180_000 }, async () => {
     await m.waitForSelector('#room:not([hidden])');
     await m.waitForTimeout(2000);
     await shot(m, '09-room-mobile');
+    await m.click('#settings-btn');
+    await m.waitForTimeout(500);
+    await shot(m, '09b-room-mobile-settings');
+
+    const ml = await ctx({ width: 844, height: 390 });
+    await ml.goto(link);
+    await ml.fill('#name', 'Duda');
+    await ml.click('#join-form button[type="submit"]');
+    await ml.waitForSelector('#room:not([hidden])');
+    await ml.waitForTimeout(2000);
+    await shot(ml, '09c-room-landscape');
+
+    await p.click('#tab-log');
+    await shot(p, '06b-room-host-log');
 
     // Painel e conta
     await p.goto(`${s.url}/admin`);
@@ -79,6 +93,9 @@ test('capturas', { timeout: 180_000 }, async () => {
     await shot(p, '10-admin', { fullPage: true });
     await p.goto(`${s.url}/admin#convites`);
     await shot(p, '11-admin-invite');
+    await p.goto(`${s.url}/admin#sobre`);
+    await p.waitForTimeout(500);
+    await shot(p, '11b-admin-about');
     await p.goto(`${s.url}/account`);
     await shot(p, '12-account', { fullPage: true });
 

@@ -83,6 +83,8 @@ const VENDOR_FILES = new Set(['livekit-client.esm.mjs', 'livekit-client.e2ee.wor
 // Páginas: caminho → arquivo em public/
 const PAGES = {
   '/': 'index.html',
+  // Servidor só por convite: a página inicial não mostra o login; quem tem conta entra por aqui
+  '/login': 'index.html',
   '/setup': 'setup.html',
   '/account': 'account.html',
   '/admin': 'admin.html',
@@ -1117,6 +1119,8 @@ const newRoomId = () => crypto.randomBytes(16).toString('base64url');
 // Estado de uma sala que vale só enquanto ela está no ar (zerado quando uma sala fixa volta)
 const freshRoomState = () => ({
   chat: true,
+  // Na Live, o público só vê os botões de pedir a palavra e de pedir a tela se o anfitrião ligar
+  allowRequests: { speak: false, screen: false },
   recording: false,
   banned: new Set(),
   speakers: new Set(),
@@ -1317,6 +1321,7 @@ const metadataOf = (room) =>
     openScreens: room.openScreens,
     chat: room.chat,
     recording: room.recording,
+    allowRequests: room.allowRequests,
     requests: [...room.requests.values()],
     waiting: room.waiting,
     lobby: [...room.lobby.values()].filter((e) => e.status === 'waiting').map(({ ref, name }) => ({ id: ref, name })),
@@ -1750,11 +1755,33 @@ const requestPermission = async (req, res) => {
   if (!REQUEST_KINDS.includes(body.kind)) return json(res, 400, { error: 'Pedido inválido.' });
   if (!identity.startsWith('v-')) return json(res, 400, { error: 'O anfitrião não precisa pedir.' });
   const key = `${identity}:${body.kind}`;
+  if (body.cancel !== true && room.type === 'live' && !room.allowRequests[body.kind])
+    return json(res, 403, { error: 'O anfitrião não está aceitando esse pedido agora.' });
   if (body.cancel === true) room.requests.delete(key);
   else if (body.kind === 'speak' ? !canSpeak(room, identity) : !canShare(room, identity))
     room.requests.set(key, { identity, name, kind: body.kind });
   await rooms.updateRoomMetadata(room.name, metadataOf(room));
   json(res, 200, { pending: room.requests.has(key) });
+};
+
+// Na Live, o anfitrião escolhe se o público pode pedir a palavra e pedir para mostrar a tela.
+// Desligar um tipo de pedido descarta os pedidos desse tipo que estavam na fila.
+const setAllowRequests = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  if (room.type !== 'live') return json(res, 400, { error: 'Só a Live tem essa opção.' });
+  const changes = {};
+  for (const kind of REQUEST_KINDS) {
+    if (body[kind] === undefined) continue;
+    if (typeof body[kind] !== 'boolean') return json(res, 400, { error: 'Os pedidos devem ser ligados ou desligados.' });
+    changes[kind] = body[kind];
+  }
+  if (!Object.keys(changes).length) return json(res, 400, { error: 'Os pedidos devem ser ligados ou desligados.' });
+  room.allowRequests = { ...room.allowRequests, ...changes };
+  for (const [key, r] of room.requests) if (!room.allowRequests[r.kind]) room.requests.delete(key);
+  await rooms.updateRoomMetadata(name, metadataOf(room));
+  log.info('pedidos do público', room.allowRequests);
+  json(res, 200, { allowRequests: room.allowRequests });
 };
 
 const PIP = { corner: ['tl', 'tr', 'bl', 'br'], size: ['s', 'm', 'l'], shape: ['rounded', 'circle'] };
@@ -1865,6 +1892,7 @@ const routes = {
   'POST /api/rooms/host-left': hostLeft,
   'POST /api/rooms/permissions': setPermissions,
   'POST /api/rooms/request': requestPermission,
+  'POST /api/rooms/allow-requests': setAllowRequests,
   'POST /api/rooms/layout': setLayout,
   'POST /api/rooms/kick': kick,
   'GET /healthz': healthz,

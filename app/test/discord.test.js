@@ -110,7 +110,7 @@ describe('no navegador', () => {
     await page.waitForSelector('#discord-announce:not([hidden])');
     page.once('dialog', (d) => d.accept());
     await page.click('#discord-announce');
-    await page.waitForFunction(() => /Convite anunciado no Discord/.test(document.querySelector('#messages').textContent));
+    await page.waitForFunction(() => /Convite anunciado no Discord/.test(document.querySelector('#log').textContent));
 
     assert.equal(posted.length, 1);
     assert.equal(posted[0].url, WEBHOOK);

@@ -152,7 +152,8 @@ describe('no navegador', () => {
     await beto.fill('#name', 'Beto');
     await beto.click('#join-form button');
     await beto.waitForSelector('#room:not([hidden])');
-    await a.waitForFunction(() => /Beto entrou/.test(document.querySelector('#messages').textContent));
+    // Para o anfitrião, quem entra e sai fica na aba Registro
+    await a.waitForFunction(() => /Beto entrou/.test(document.querySelector('#log').textContent));
 
     // Em outro navegador a chave não está guardada: o admin vê o aviso
     const other = await (await browser.newContext()).newPage();

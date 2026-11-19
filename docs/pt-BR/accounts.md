@@ -16,7 +16,7 @@ No mínimo 12 caracteres, sem conter o usuário e fora das ~30 mil senhas vazada
 
 O modo de cadastro fica em `/admin` › Geral:
 
-- **Só por convite:** o admin gera um convite em `/admin` › Convidar transmissor e manda o link. A pessoa escolhe o próprio usuário e senha; o admin nunca vê a senha. O link vale uma vez, por 48 horas.
+- **Só por convite:** o admin gera um convite em `/admin` › Convidar transmissor e manda o link. A pessoa escolhe o próprio usuário e senha; o admin nunca vê a senha. O link vale uma vez, por 48 horas. Nesse modo, a página inicial não mostra o formulário de login: diz que o servidor é particular e aponta o site do Overshoulder. Quem tem conta entra por **`/login`**.
 - **Com aprovação (padrão):** qualquer um pede uma conta em `/signup`; a conta fica pendente até o admin aprovar em `/admin` › Transmissores. Há limite de pedidos por IP e um teto de contas esperando.
 - **Livre:** qualquer um cria conta em `/signup` e já transmite. Use só em servidores para um grupo que você confia.
 

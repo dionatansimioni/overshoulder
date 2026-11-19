@@ -21,7 +21,7 @@ import { Recorder, recordingFormat } from '/static/recorder.js';
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { mountRoomList } from '/static/room-list.js';
-import { api, copyText } from '/static/ui.js';
+import { api } from '/static/ui.js';
 
 translatePage();
 mountLanguageSwitch();
@@ -119,6 +119,60 @@ const addMessage = (text, author) => {
   if (atBottom) list.scrollTop = list.scrollHeight;
 };
 
+// Registro da sala (entrou, saiu, pediu a palavra…): para o anfitrião, fica numa aba própria e o chat
+// fica só com as conversas; quem assiste continua vendo esses avisos no chat.
+let logUnread = 0;
+const addEvent = (text) => {
+  if (!isHost) return addMessage(text);
+  const li = el('li', 'log-entry');
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  li.append(el('span', 'time', time), el('span', null, text));
+  const list = $('log');
+  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+  list.append(li);
+  if (atBottom) list.scrollTop = list.scrollHeight;
+  if (list.hidden) {
+    logUnread++;
+    $('log-count').textContent = String(logUnread);
+    $('log-count').hidden = false;
+  }
+};
+
+// Aviso rápido no canto da tela (como o Sonner): some sozinho
+let toastTimer = null;
+const toast = (text) => {
+  const box = $('toast');
+  box.textContent = text;
+  box.hidden = false;
+  box.classList.remove('leaving');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    box.classList.add('leaving');
+    toastTimer = setTimeout(() => (box.hidden = true), 200);
+  }, 3500);
+};
+
+// Copia o link de convite: o botão vira "Copiado!" e o aviso explica onde colar
+const copyInvite = async (btn, link) => {
+  const label = btn.querySelector('.label');
+  const original = label.textContent;
+  try {
+    await navigator.clipboard.writeText(link);
+  } catch {
+    prompt(t('Link do convite'), link);
+    return;
+  }
+  btn.classList.add('copied');
+  btn.querySelector('use').setAttribute('href', '#i-check');
+  label.textContent = t('Copiado!');
+  toast(t('Link copiado. Cole no Discord, no WhatsApp ou onde quiser para convidar.'));
+  setTimeout(() => {
+    btn.classList.remove('copied');
+    btn.querySelector('use').setAttribute('href', '#i-link');
+    label.textContent = original;
+  }, 2000);
+};
+
 const joinError = (msg) => {
   $('join-error').textContent = msg;
   $('join-error').hidden = false;
@@ -154,6 +208,9 @@ let pipTrack = null;
 let pipHidden = false;
 let pipSwapped = false;
 let voiceTrack = null;
+// Mudo pelo botão do volume: o volume escolhido fica guardado para quando o som voltar
+let muted = false;
+const currentVolume = () => (muted ? 0 : Number(document.getElementById('volume').value));
 let extraAudio = null;
 let cameraTrack = null;
 let shareHintShown = false;
@@ -202,7 +259,10 @@ const can = (source) => {
 
 const updateCount = () => {
   const n = room.remoteParticipants.size + 1;
-  $('count').textContent = t(n === 1 ? '{n} pessoa na sala' : '{n} pessoas na sala', { n });
+  const label = t(n === 1 ? '{n} pessoa na sala' : '{n} pessoas na sala', { n });
+  $('count-n').textContent = String(n);
+  $('count').title = label;
+  $('count').setAttribute('aria-label', label);
 };
 
 // --- palco: quem está transmitindo, qual tela assistir, câmera sobre a tela -------
@@ -308,13 +368,15 @@ const renderStage = () => {
     renderVoiceStage();
   }
 
-  const presenter = current && !isMe(current.p) ? current.p : null;
+  // Quem apresenta e o microfone ligado interessam a quem também transmite; quem só assiste vê o vídeo limpo
+  const publisher = isHost || can('screen') || can('microphone');
+  const presenter = publisher && current && !isMe(current.p) ? current.p : null;
   $('presenter-badge').hidden = !presenter;
   if (presenter) $('presenter-badge').textContent = t('{name} está apresentando', { name: presenter.name });
   // Microfone ligado de quem estou assistindo (ou do anfitrião, quando ninguém transmite)
   const speaker = current?.p ?? everyone().find((p) => p.identity.startsWith('h-'));
   const mic = speaker?.getTrackPublication(Track.Source.Microphone);
-  $('mic-badge').hidden = !mic || mic.isMuted || isMe(speaker);
+  $('mic-badge').hidden = !publisher || !mic || mic.isMuted || isMe(speaker);
 
   // Na troca de qualidade a tela some por um instante: a gravação segue na mesma parte
   if (!republishing) {
@@ -427,8 +489,10 @@ const updateControls = () => {
 
   // Pedidos: na Live, quem não pode falar pede a palavra; quem não pode mostrar a tela pede
   const mine = (kind) => meta.requests.some((r) => r.identity === room.localParticipant.identity && r.kind === kind);
-  $('raise-hand').hidden = isHost || mic || meta.type !== 'live';
-  $('ask-screen').hidden = isHost || screen || (meta.type === 'together' && meta.openScreens);
+  const allowRequests = meta.allowRequests ?? {};
+  $('raise-hand').hidden = isHost || mic || meta.type !== 'live' || !allowRequests.speak;
+  $('ask-screen').hidden =
+    isHost || screen || (meta.type === 'together' && meta.openScreens) || (meta.type === 'live' && !allowRequests.screen);
   $('request-controls').hidden = $('raise-hand').hidden && $('ask-screen').hidden;
   setToggle('raise-hand', mine('speak'), ['Pedir a palavra', 'Desistir de falar']);
   setToggle('ask-screen', mine('screen'), ['Pedir para mostrar a tela', 'Desistir de mostrar a tela']);
@@ -485,7 +549,7 @@ const wireRoomEvents = () => {
         const element = track.attach();
         audioElements.set(track, element);
         $('audio-sink').append(element);
-        track.setVolume(Number($('volume').value));
+        track.setVolume(currentVolume());
       }
       renderStage();
     })
@@ -520,12 +584,12 @@ const wireRoomEvents = () => {
       renderStage();
     })
     .on(RoomEvent.ParticipantConnected, (p) => {
-      addMessage(t('{name} entrou.', { name: p.name }));
+      addEvent(t('{name} entrou.', { name: p.name }));
       updateCount();
       renderPeople();
     })
     .on(RoomEvent.ParticipantDisconnected, (p) => {
-      addMessage(t('{name} saiu.', { name: p.name }));
+      addEvent(t('{name} saiu.', { name: p.name }));
       updateCount();
       renderStage();
     })
@@ -697,11 +761,14 @@ function applyMetadata() {
     for (const r of meta.requests) {
       const key = `${r.identity}:${r.kind}`;
       if (!knownRequests.has(key))
-        addMessage(t(r.kind === 'speak' ? '{name} pediu a palavra.' : '{name} pediu para mostrar a tela.', { name: r.name }));
+        addEvent(t(r.kind === 'speak' ? '{name} pediu a palavra.' : '{name} pediu para mostrar a tela.', { name: r.name }));
     }
     knownRequests = new Set(meta.requests.map((r) => `${r.identity}:${r.kind}`));
-    for (const w of meta.lobby ?? []) if (!knownLobby.has(w.id)) addMessage(t('{name} está na sala de espera.', { name: w.name }));
+    for (const w of meta.lobby ?? []) if (!knownLobby.has(w.id)) addEvent(t('{name} está na sala de espera.', { name: w.name }));
     knownLobby = new Set((meta.lobby ?? []).map((w) => w.id));
+    $('requests-options').hidden = meta.type !== 'live';
+    $('allow-speak').checked = !!meta.allowRequests?.speak;
+    $('allow-screen').checked = !!meta.allowRequests?.screen;
     const pending = meta.requests.length + (meta.lobby ?? []).length;
     $('requests-count').textContent = pending ? String(pending) : '';
     $('requests-count').hidden = !pending;
@@ -794,7 +861,7 @@ async function refreshInvites() {
         const revoke = button('danger', t('Revogar'), async () => {
           if (!confirm(t('Revogar este convite? O link deixa de funcionar e quem entrou por ele sai da sala.'))) return;
           const r = await hostAction('/api/rooms/invites/revoke', { inviteId: inv.id });
-          if (r) addMessage(t('Convite revogado. {n} pessoa(s) saíram da sala.', { n: r.removed }));
+          if (r) addEvent(t('Convite revogado. {n} pessoa(s) saíram da sala.', { n: r.removed }));
           refreshInvites();
         });
         revoke.dataset.action = 'revoke';
@@ -810,7 +877,7 @@ const setupInvites = () => {
   $('invites-panel').addEventListener('toggle', () => $('invites-panel').open && refreshInvites());
   $('waiting-toggle').addEventListener('change', async (e) => {
     const data = await hostAction('/api/rooms/waiting', { enabled: e.target.checked });
-    if (data) addMessage(t(data.waiting ? 'Sala de espera ligada: você libera cada pessoa que chegar.' : 'Sala de espera desligada.'));
+    if (data) addEvent(t(data.waiting ? 'Sala de espera ligada: você libera cada pessoa que chegar.' : 'Sala de espera desligada.'));
     else e.target.checked = !e.target.checked;
   });
   $('invite-form').addEventListener('submit', async (e) => {
@@ -825,10 +892,10 @@ const setupInvites = () => {
     });
     if (!data) return;
     e.target.reset();
-    addMessage(t('Convite “{label}” criado.', { label: data.label }));
+    addEvent(t('Convite “{label}” criado.', { label: data.label }));
     try {
       await navigator.clipboard.writeText(linkFor(data.code));
-      addMessage(t('Link do convite copiado.'));
+      toast(t('Link do convite copiado.'));
     } catch {}
     refreshInvites();
   });
@@ -919,7 +986,7 @@ function renderPeople() {
           const data = await hostAction('/api/rooms/kick', { identity: p.identity });
           if (!data) return;
           if (data.roomId !== roomId) switchRoomCode(data.roomId, t('{name} foi removido.', { name: p.name }));
-          else addMessage(t('{name} foi removido. O convite por onde a pessoa entrou ganhou um link novo.', { name: p.name }));
+          else addEvent(t('{name} foi removido. O convite por onde a pessoa entrou ganhou um link novo.', { name: p.name }));
           refreshInvites();
         });
         kick.dataset.action = 'kick';
@@ -932,17 +999,21 @@ function renderPeople() {
 }
 
 const showTab = (tab) => {
-  const people = tab === 'people';
-  $('tab-chat').setAttribute('aria-selected', String(!people));
-  $('tab-people').setAttribute('aria-selected', String(people));
-  $('people-panel').hidden = !people;
-  $('messages').hidden = people;
-  $('chat-form').hidden = people;
-  $('chat-tools').hidden = people || !isHost;
-  if (people) renderPeople();
+  const chat = tab === 'chat';
+  for (const name of ['chat', 'people', 'log']) $(`tab-${name}`).setAttribute('aria-selected', String(name === tab));
+  $('people-panel').hidden = tab !== 'people';
+  $('log').hidden = tab !== 'log';
+  $('messages').hidden = !chat;
+  $('chat-form').hidden = !chat;
+  $('chat-tools').hidden = !chat || !isHost;
+  if (tab === 'people') renderPeople();
+  if (tab === 'log') {
+    logUnread = 0;
+    $('log-count').hidden = true;
+    $('log').scrollTop = $('log').scrollHeight;
+  }
 };
-$('tab-chat').addEventListener('click', () => showTab('chat'));
-$('tab-people').addEventListener('click', () => showTab('people'));
+for (const name of ['chat', 'people', 'log']) $(`tab-${name}`).addEventListener('click', () => showTab(name));
 
 // --- transmitir: microfone, tela, câmera ---------------------------------------
 
@@ -1344,7 +1415,9 @@ $('discord-announce').addEventListener('click', async () => {
   $('discord-announce').disabled = true;
   try {
     const res = await fetch(discordWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    addMessage(t(res.ok ? 'Convite anunciado no Discord.' : 'O Discord recusou o anúncio. Confira o webhook em Administração.'));
+    const text = t(res.ok ? 'Convite anunciado no Discord.' : 'O Discord recusou o anúncio. Confira o webhook em Administração.');
+    addEvent(text);
+    toast(text);
   } catch {
     addMessage(t('Não foi possível falar com o Discord.'));
   } finally {
@@ -1357,16 +1430,22 @@ const setupHost = () => {
   $('invite').hidden = false;
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
+  $('tab-log').hidden = false;
+  for (const [id, kind] of [['allow-speak', 'speak'], ['allow-screen', 'screen']]) {
+    $(id).addEventListener('change', async (e) => {
+      const data = await hostAction('/api/rooms/allow-requests', { [kind]: e.target.checked });
+      if (!data) return (e.target.checked = !e.target.checked);
+      addEvent(
+        t(
+          kind === 'speak'
+            ? data.allowRequests.speak ? 'Quem assiste agora pode pedir a palavra.' : 'Quem assiste não pode mais pedir a palavra.'
+            : data.allowRequests.screen ? 'Quem assiste agora pode pedir para mostrar a tela.' : 'Quem assiste não pode mais pedir para mostrar a tela.',
+        ),
+      );
+    });
+  }
 
-  $('copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(inviteLink());
-      $('copy').textContent = t('Copiado!');
-    } catch {
-      $('invite-link').select();
-    }
-    setTimeout(() => ($('copy').textContent = t('Copiar convite')), 1500);
-  });
+  $('copy').addEventListener('click', () => copyInvite($('copy'), inviteLink()));
 
   $('new-link').addEventListener('click', async () => {
     if (!confirm(t('Gerar um link novo? O link atual deixa de funcionar para quem ainda não entrou.'))) return;
@@ -1378,7 +1457,7 @@ const setupHost = () => {
 
   $('chat-toggle').addEventListener('click', async () => {
     const data = await hostAction('/api/rooms/chat', { enabled: !meta.chat });
-    if (data) addMessage(t(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.'));
+    if (data) addEvent(t(data.chat ? 'Você ligou o chat.' : 'Você desligou o chat para quem assiste.'));
   });
 
   $('end').addEventListener('click', async () => {
@@ -1448,9 +1527,38 @@ const stopRecording = async () => {
 const setupViewing = () => {
   $('viewer-controls').hidden = false;
 
-  $('volume').addEventListener('input', (e) => {
-    for (const track of audioTracks) track.setVolume(Number(e.target.value));
+  const applyVolume = () => {
+    const level = currentVolume();
+    for (const track of audioTracks) track.setVolume(level);
+    const silent = level === 0;
+    $('mute').setAttribute('aria-pressed', String(muted));
+    $('mute').classList.toggle('on', silent);
+    $('mute').querySelector('use').setAttribute('href', silent ? '#i-volume-off' : '#i-volume');
+    const label = t(muted ? 'Voltar o som' : 'Silenciar');
+    $('mute').title = label;
+    $('mute').setAttribute('aria-label', label);
+  };
+  $('volume').addEventListener('input', () => {
+    // Mexer no volume tira do mudo
+    muted = false;
+    applyVolume();
   });
+  $('mute').addEventListener('click', () => {
+    // Mudo com o volume já no zero: volta para o volume cheio
+    if (!muted && Number($('volume').value) === 0) $('volume').value = '1';
+    else muted = !muted;
+    applyVolume();
+  });
+
+  // Esconder o chat deixa o vídeo com a largura toda (útil no celular deitado)
+  const room$ = $('room');
+  const setChatHidden = (hidden) => {
+    room$.classList.toggle('chat-hidden', hidden);
+    setToggle('chat-hide', hidden, ['Esconder o chat', 'Mostrar o chat']);
+    storage.set(localStorage, 'chat-hidden', hidden ? '1' : '0');
+  };
+  setChatHidden(storage.get(localStorage, 'chat-hidden') === '1');
+  $('chat-hide').addEventListener('click', () => setChatHidden(!room$.classList.contains('chat-hidden')));
 
   // No iPhone só o <video> entra em tela cheia (webkitEnterFullscreen); no Android, deita a tela
   const toggleFullscreen = async () => {
@@ -1663,7 +1771,7 @@ if (!e2eeKey) {
   // O anfitrião já pode mandar o convite antes de entrar
   $('join-invite-link').value = inviteLink();
   $('join-invite').hidden = false;
-  $('join-copy').addEventListener('click', () => copyText($('join-invite-link').value, $('join-copy'), $('join-invite-link')));
+  $('join-copy').addEventListener('click', () => copyInvite($('join-copy'), inviteLink()));
 }
 
 setupPreview();

@@ -70,7 +70,7 @@ describe('API de moderação', () => {
     const host = jwtPayload((await api(s.url, '/api/token', { roomId: r.roomId, hostKey: r.hostKey })).body.token);
     assert.equal(host.video.canPublishData, true, 'o anfitrião continua falando no chat');
     const room = (await livekit.listRooms([await internalName(r.roomId)]))[0];
-    assert.deepEqual(JSON.parse(room.metadata), { type: 'live', private: false, openScreens: false, chat: false, recording: false, requests: [], waiting: false, lobby: [] });
+    assert.deepEqual(JSON.parse(room.metadata), { type: 'live', private: false, openScreens: false, chat: false, recording: false, allowRequests: { speak: false, screen: false }, requests: [], waiting: false, lobby: [] });
   });
 });
 
@@ -200,7 +200,10 @@ describe('no navegador', () => {
     const carla = await joinAs(link, 'Carla');
     const roomName = jwtPayload(beto.lk.token).video.room;
     assert.ok(await beto.isHidden('#host-controls'));
-    assert.ok(await beto.isVisible('#ask-screen'));
+    await host.click('#tab-people');
+    await host.check('#allow-speak');
+    await host.check('#allow-screen');
+    await beto.waitForSelector('#ask-screen:not([hidden])');
     assert.ok(await beto.isVisible('#raise-hand'));
 
     const row = await personRow(host, beto.lk.identity);
@@ -217,12 +220,13 @@ describe('no navegador', () => {
     await beto.waitForSelector('#mic.on');
     await beto.click('#share');
     await beto.waitForSelector('#share.on');
-    await carla.waitForFunction(() => document.querySelector('#presenter-badge').textContent === 'Beto está apresentando');
-    await carla.waitForSelector('#mic-badge:not([hidden])');
+    // Carla assiste à tela de Beto; os selos sobre o vídeo são só para quem transmite
+    await carla.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
+    assert.ok(await carla.isHidden('#presenter-badge'));
+    assert.ok(await carla.isHidden('#mic-badge'));
 
     await host.locator(`#people li[data-identity="${beto.lk.identity}"] button[data-action="screen"]`, { hasText: 'Tirar' }).click();
     await beto.waitForSelector('#host-controls', { state: 'hidden' });
-    await carla.waitForSelector('#presenter-badge', { state: 'hidden' });
     assert.equal((await permissionOf(roomName, beto.lk.identity)).canPublish, false);
     for (const p of [host, beto, carla]) assert.deepEqual(p.errors, []);
   });

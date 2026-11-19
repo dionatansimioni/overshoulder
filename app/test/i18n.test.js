@@ -17,6 +17,7 @@ const NEUTRAL = new Set([
   'Overshoulder', 'Client ID', 'Client secret', 'Codec', 'VP9', 'AV1', 'Volume', 'Chat', 'Emojis',
   '720p · 30 fps', '720p · 60 fps', '1080p · 30 fps', '1080p · 60 fps', '1440p · 60 fps',
   'docker logs overshoulder', 'XXXX-XXXX-XXXX', 'M', '↖', '↗', '↙', '↘', 'https://login.microsoftonline.com/…/v2.0', '·', '.', '😊', '● Gravando',
+  'Dionatan Simioni', 'Site', 'LiveKit', 'Caddy', 'GNU AGPL v3',
 ]);
 
 const htmlTexts = (html) => {
@@ -172,14 +173,15 @@ describe('no navegador, em inglês', () => {
     await page.click('#tab-people');
     await assertEnglish(page, 'aba Pessoas');
     assert.equal(await page.getAttribute('#share', 'aria-label'), 'Share screen');
-    assert.equal(await page.textContent('#count'), '1 person in the room');
+    assert.equal(await page.getAttribute('#count', 'title'), '1 person in the room');
+    assert.equal(await page.textContent('#count'), '1');
 
     const viewer = await (await browser.newContext({ locale: 'en-US', permissions: ['microphone'] })).newPage();
     await viewer.goto(await page.inputValue('#invite-link'));
     await viewer.fill('#name', 'Bob');
     await viewer.click('#join-form button');
     await viewer.waitForSelector('#room:not([hidden])');
-    await page.waitForFunction(() => document.querySelector('#count').textContent === '2 people in the room');
+    await page.waitForFunction(() => document.querySelector('#count').title === '2 people in the room');
     await assertEnglish(viewer, 'espectador');
   });
 

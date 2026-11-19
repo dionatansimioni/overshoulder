@@ -85,7 +85,7 @@ const join = async (link, name = 'Beto') => {
 
 // Ids dos controles visíveis de um grupo, na ordem da tela
 const visibleIds = (page, group) =>
-  page.$$eval(`${group} > button, ${group} > label`, (els) =>
+  page.$$eval(`${group} > button, ${group} > .volume`, (els) =>
     els.filter((e) => e.offsetParent !== null).map((e) => e.id || e.className),
   );
 
@@ -94,7 +94,7 @@ describe('barra de controles', () => {
     const host = await hostRoom();
     assert.deepEqual(await visibleIds(host.page, '#host-controls'), ['mic', 'camera', 'share']);
     const right = await visibleIds(host.page, '#viewer-controls');
-    assert.deepEqual(right.filter((id) => id !== 'record'), ['volume', 'fullscreen', 'settings-btn', 'end']);
+    assert.deepEqual(right.filter((id) => id !== 'record'), ['volume-box', 'fullscreen', 'chat-hide', 'settings-btn', 'end']);
     if (right.includes('record')) assert.deepEqual(right.slice(-3), ['record', 'settings-btn', 'end']);
     const left = (await host.page.locator('#host-controls').boundingBox()).x;
     const rightX = (await host.page.locator('#viewer-controls').boundingBox()).x;
@@ -111,6 +111,14 @@ describe('barra de controles', () => {
     const host = await hostRoom('live');
     const viewer = await join(await host.page.inputValue('#invite-link'));
     assert.ok(await viewer.page.isHidden('#host-controls'));
+    // Na Live, os pedidos só aparecem depois de o anfitrião ligar cada um
+    assert.ok(await viewer.page.isHidden('#request-controls'), 'sem pedidos até o anfitrião ligar');
+    await host.page.click('#tab-people');
+    await host.page.check('#allow-speak');
+    await viewer.page.waitForSelector('#raise-hand:not([hidden])');
+    assert.ok(await viewer.page.isHidden('#ask-screen'), 'só o pedido que o anfitrião ligou');
+    await host.page.check('#allow-screen');
+    await viewer.page.waitForSelector('#ask-screen:not([hidden])');
     assert.deepEqual(await visibleIds(viewer.page, '#request-controls'), ['raise-hand', 'ask-screen']);
     await viewer.page.click('#settings-btn');
     assert.ok(await viewer.page.isVisible('#settings'));
@@ -177,5 +185,101 @@ describe('tipo de conexão', () => {
       assert.deepEqual(errors, []);
     }
     assert.doesNotMatch(await viewer.page.textContent('#messages'), /UDP/);
+  });
+});
+
+describe('interface da sala', () => {
+  test('convite em botões: o link não aparece, copiar avisa onde colar', async () => {
+    const host = await hostRoom('live');
+    await host.page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: s.url });
+    assert.ok(await host.page.isHidden('#invite-link'), 'o link completo não ocupa a tela');
+    for (const id of ['#copy', '#new-link']) {
+      assert.ok(await host.page.isVisible(`${id} svg.icon`), `${id} com ícone`);
+    }
+    await host.page.click('#copy');
+    await host.page.waitForSelector('#toast:not([hidden])');
+    assert.match(await host.page.textContent('#toast'), /Cole no Discord, no WhatsApp ou onde quiser/);
+    assert.equal(await host.page.textContent('#copy .label'), 'Copiado!');
+    assert.equal(await host.page.evaluate(() => navigator.clipboard.readText()), await host.page.inputValue('#invite-link'));
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('o ícone do volume liga e desliga o som sem perder o volume escolhido', async () => {
+    const host = await hostRoom('live');
+    await host.page.click('#mic');
+    await host.page.waitForSelector('#mic.on');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    // A voz da anfitriã chega como um <audio>; o mudo zera o volume dele
+    await viewer.page.waitForSelector('#audio-sink audio', { state: 'attached' });
+    const volumes = () => viewer.page.$$eval('#audio-sink audio', (els) => els.map((e) => e.volume));
+    await viewer.page.$eval('#volume', (e) => {
+      e.value = '0.5';
+      e.dispatchEvent(new Event('input'));
+    });
+    assert.deepEqual(await volumes(), [0.5]);
+
+    await viewer.page.click('#mute');
+    assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'true');
+    assert.equal(await viewer.page.getAttribute('#mute use', 'href'), '#i-volume-off');
+    assert.deepEqual(await volumes(), [0]);
+    assert.equal(await viewer.page.inputValue('#volume'), '0.5', 'o volume escolhido fica guardado');
+
+    await viewer.page.click('#mute');
+    assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'false');
+    assert.deepEqual(await volumes(), [0.5]);
+    assert.deepEqual(viewer.errors, []);
+  });
+
+  test('quem só assiste não vê sobre o vídeo quem apresenta nem o microfone ligado', async () => {
+    const host = await hostRoom('live');
+    await host.page.click('#mic');
+    await host.page.click('#camera');
+    await host.page.waitForSelector('#camera.on');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await viewer.page.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
+    await viewer.page.waitForTimeout(500);
+    assert.ok(await viewer.page.isHidden('#presenter-badge'));
+    assert.ok(await viewer.page.isHidden('#mic-badge'));
+    assert.deepEqual(viewer.errors, []);
+  });
+
+  test('o anfitrião tem a aba Registro com entradas e saídas; quem assiste não', async () => {
+    const host = await hostRoom('live');
+    assert.ok(await host.page.isVisible('#tab-log'));
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    assert.ok(await viewer.page.isHidden('#tab-log'), 'quem assiste não tem registro');
+
+    await host.page.waitForFunction(() => /Beto entrou/.test(document.querySelector('#log').textContent));
+    assert.doesNotMatch(await host.page.textContent('#messages'), /Beto entrou/, 'o chat fica só com as conversas');
+    assert.equal(await host.page.textContent('#log-count'), '1', 'aviso de evento novo na aba');
+    await host.page.click('#tab-log');
+    assert.ok(await host.page.isVisible('#log'));
+    assert.ok(await host.page.isHidden('#messages'));
+    assert.ok(await host.page.isHidden('#log-count'), 'abrir a aba zera o aviso');
+    // Ordem das abas: chat, pessoas, registro
+    assert.deepEqual(await host.page.$$eval('.chat-header .tab:not([hidden])', (els) => els.map((e) => e.id)), ['tab-chat', 'tab-people', 'tab-log']);
+    assert.deepEqual([...host.errors, ...viewer.errors], []);
+  });
+
+  test('pessoas na sala: um olho e o número', async () => {
+    const host = await hostRoom('live');
+    assert.ok(await host.page.isVisible('#count svg.icon'));
+    assert.equal(await host.page.textContent('#count'), '1');
+    assert.equal(await host.page.getAttribute('#count', 'title'), '1 pessoa na sala');
+    await join(await host.page.inputValue('#invite-link'));
+    await host.page.waitForFunction(() => document.querySelector('#count').textContent === '2');
+    assert.equal(await host.page.getAttribute('#count', 'aria-label'), '2 pessoas na sala');
+  });
+
+  test('esconder o chat deixa o vídeo com a largura toda', async () => {
+    const host = await hostRoom('live');
+    const before = (await host.page.locator('#player').boundingBox()).width;
+    await host.page.click('#chat-hide');
+    assert.ok(await host.page.isHidden('.chat'));
+    assert.equal(await host.page.getAttribute('#chat-hide', 'aria-pressed'), 'true');
+    assert.ok((await host.page.locator('#player').boundingBox()).width > before + 200, 'o vídeo cresce');
+    await host.page.click('#chat-hide');
+    assert.ok(await host.page.isVisible('.chat'));
+    assert.deepEqual(host.errors, []);
   });
 });

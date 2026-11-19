@@ -51,3 +51,46 @@ export const copyText = async (text, button, input) => {
     input?.select();
   }
 };
+
+// Mostrar a senha: um olho dentro de todo campo de senha da página. Clicar alterna entre ver e esconder;
+// o campo volta a ficar escondido quando o formulário é enviado (para o navegador não guardar como texto).
+const EYE = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF =
+  '<path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>';
+export const addPasswordToggles = (root = document) => {
+  for (const input of root.querySelectorAll('input[type="password"]:not([data-reveal])')) {
+    input.dataset.reveal = '';
+    const form = input.form;
+    const wrap = document.createElement('div');
+    wrap.className = 'password-field';
+    input.replaceWith(wrap);
+    // Não é um <button>: assim não vira o "primeiro botão" do formulário nem é enviado com ele
+    const toggle = document.createElement('span');
+    toggle.setAttribute('role', 'button');
+    toggle.tabIndex = 0;
+    toggle.className = 'reveal';
+    toggle.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${EYE}</svg>`;
+    const set = (shown) => {
+      input.type = shown ? 'text' : 'password';
+      toggle.firstChild.innerHTML = shown ? EYE_OFF : EYE;
+      const label = t(shown ? 'Esconder senha' : 'Mostrar senha');
+      toggle.title = label;
+      toggle.setAttribute('aria-label', label);
+      toggle.setAttribute('aria-pressed', String(shown));
+    };
+    set(false);
+    const flip = () => {
+      set(input.type === 'password');
+      input.focus();
+    };
+    toggle.addEventListener('click', flip);
+    toggle.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      flip();
+    });
+    form?.addEventListener('submit', () => set(false), { capture: true });
+    wrap.append(input, toggle);
+  }
+};
+addPasswordToggles();

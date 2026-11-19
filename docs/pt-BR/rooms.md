@@ -9,11 +9,13 @@ Na página inicial, **Criar sala** e escolha o tipo. A sala é criada na hora e 
 | Tipo | Como funciona |
 |---|---|
 | **Jogando juntos** | Todos falam, como numa call. Por padrão, qualquer um mostra a tela (dá para desligar em "Mais opções", e aí a pessoa pede) |
-| **Live** | Só quem apresenta fala. O público usa o chat e pode **pedir a palavra** ou **pedir para mostrar a tela** |
+| **Live** | Só quem apresenta fala. O público usa o chat e, se o anfitrião permitir, pode **pedir a palavra** ou **pedir para mostrar a tela** |
 
 Com várias telas ao vivo, cada pessoa escolhe qual assistir e só recebe essa.
 
 ## A criptografia e o link
+
+Os botões de convite ficam no alto da sala: **Copiar convite** (o link não aparece na tela; cole no Discord, no WhatsApp ou onde quiser), **Novo link** e, se configurado, **Discord**.
 
 A chave da sala é gerada no seu navegador e vai só no `#` do link: o servidor nunca a vê e repassa um vídeo que não consegue abrir. Por isso:
 
@@ -45,9 +47,16 @@ O admin cria em `/admin` › Salas fixas salas que não somem, com o mesmo link 
 
 Na aba **Pessoas**, o anfitrião:
 
+- na Live, escolhe em **Pedidos do público** se quem assiste pode pedir a palavra e pedir para mostrar a tela (os dois começam desligados; desligar um descarta os pedidos daquele tipo que estavam na fila);
 - aprova pedidos de palavra e de tela, e libera ou tira a fala e a tela de cada pessoa;
 - remove alguém (a pessoa vê "A live foi encerrada" e o link usado por ela é trocado);
 - desliga o chat de quem assiste e gera um link novo para a sala.
+
+## Chat, Pessoas e Registro
+
+O painel lateral tem o **Chat** (para o anfitrião, só as conversas), **Pessoas** e, para o anfitrião, o **Registro**: quem entrou, quem saiu, pedidos de palavra, a sala de espera e os outros eventos da sala. Quem assiste não tem o Registro e continua vendo esses avisos no chat. O olho no alto mostra quantas pessoas estão na sala.
+
+No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel; os Ajustes abrem numa folha que sobe de baixo. O ícone do alto-falante silencia e devolve o som da sala.
 
 ## Encerrar a sala
 

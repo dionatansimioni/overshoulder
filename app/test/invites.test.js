@@ -232,7 +232,7 @@ describe('no navegador', () => {
   test('sala de espera: a pessoa espera e entra quando o anfitrião libera', async () => {
     const h = await hostRoom();
     await h.check('#waiting-toggle');
-    await h.waitForFunction(() => /Sala de espera ligada/.test(document.querySelector('#messages').textContent));
+    await h.waitForFunction(() => /Sala de espera ligada/.test(document.querySelector('#log').textContent));
 
     const beto = await page();
     await beto.goto(await h.inputValue('#invite-link'));

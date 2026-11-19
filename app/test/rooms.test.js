@@ -55,6 +55,11 @@ describe('API', () => {
     const hostToken = (await api(s.url, '/api/token', { roomId: live.roomId, hostKey: live.hostKey })).body.token;
     assert.equal((await request({ token: hostToken, kind: 'speak' })).status, 400, 'o anfitrião não pede');
 
+    // Na Live, os pedidos começam desligados: o anfitrião liga cada tipo
+    assert.equal((await request({ token, kind: 'speak' })).status, 403, 'pedido desligado pelo anfitrião');
+    const allow = (body) => api(s.url, '/api/rooms/allow-requests', { roomId: live.roomId, hostKey: live.hostKey, ...body });
+    assert.deepEqual((await allow({ speak: true, screen: true })).body, { allowRequests: { speak: true, screen: true } });
+
     assert.deepEqual((await request({ token, kind: 'speak' })).body, { pending: true });
     const roomName = jwtPayload(token).video.room;
     const meta = async () => JSON.parse((await livekit.listRooms([roomName]))[0].metadata);
@@ -65,6 +70,40 @@ describe('API', () => {
     // Depois de o link ser trocado, o token antigo continua valendo para quem já está na sala
     await api(s.url, '/api/rooms/link', { roomId: live.roomId, hostKey: live.hostKey });
     assert.equal((await request({ token, kind: 'screen' })).status, 200);
+  });
+
+  test('pedidos da Live: só o anfitrião liga e desliga; desligar limpa a fila', async () => {
+    const live = await newRoom({});
+    const { token } = await viewerToken(live.roomId);
+    const roomName = jwtPayload(token).video.room;
+    const meta = async () => JSON.parse((await livekit.listRooms([roomName]))[0].metadata);
+    const allow = (body) => api(s.url, '/api/rooms/allow-requests', body);
+    assert.deepEqual((await meta()).allowRequests, { speak: false, screen: false }, 'começam desligados');
+
+    // Permissões: sem a chave de anfitrião, com chave errada, ou com o token de quem assiste
+    assert.notEqual((await allow({ roomId: live.roomId, speak: true })).status, 200);
+    assert.notEqual((await allow({ roomId: live.roomId, hostKey: 'x'.repeat(43), speak: true })).status, 200);
+    assert.notEqual((await allow({ token, speak: true })).status, 200, 'quem assiste não liga os pedidos');
+    // Entrada malformada
+    const host = { roomId: live.roomId, hostKey: live.hostKey };
+    for (const body of [{}, { speak: 'sim' }, { screen: 1 }, { speak: null }]) {
+      assert.equal((await allow({ ...host, ...body })).status, 400, JSON.stringify(body));
+    }
+    assert.deepEqual((await meta()).allowRequests, { speak: false, screen: false }, 'nada mudou');
+    // Na sala "Jogando juntos" não existe essa opção
+    const together = await newRoom({ type: 'together' });
+    assert.equal((await allow({ roomId: together.roomId, hostKey: together.hostKey, speak: true })).status, 400);
+
+    assert.equal((await allow({ ...host, speak: true })).status, 200);
+    assert.deepEqual((await meta()).allowRequests, { speak: true, screen: false }, 'só o que foi mandado muda');
+    const request = (body) => api(s.url, '/api/rooms/request', { token, ...body });
+    assert.equal((await request({ kind: 'screen' })).status, 403, 'tela continua desligada');
+    assert.equal((await request({ kind: 'speak' })).status, 200);
+    assert.equal((await meta()).requests.length, 1);
+    // Desligar descarta os pedidos daquele tipo; desistir de um pedido continua valendo
+    assert.equal((await allow({ ...host, speak: false })).status, 200);
+    assert.deepEqual((await meta()).requests, []);
+    assert.equal((await request({ kind: 'speak', cancel: true })).status, 200);
   });
 
   test('posição da câmera só aceita valores conhecidos', async () => {
@@ -214,8 +253,11 @@ describe('no navegador', () => {
     const beto = await join(await host.inputValue('#invite-link'), 'Beto');
     const roomName = jwtPayload(beto.lk.token).video.room;
     assert.ok(await beto.isHidden('#mic'));
-    await beto.click('#raise-hand');
+    assert.ok(await beto.isHidden('#raise-hand'), 'pedir a palavra só depois de o anfitrião ligar');
     await host.click('#tab-people');
+    await host.check('#allow-speak');
+    await beto.waitForSelector('#raise-hand:not([hidden])');
+    await beto.click('#raise-hand');
     const request = host.locator(`#requests li[data-identity="${beto.lk.identity}"][data-kind="speak"]`);
     await request.waitFor();
     // Desistir tira o pedido da fila do anfitrião
