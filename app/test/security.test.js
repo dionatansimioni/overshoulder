@@ -193,6 +193,7 @@ describe('entradas malformadas', () => {
     for (const roomId of [null, 42, [], {}, ['a'.repeat(22)]]) {
       assert.equal((await api(base, '/api/token', { roomId })).status, 400, JSON.stringify(roomId));
       assert.equal((await api(base, '/api/rooms/end', { roomId, hostKey: 'x' })).status, 400);
+      assert.equal((await api(base, '/api/rooms/check', { roomId })).status, 400);
     }
   });
 
@@ -202,6 +203,7 @@ describe('entradas malformadas', () => {
       api(base, '/api/token', { roomId: 'b'.repeat(22) }),
       api(base, '/api/rooms/end', { roomId: 'b'.repeat(22), hostKey: 'x' }),
       api(base, '/api/token', '{'),
+      api(base, '/api/rooms/check', { roomId: 'b'.repeat(22) }),
     ];
     for (const r of await Promise.all(attempts)) {
       assert.doesNotMatch(r.text, SECRET_LEAKS, r.text);

@@ -199,6 +199,8 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ Aba "Sobre" no painel: versão, créditos (Dionatan Simioni), licença AGPL v3, LiveKit e Caddy.
 - ✅ Aba "Registro" para o anfitrião (entrou, saiu, pedidos, sala de espera…); o chat fica só com conversas. Quem assiste não tem a aba.
 - ✅ Pessoas na sala: olho com o número (o texto completo fica no `title`).
+- ✅ (19/11) Na Live, o anfitrião destaca na tela a pergunta de alguém do chat (estrela na mensagem; cartão sobre o vídeo para todos, inclusive quem entra depois). Vai pelo LiveKit como o chat (tópico `highlight`), só vale vindo de identidade `h-`; o servidor não guarda.
+- ✅ (19/11) Link velho (sala encerrada ou link trocado): `POST /api/rooms/check` responde antes da tela de entrada e, se a sala não existe, aparece "Essa sala não existe mais" com o botão da página inicial, a dica de falar com o anfitrião e, para quem não tem sessão, o atalho para `/login`. A verificação não traz sala fixa de volta ao ar.
 
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.

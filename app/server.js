@@ -1224,6 +1224,18 @@ const roomByCode = async (code) => {
   return { name: entry.name, room, invite: room.invites.get(entry.inviteId) };
 };
 
+// A tela de entrada pergunta antes se o link ainda leva a uma sala: link velho (sala encerrada ou
+// link trocado) mostra o aviso no lugar da prévia de câmera. Não traz a sala fixa de volta ao ar:
+// isso fica para a entrada de verdade. Quem não tem o código não descobre nada.
+const checkRoom = async (req, res) => {
+  const { roomId } = await readJson(req);
+  if (typeof roomId !== 'string' || !ROOM_ID_RE.test(roomId)) return json(res, 400, { error: 'Sala inválida.' });
+  const entry = roomCodes.get(roomId);
+  const room = entry && liveRooms.get(entry.name);
+  if (room && (room.fixed || (await roomExists(entry.name)))) return json(res, 200, { exists: true });
+  json(res, 404, { error: 'Essa sala não existe, já foi encerrada ou o link foi trocado pelo anfitrião.' });
+};
+
 // Quais salas da lista "suas salas" (guardada no navegador) seguem no ar, sem trazer de volta
 // uma sala fixa vazia. Só para quem tem conta; quem não tem o código não descobre nada.
 const STATUS_MAX = 50;
@@ -1879,6 +1891,7 @@ const routes = {
   'POST /api/account/password': changePassword,
   'POST /api/rooms': createRoom,
   'POST /api/rooms/status': roomStatus,
+  'POST /api/rooms/check': checkRoom,
   'POST /api/token': issueToken,
   'POST /api/rooms/end': endRoom,
   'POST /api/rooms/chat': setChat,

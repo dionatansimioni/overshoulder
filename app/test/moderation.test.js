@@ -162,13 +162,12 @@ describe('no navegador', () => {
     const newLink = await host.inputValue('#invite-link');
     assert.match(host.url(), new RegExp(new URL(newLink).pathname));
 
-    // Link antigo não deixa entrar de novo
+    // Link antigo não deixa entrar de novo: nem mostra a tela de entrada, avisa que a sala não existe mais
     const retry = await newPage();
     await retry.goto(oldLink);
-    await retry.fill('#name', 'Intruso de novo');
-    await retry.click('#join-form button');
-    await retry.waitForSelector('#join-error:not([hidden])');
-    assert.match(await retry.textContent('#join-error'), /link foi trocado/);
+    await retry.waitForSelector('#ended:not([hidden])');
+    assert.ok(await retry.isHidden('#join'));
+    assert.equal(await retry.textContent('#ended-title'), 'Essa sala não existe mais');
 
     // Voltar com o token que já tinha não adianta: o servidor remove de novo em segundos
     const rejoin = await viewer.evaluate(async ({ url, token }) => {

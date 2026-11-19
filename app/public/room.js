@@ -99,16 +99,25 @@ const button = (className, text, onClick) => {
   return b;
 };
 
-const addMessage = (text, author) => {
+const addMessage = (text, author, highlightable = false) => {
   const li = el('li');
   if (author) {
     li.className = 'msg';
     const avatar = el('span', 'avatar', [...author][0]?.toUpperCase() ?? '?');
     avatar.style.background = avatarColor(author);
-    const meta = el('div', 'meta');
+    const header = el('div', 'meta');
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    meta.append(el('span', 'author', author), el('span', 'time', time));
-    li.append(avatar, meta, el('p', isOnlyEmoji(text) ? 'text jumbo' : 'text', text));
+    header.append(el('span', 'author', author), el('span', 'time', time));
+    li.append(avatar, header, el('p', isOnlyEmoji(text) ? 'text jumbo' : 'text', text));
+    // Na Live, o anfitrião destaca na tela a pergunta de quem assiste
+    if (highlightable && isHost && meta?.type === 'live') {
+      const star = button('round msg-highlight', '', () => setHighlight(highlightLi === li ? null : { author, text }, li));
+      star.title = t('Destacar na tela');
+      star.setAttribute('aria-label', t('Destacar na tela'));
+      star.setAttribute('aria-pressed', 'false');
+      star.innerHTML = '<svg class="icon"><use href="#i-star"/></svg>';
+      li.append(star);
+    }
   } else {
     li.className = 'system';
     li.textContent = text;
@@ -585,6 +594,7 @@ const wireRoomEvents = () => {
     })
     .on(RoomEvent.ParticipantConnected, (p) => {
       addEvent(t('{name} entrou.', { name: p.name }));
+      if (isHost && highlight) sendHighlight([p.identity]).catch(() => {});
       updateCount();
       renderPeople();
     })
@@ -645,9 +655,54 @@ const wireRoomEvents = () => {
 
   room.registerTextStreamHandler('chat', async (reader, info) => {
     const text = await reader.readAll();
-    addMessage(text, await participantName(info.identity));
+    addMessage(text, await participantName(info.identity), true);
+  });
+  // Só o anfitrião (identidade "h-", dada pelo servidor) põe ou tira o destaque
+  room.registerTextStreamHandler('highlight', async (reader, info) => {
+    const raw = await reader.readAll();
+    if (!info.identity.startsWith('h-')) return;
+    try {
+      const h = raw ? JSON.parse(raw) : null;
+      showHighlight(h && typeof h.author === 'string' && typeof h.text === 'string' ? h : null);
+    } catch {}
   });
 };
+
+// --- destaque (Live): a pergunta do chat que o anfitrião põe sobre o vídeo -----------------
+// Vai de navegador a navegador como o chat; quem entra depois recebe o destaque do anfitrião.
+
+const HIGHLIGHT_MAX = 500;
+let highlight = null;
+let highlightLi = null;
+
+const showHighlight = (h, li = null) => {
+  highlight = h && { author: h.author.slice(0, 32), text: h.text.slice(0, HIGHLIGHT_MAX) };
+  highlightLi?.classList.remove('highlighted');
+  highlightLi?.querySelector('.msg-highlight')?.setAttribute('aria-pressed', 'false');
+  highlightLi = highlight ? li : null;
+  highlightLi?.classList.add('highlighted');
+  highlightLi?.querySelector('.msg-highlight')?.setAttribute('aria-pressed', 'true');
+  $('highlight').hidden = !highlight;
+  if (!highlight) return;
+  $('highlight-avatar').textContent = [...highlight.author][0]?.toUpperCase() ?? '?';
+  $('highlight-avatar').style.background = avatarColor(highlight.author);
+  $('highlight-author').textContent = highlight.author;
+  $('highlight-text').textContent = highlight.text;
+  $('highlight-close').hidden = !isHost;
+};
+
+const sendHighlight = (to) =>
+  room.localParticipant.sendText(highlight ? JSON.stringify(highlight) : '', { topic: 'highlight', destinationIdentities: to });
+
+const setHighlight = async (h, li = null) => {
+  showHighlight(h, li);
+  try {
+    await sendHighlight();
+  } catch {
+    addMessage(t('Não foi possível destacar a mensagem.'));
+  }
+};
+$('highlight-close').addEventListener('click', () => setHighlight(null));
 
 // Ingresso guardado no navegador: voltar à sala (recarregar, cair a rede) não gasta o convite de
 // novo nem pede senha ou sala de espera. Guardado por um resumo da chave da sala, nunca pela chave.
@@ -1775,6 +1830,20 @@ if (!e2eeKey) {
 }
 
 setupPreview();
+
+// Link velho (a sala acabou ou o link foi trocado): o aviso no lugar da tela de entrada. Se a rede
+// falhar, a tela de entrada fica e o erro aparece ao tentar entrar.
+const showGone = async () => {
+  $('ended-title').textContent = t('Essa sala não existe mais');
+  $('ended-text').textContent = hostKey
+    ? t('A sala que você criou foi encerrada. Abra outra pela página inicial.')
+    : t('A live acabou ou o link foi trocado. Se acha que é um engano, fale com o anfitrião: ele pode mandar um link novo.');
+  $('join').hidden = true;
+  $('ended').hidden = false;
+  const { user } = await api('/api/state').catch(() => ({}));
+  $('ended-host').hidden = !!user;
+};
+if (e2eeKey) api('/api/rooms/check', { roomId }).catch((err) => [400, 404].includes(err.status) && showGone());
 
 // --- gaveta lateral: outras salas e a gestão do servidor, para quem tem conta ----------
 

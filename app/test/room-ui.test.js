@@ -283,3 +283,81 @@ describe('interface da sala', () => {
     assert.deepEqual(host.errors, []);
   });
 });
+
+describe('destaque da pergunta (Live)', () => {
+  test('o anfitrião põe a pergunta do chat sobre o vídeo; quem entra depois também vê; só ele tira', async () => {
+    const host = await hostRoom('live');
+    const link = await host.page.inputValue('#invite-link');
+    const viewer = await join(link);
+    await viewer.page.fill('#chat-input', 'Qual build você está usando?');
+    await viewer.page.press('#chat-input', 'Enter');
+    const msg = host.page.locator('#messages li.msg', { hasText: 'Qual build' });
+    await msg.waitFor();
+    assert.equal(await viewer.page.locator('#messages .msg-highlight').count(), 0, 'quem assiste não destaca');
+
+    await msg.hover();
+    await msg.locator('.msg-highlight').click();
+    assert.equal(await msg.locator('.msg-highlight').getAttribute('aria-pressed'), 'true');
+    for (const page of [host.page, viewer.page]) {
+      await page.waitForSelector('#highlight:not([hidden])');
+      assert.equal(await page.textContent('#highlight-author'), 'Beto');
+      assert.equal(await page.textContent('#highlight-text'), 'Qual build você está usando?');
+    }
+    assert.ok(await host.page.isVisible('#highlight-close'));
+    assert.ok(await viewer.page.isHidden('#highlight-close'), 'quem assiste não tira o destaque');
+
+    // Quem entra depois recebe o destaque que já está na tela
+    const late = await join(link, 'Carla');
+    await late.page.waitForSelector('#highlight:not([hidden])');
+    assert.equal(await late.page.textContent('#highlight-text'), 'Qual build você está usando?');
+
+    await host.page.click('#highlight-close');
+    for (const page of [host.page, viewer.page, late.page]) await page.waitForSelector('#highlight', { state: 'hidden' });
+    assert.equal(await msg.locator('.msg-highlight').getAttribute('aria-pressed'), 'false');
+    assert.deepEqual([...host.errors, ...viewer.errors, ...late.errors], []);
+  });
+
+  test('na sala Jogando juntos não há destaque', async () => {
+    const host = await hostRoom('together');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await viewer.page.fill('#chat-input', 'oi');
+    await viewer.page.press('#chat-input', 'Enter');
+    await host.page.locator('#messages li.msg', { hasText: 'oi' }).waitFor();
+    assert.equal(await host.page.locator('#messages .msg-highlight').count(), 0);
+  });
+});
+
+describe('link velho', () => {
+  test('sala encerrada: em vez da entrada, o aviso com a volta para a página inicial', async () => {
+    const host = await hostRoom('live');
+    const link = await host.page.inputValue('#invite-link');
+    host.page.once('dialog', (d) => d.accept());
+    await host.page.click('#end');
+    await host.page.waitForURL((url) => new URL(url).pathname === '/');
+
+    const { page, errors } = await newPage();
+    await page.goto(link);
+    await page.waitForSelector('#ended:not([hidden])');
+    assert.ok(await page.isHidden('#join'), 'sem prévia de câmera nem nome');
+    assert.equal(await page.textContent('#ended-title'), 'Essa sala não existe mais');
+    assert.match(await page.textContent('#ended-text'), /fale com o anfitrião/);
+    assert.equal(await page.getAttribute('#ended-home', 'href'), '/');
+    await page.waitForSelector('#ended-host:not([hidden])');
+    assert.equal(await page.getAttribute('#ended-host a', 'href'), '/login', 'o anfitrião entra na conta');
+    assert.deepEqual(errors, []);
+  });
+
+  test('quem tem conta não vê o convite para entrar; sala que existe abre a entrada normal', async () => {
+    const host = await hostRoom('live');
+    const link = await host.page.inputValue('#invite-link');
+    await host.page.goto(`${s.url}/r/${'b'.repeat(22)}#k=${'c'.repeat(43)}`);
+    await host.page.waitForSelector('#ended:not([hidden])');
+    await host.page.waitForFunction(() => document.querySelector('#ended-host').hidden);
+
+    const { page } = await newPage();
+    await page.goto(link);
+    await page.waitForLoadState('networkidle');
+    assert.ok(await page.isVisible('#join'));
+    assert.ok(await page.isHidden('#ended'));
+  });
+});

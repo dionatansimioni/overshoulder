@@ -58,6 +58,14 @@ The side panel has the **Chat** (conversations only, for the host), **People** a
 
 On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button; Settings opens as a sheet from the bottom. The speaker icon mutes and unmutes the room.
 
+## Featuring a question (Live)
+
+In a Live, the host hovers over a message in the chat and clicks the **star** to put it on top of the video for everyone, with the name of whoever asked. People who join later see it too. Clicking the star again, or the **×** on the card, removes it. Only the host features messages; the card goes from browser to browser like the chat.
+
+## Old links
+
+A link to a room that has ended, or whose link the host has changed, no longer opens the join screen: it says the room no longer exists, with a button back to the home page and a hint to talk to the host for a new link. Hosts without an active session also get a shortcut to sign in and open another room.
+
 ## Ending the room
 
 **End room** closes the room for everyone. The host, and anyone signed in to the server, goes back to the home page (if a recording was running, it is saved first). Viewers see a "The live has ended" screen.

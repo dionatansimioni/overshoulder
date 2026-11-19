@@ -84,8 +84,29 @@ test('capturas', { timeout: 180_000 }, async () => {
     await ml.waitForTimeout(2000);
     await shot(ml, '09c-room-landscape');
 
+    // Live: pergunta do chat em destaque sobre o vídeo
+    await v.fill('#chat-input', 'Qual sensibilidade do mouse você usa nesse jogo?');
+    await v.press('#chat-input', 'Enter');
+    const question = p.locator('#messages li.msg', { hasText: 'sensibilidade' });
+    await question.waitFor();
+    await question.hover();
+    await question.locator('.msg-highlight').click();
+    await v.waitForSelector('#highlight:not([hidden])');
+    await v.waitForTimeout(500);
+    await shot(p, '06c-room-host-highlight');
+    await shot(v, '08b-room-viewer-highlight');
+    await m.waitForSelector('#highlight:not([hidden])');
+    await shot(m, '09d-room-mobile-highlight');
+
     await p.click('#tab-log');
     await shot(p, '06b-room-host-log');
+
+    // Link de uma sala que não existe mais
+    const g = await ctx();
+    await g.goto(`${s.url}/r/${'b'.repeat(22)}#k=${'c'.repeat(43)}`);
+    await g.waitForSelector('#ended:not([hidden])');
+    await g.waitForTimeout(500);
+    await shot(g, '05b-room-gone');
 
     // Painel e conta
     await p.goto(`${s.url}/admin`);

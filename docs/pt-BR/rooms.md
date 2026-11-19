@@ -58,6 +58,14 @@ O painel lateral tem o **Chat** (para o anfitrião, só as conversas), **Pessoas
 
 No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel; os Ajustes abrem numa folha que sobe de baixo. O ícone do alto-falante silencia e devolve o som da sala.
 
+## Destacar uma pergunta (Live)
+
+Na Live, o anfitrião passa o mouse numa mensagem do chat e clica na **estrela** para pôr a mensagem sobre o vídeo, para todos, com o nome de quem perguntou. Quem entra depois também vê. Clicar de novo na estrela, ou no **×** do cartão, tira o destaque. Só o anfitrião destaca; o cartão vai de navegador a navegador, como o chat.
+
+## Link velho
+
+O link de uma sala que acabou, ou cujo link o anfitrião trocou, não abre mais a tela de entrada: avisa que a sala não existe mais, com o botão para a página inicial e a dica de falar com o anfitrião para pedir um link novo. Para o anfitrião sem sessão aberta, há também o atalho para entrar na conta e abrir outra sala.
+
 ## Encerrar a sala
 
 **Encerrar** fecha a sala para todos. O anfitrião, e quem tem conta no servidor, volta para a página inicial (se havia gravação, ela é salva antes). Quem assiste vê a tela "A live acabou".

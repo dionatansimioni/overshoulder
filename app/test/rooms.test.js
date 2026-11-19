@@ -106,6 +106,29 @@ describe('API', () => {
     assert.equal((await request({ kind: 'speak', cancel: true })).status, 200);
   });
 
+  test('link velho: a verificação diz se a sala existe, sem entregar nada além disso', async () => {
+    const check = (roomId) => api(s.url, '/api/rooms/check', { roomId });
+    const live = await newRoom({});
+    const ok = await check(live.roomId);
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.body, { exists: true }, 'nem tipo, nem título, nem quem está');
+    assert.equal((await check('b'.repeat(22))).status, 404, 'código que nunca existiu');
+
+    // Link trocado: o código antigo some; o novo vale
+    const { roomId: fresh } = (await api(s.url, '/api/rooms/link', { roomId: live.roomId, hostKey: live.hostKey })).body;
+    assert.equal((await check(live.roomId)).status, 404);
+    assert.equal((await check(fresh)).status, 200);
+
+    // Sala encerrada
+    assert.equal((await api(s.url, '/api/rooms/end', { roomId: fresh, hostKey: live.hostKey })).status, 200);
+    const gone = await check(fresh);
+    assert.equal(gone.status, 404);
+    assert.match(gone.body.error, /não existe/);
+
+    for (const roomId of [undefined, null, 42, [], {}, 'curto', 'b'.repeat(23), '../'.repeat(8)])
+      assert.equal((await check(roomId)).status, 400, JSON.stringify(roomId));
+  });
+
   test('posição da câmera só aceita valores conhecidos', async () => {
     const room = await newRoom({ type: 'together' });
     const { token } = await viewerToken(room.roomId);

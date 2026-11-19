@@ -988,12 +988,49 @@ button.mute.on { color: #ff6b70; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* Live: pergunta do chat em destaque sobre o vídeo; no chat, a estrela do anfitrião */
+.highlight {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(640px, calc(100% - 32px));
+  margin: 0;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 0 10px;
+  align-items: center;
+  padding: 12px 12px 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-left: 4px solid var(--accent-2);
+  background: rgba(16, 13, 22, .86);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-lg);
+  animation: pop-in .25s var(--ease);
+  z-index: 2;
+}
+.highlight .author { font-weight: 700; font-size: 13px; color: var(--accent-2); }
+.highlight .text { grid-column: 2; margin: 2px 0 0; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; max-height: 4.1em; overflow: hidden; }
+.highlight button.round { grid-row: 1 / span 2; grid-column: 3; width: 32px; height: 32px; }
+.msg { position: relative; }
+.msg .msg-highlight { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; opacity: 0; transition: opacity .15s; }
+.msg:hover .msg-highlight, .msg .msg-highlight:focus-visible, .msg.highlighted .msg-highlight { opacity: 1; }
+.msg.highlighted { background: rgba(34, 211, 238, .08); box-shadow: inset 3px 0 0 var(--accent-2); }
+.msg.highlighted .msg-highlight { color: var(--accent-2); }
+.msg.highlighted .msg-highlight .icon { fill: currentColor; }
+@media (hover: none) { .msg .msg-highlight { opacity: .7; } }
+
 /* --- sala no celular -----------------------------------------------------------
    Em pé (como YouTube e Twitch): o vídeo de ponta a ponta no topo, a barra de controles logo abaixo e o
    chat ocupando o resto da tela, sem a página rolar. Deitado: o vídeo com a altura toda e o chat ao lado,
    que pode ser escondido. Os ajustes abrem numa folha que sobe de baixo (como o Vaul). */
 
 @media (max-width: 800px) and (orientation: portrait), (max-width: 560px) {
+  .highlight { bottom: 10px; padding: 8px 8px 8px 10px; grid-template-columns: 28px 1fr auto; }
+  .highlight .avatar { width: 28px; height: 28px; font-size: 13px; }
+  .highlight .text { font-size: 14px; max-height: 2.8em; }
   .room { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
   .stage { flex: none; padding: 0; gap: 0; }
   .topbar { flex-wrap: nowrap; gap: 8px; padding: 8px 10px; }

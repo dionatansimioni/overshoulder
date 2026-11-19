@@ -43,6 +43,7 @@
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
   </svg>
 
@@ -102,7 +103,8 @@
       <h1 class="brand"><img src="/static/icon.svg" alt="" width="36" height="36">Overshoulder</h1>
       <h2 id="ended-title">A live foi encerrada</h2>
       <p id="ended-text" class="muted">Se isso foi um engano, entre em contato com o dono do servidor.</p>
-      <a class="button secondary" href="/">Ir para a página inicial</a>
+      <a id="ended-home" class="button secondary" href="/">Ir para a página inicial</a>
+      <p id="ended-host" class="muted small" hidden>É o anfitrião? <a href="/login">Entre na sua conta</a> para abrir outra sala.</p>
     </div>
   </main>
 
@@ -172,6 +174,13 @@
         </div>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
         <div id="send-badge" class="badge send" role="status" hidden></div>
+        <!-- Live: a pergunta do chat que o anfitrião destacou, sobre o vídeo para todos -->
+        <figure id="highlight" class="highlight" aria-live="polite" hidden>
+          <span id="highlight-avatar" class="avatar" aria-hidden="true"></span>
+          <figcaption id="highlight-author" class="author"></figcaption>
+          <blockquote id="highlight-text" class="text"></blockquote>
+          <button id="highlight-close" type="button" class="round" title="Tirar o destaque" aria-label="Tirar o destaque" hidden><svg class="icon"><use href="#i-close"/></svg></button>
+        </figure>
         <!-- Avisos de rede para quem transmite -->
         <div id="net-warning" class="net-warning" role="alert" hidden>
           <span id="net-warning-text"></span>
