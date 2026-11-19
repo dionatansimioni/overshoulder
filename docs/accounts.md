@@ -28,7 +28,7 @@ At `/admin` › Broadcasters:
 
 ## Two-step verification (2FA)
 
-Each person turns it on at `/account`, with an authenticator app (Google Authenticator, Aegis, 1Password…). When turning it on, they get 10 recovery codes, each valid once. The admin can **require 2FA** for everyone at `/admin` › General.
+Each person turns it on at `/account` (on the home page, **Settings › My account**), with an authenticator app (Google Authenticator, Aegis, 1Password…). When turning it on, they get 10 recovery codes, each valid once. The admin can **require 2FA** for everyone at `/admin` › General.
 
 ## Recovering access
 

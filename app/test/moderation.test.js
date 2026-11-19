@@ -70,7 +70,10 @@ describe('API de moderação', () => {
     const host = jwtPayload((await api(s.url, '/api/token', { roomId: r.roomId, hostKey: r.hostKey })).body.token);
     assert.equal(host.video.canPublishData, true, 'o anfitrião continua falando no chat');
     const room = (await livekit.listRooms([await internalName(r.roomId)]))[0];
-    assert.deepEqual(JSON.parse(room.metadata), { type: 'live', private: false, openScreens: false, chat: false, recording: false, allowRequests: { speak: false, screen: false }, requests: [], waiting: false, lobby: [] });
+    const { maxParticipants, limitCap, customLimit, ...metadata } = JSON.parse(room.metadata);
+    assert.ok(Number.isInteger(maxParticipants) && maxParticipants <= limitCap, 'limite de pessoas da sala');
+    assert.equal(customLimit, false);
+    assert.deepEqual(metadata, { type: 'live', private: false, openScreens: false, chat: false, recording: false, allowRequests: { speak: false, screen: false }, requests: [], waiting: false, lobby: [] });
   });
 });
 

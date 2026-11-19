@@ -204,7 +204,7 @@ describe('interface da sala', () => {
     assert.deepEqual(host.errors, []);
   });
 
-  test('o ícone do volume liga e desliga o som sem perder o volume escolhido', async () => {
+  test('volume: o ícone silencia (a barra vai a zero e fica vermelha) e devolve o volume escolhido', async () => {
     const host = await hostRoom('live');
     await host.page.click('#mic');
     await host.page.waitForSelector('#mic.on');
@@ -212,21 +212,38 @@ describe('interface da sala', () => {
     // A voz da anfitriã chega como um <audio>; o mudo zera o volume dele
     await viewer.page.waitForSelector('#audio-sink audio', { state: 'attached' });
     const volumes = () => viewer.page.$$eval('#audio-sink audio', (els) => els.map((e) => e.volume));
+    const sliderWidth = () => viewer.page.$eval('.volume-slider', (e) => e.getBoundingClientRect().width);
+
+    // A barra fica recolhida e abre ao passar o mouse
+    await viewer.page.mouse.move(0, 0);
+    await viewer.page.waitForFunction(() => document.querySelector('.volume-slider').getBoundingClientRect().width === 0);
+    await viewer.page.hover('#mute');
+    await viewer.page.waitForFunction(() => document.querySelector('.volume-slider').getBoundingClientRect().width > 100);
+    assert.ok((await sliderWidth()) > 100);
+
+    // Ao mexer, o número de 0 a 100% aparece sobre a barra
     await viewer.page.$eval('#volume', (e) => {
       e.value = '0.5';
       e.dispatchEvent(new Event('input'));
     });
     assert.deepEqual(await volumes(), [0.5]);
+    assert.equal(await viewer.page.textContent('#volume-tip'), '50%');
+    assert.equal(await viewer.page.getAttribute('#volume', 'aria-valuetext'), '50%');
+    await viewer.page.waitForFunction(() => getComputedStyle(document.querySelector('#volume-tip')).opacity === '1');
 
     await viewer.page.click('#mute');
     assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'true');
     assert.equal(await viewer.page.getAttribute('#mute use', 'href'), '#i-volume-off');
     assert.deepEqual(await volumes(), [0]);
-    assert.equal(await viewer.page.inputValue('#volume'), '0.5', 'o volume escolhido fica guardado');
+    assert.equal(await viewer.page.inputValue('#volume'), '0', 'a barra vai a zero');
+    assert.equal(await viewer.page.textContent('#volume-tip'), '0%');
+    assert.ok(await viewer.page.$eval('#volume-box', (e) => e.classList.contains('silent')), 'a barra fica vermelha');
 
     await viewer.page.click('#mute');
     assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'false');
+    assert.equal(await viewer.page.inputValue('#volume'), '0.5', 'volta ao volume escolhido');
     assert.deepEqual(await volumes(), [0.5]);
+    assert.ok(!(await viewer.page.$eval('#volume-box', (e) => e.classList.contains('silent'))));
     assert.deepEqual(viewer.errors, []);
   });
 
@@ -359,5 +376,53 @@ describe('link velho', () => {
     await page.waitForLoadState('networkidle');
     assert.ok(await page.isVisible('#join'));
     assert.ok(await page.isHidden('#ended'));
+  });
+});
+
+describe('ajustes da sala com ela no ar (aba Pessoas)', () => {
+  test('Jogando juntos: o anfitrião libera e fecha a tela para todos sem recriar a sala', async () => {
+    const host = await hostRoom('together');
+    // A sala nasce com as telas livres; o anfitrião fecha e abre de novo
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await host.page.click('#tab-people');
+    assert.ok(await host.page.isVisible('#open-screens'));
+    assert.ok(await host.page.isChecked('#open-screens'));
+    assert.ok(await host.page.isHidden('#requests-options'), 'pedidos do público são da Live');
+    await viewer.page.waitForSelector('#share:not([hidden])');
+
+    await host.page.uncheck('#open-screens');
+    await viewer.page.waitForSelector('#share', { state: 'hidden' });
+    await host.page.check('#open-screens');
+    await viewer.page.waitForSelector('#share:not([hidden])');
+    assert.equal(await viewer.page.locator('#open-screens:visible').count(), 0, 'quem assiste não vê os ajustes');
+    assert.deepEqual([...host.errors, ...viewer.errors], []);
+  });
+
+  test('limite de pessoas: o anfitrião muda durante a live e quem passa do limite não entra', async () => {
+    const host = await hostRoom('live');
+    const link = await host.page.inputValue('#invite-link');
+    await host.page.click('#tab-people');
+    assert.ok(await host.page.isHidden('#open-screens-row'), 'telas livres são do Jogando juntos');
+    assert.match(await host.page.textContent('#room-limit-hint'), /Limite do servidor/);
+    await join(link);
+    await host.page.fill('#room-limit', '2');
+    await host.page.click('#room-limit-form button[type="submit"]');
+    await host.page.waitForSelector('#toast:not([hidden])');
+    assert.match(await host.page.textContent('#toast'), /Limite da sala: 2 pessoas/);
+    await host.page.waitForFunction(() => /Limite próprio/.test(document.querySelector('#room-limit-hint').textContent));
+
+    const third = await newPage();
+    await third.page.goto(link);
+    await third.page.fill('#name', 'Carla');
+    await third.page.click('#join-form button[type="submit"]');
+    await third.page.waitForSelector('#join-error:not([hidden])');
+    assert.match(await third.page.textContent('#join-error'), /A sala está cheia/);
+
+    // Volta ao limite do servidor: agora entra
+    await host.page.click('#room-limit-reset');
+    await host.page.waitForFunction(() => /Limite do servidor/.test(document.querySelector('#room-limit-hint').textContent));
+    await third.page.click('#join-form button[type="submit"]');
+    await third.page.waitForSelector('#room:not([hidden])');
+    assert.deepEqual([...host.errors, ...third.errors], []);
   });
 });

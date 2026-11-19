@@ -28,7 +28,7 @@ Em `/admin` › Transmissores:
 
 ## Verificação em duas etapas (2FA)
 
-Cada pessoa ativa em `/account`, com um app autenticador (Google Authenticator, Aegis, 1Password…). Ao ativar, recebe 10 códigos de recuperação, que valem uma vez cada. O admin pode **exigir 2FA** de todos em `/admin` › Geral.
+Cada pessoa ativa em `/account` (na página inicial, **Configurações › Minha conta**), com um app autenticador (Google Authenticator, Aegis, 1Password…). Ao ativar, recebe 10 códigos de recuperação, que valem uma vez cada. O admin pode **exigir 2FA** de todos em `/admin` › Geral.
 
 ## Recuperar o acesso
 

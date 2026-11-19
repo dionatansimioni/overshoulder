@@ -51,6 +51,29 @@ describe('gaveta lateral na sala', () => {
     assert.deepEqual(errors, []);
   });
 
+  test('Administração e Minha conta abrem em outra aba: a live continua, e Voltar fecha a aba', async () => {
+    const { page, errors } = await hostRoom();
+    await page.click('#nav-toggle');
+    for (const id of ['#nav-admin', '#nav-account']) {
+      assert.equal(await page.getAttribute(id, 'target'), '_blank');
+      assert.equal(await page.getAttribute(id, 'title'), 'Abre em outra aba: a live continua');
+    }
+    // Sem pergunta de sair da sala: nada é interrompido
+    let asked = false;
+    page.on('dialog', (d) => {
+      asked = true;
+      d.dismiss();
+    });
+    const [admin] = await Promise.all([page.context().waitForEvent('page'), page.click('#nav-admin')]);
+    await admin.waitForSelector('#geral:not([hidden])');
+    assert.equal(asked, false);
+    assert.ok(await page.isVisible('#room'), 'a sala segue aberta na outra aba');
+    assert.match(page.url(), /\/r\//);
+    await Promise.all([admin.waitForEvent('close'), admin.click('[data-back]')]);
+    assert.ok(admin.isClosed(), 'Voltar fecha a aba e a sala reaparece');
+    assert.deepEqual(errors, []);
+  });
+
   test('quem entra só pelo link, sem conta, não vê a gaveta', async () => {
     const host = await hostRoom();
     const viewer = await newPage();

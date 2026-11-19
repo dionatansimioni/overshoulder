@@ -272,6 +272,8 @@ describe('tokens do LiveKit', () => {
     assert.equal(cross.body.role, 'viewer');
     assert.equal((await api(base, '/api/rooms/end', { roomId: b.roomId, hostKey: a.hostKey })).status, 403);
     assert.equal((await api(base, '/api/rooms/allow-requests', { roomId: b.roomId, hostKey: a.hostKey, speak: true })).status, 403);
+    assert.equal((await api(base, '/api/rooms/open-screens', { roomId: b.roomId, hostKey: a.hostKey, enabled: true })).status, 403);
+    assert.equal((await api(base, '/api/rooms/limit', { roomId: b.roomId, hostKey: a.hostKey, max: 3 })).status, 403);
   });
 });
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import { RoomServiceClient } from 'livekit-server-sdk';
-import { api, jwtPayload, launchBrowser, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
+import { api, get, jwtPayload, launchBrowser, loginInBrowser, setupAdmin, startServer, waitForLiveKit } from './helpers.js';
 
 const livekit = new RoomServiceClient('http://127.0.0.1:17880', process.env.TEST_API_KEY, process.env.TEST_API_SECRET);
 let s;
@@ -127,6 +127,54 @@ describe('API', () => {
 
     for (const roomId of [undefined, null, 42, [], {}, 'curto', 'b'.repeat(23), '../'.repeat(8)])
       assert.equal((await check(roomId)).status, 400, JSON.stringify(roomId));
+  });
+
+  test('Jogando juntos: o anfitrião libera ou fecha a tela para todos com a sala no ar', async () => {
+    const together = await newRoom({ type: 'together', openScreens: false });
+    const { token } = await viewerToken(together.roomId);
+    const roomName = jwtPayload(token).video.room;
+    const meta = async () => JSON.parse((await livekit.listRooms([roomName]))[0].metadata);
+    const open = (body) => api(s.url, '/api/rooms/open-screens', body);
+    const host = { roomId: together.roomId, hostKey: together.hostKey };
+    assert.deepEqual(sources((await viewerToken(together.roomId)).token), ['microphone']);
+
+    assert.notEqual((await open({ roomId: together.roomId, enabled: true })).status, 200, 'sem chave de anfitrião');
+    assert.notEqual((await open({ token, enabled: true })).status, 200, 'quem assiste não muda');
+    for (const enabled of [undefined, 'sim', 1, null]) assert.equal((await open({ ...host, enabled })).status, 400, String(enabled));
+    const live = await newRoom({});
+    assert.equal((await open({ roomId: live.roomId, hostKey: live.hostKey, enabled: true })).status, 400, 'a Live não tem essa opção');
+
+    assert.deepEqual((await open({ ...host, enabled: true })).body, { openScreens: true });
+    assert.equal((await meta()).openScreens, true);
+    assert.deepEqual(sources((await viewerToken(together.roomId)).token), ['camera', 'microphone', 'screen_share', 'screen_share_audio']);
+    assert.deepEqual((await open({ ...host, enabled: false })).body, { openScreens: false });
+    assert.deepEqual(sources((await viewerToken(together.roomId)).token), ['microphone']);
+  });
+
+  test('limite de pessoas da sala: o anfitrião muda com ela no ar; o do servidor vale na hora', async () => {
+    const room = await newRoom({});
+    const { token } = await viewerToken(room.roomId);
+    const roomName = jwtPayload(token).video.room;
+    const meta = async () => JSON.parse((await livekit.listRooms([roomName]))[0].metadata);
+    const limit = (body) => api(s.url, '/api/rooms/limit', body);
+    const host = { roomId: room.roomId, hostKey: room.hostKey };
+    const server = (await get(s.url, '/api/admin/settings', admin)).body.maxParticipants;
+    assert.equal((await meta()).maxParticipants, server, 'começa com o limite do servidor');
+    assert.equal((await meta()).customLimit, false);
+
+    assert.notEqual((await limit({ roomId: room.roomId, max: 10 })).status, 200, 'sem chave de anfitrião');
+    assert.notEqual((await limit({ token, max: 10 })).status, 200, 'quem assiste não muda');
+    for (const max of [undefined, 1, 5001, 2.5, '10', true, []]) assert.equal((await limit({ ...host, max })).status, 400, JSON.stringify(max));
+
+    assert.deepEqual((await limit({ ...host, max: 10 })).body, { maxParticipants: 10, customLimit: true });
+    assert.equal((await meta()).maxParticipants, 10);
+    assert.deepEqual((await limit({ ...host, max: null })).body.customLimit, false);
+
+    // O admin muda o limite do servidor: as salas no ar mostram o novo na hora
+    assert.equal((await api(s.url, '/api/admin/settings', { maxParticipants: 77 }, admin)).status, 200);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal((await meta()).maxParticipants, 77);
+    await api(s.url, '/api/admin/settings', { maxParticipants: server }, admin);
   });
 
   test('posição da câmera só aceita valores conhecidos', async () => {

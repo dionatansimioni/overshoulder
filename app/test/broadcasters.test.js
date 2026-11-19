@@ -236,6 +236,7 @@ describe('no navegador', () => {
     await setupAdmin(s);
     const adminPage = await page();
     await loginInBrowser(adminPage, s.url);
+    await adminPage.click('#settings-menu-btn');
     await adminPage.click('#admin-link');
     await adminPage.waitForURL(`${s.url}/admin`);
     await adminPage.click('.admin-nav button[data-page="convites"]');

@@ -217,9 +217,9 @@ let pipTrack = null;
 let pipHidden = false;
 let pipSwapped = false;
 let voiceTrack = null;
-// Mudo pelo botão do volume: o volume escolhido fica guardado para quando o som voltar
-let muted = false;
-const currentVolume = () => (muted ? 0 : Number(document.getElementById('volume').value));
+// Mudo pelo botão do volume: a barra vai a zero e o volume escolhido fica guardado para quando o som voltar
+let savedVolume = 1;
+const currentVolume = () => Number(document.getElementById('volume').value);
 let extraAudio = null;
 let cameraTrack = null;
 let shareHintShown = false;
@@ -824,6 +824,17 @@ function applyMetadata() {
     $('requests-options').hidden = meta.type !== 'live';
     $('allow-speak').checked = !!meta.allowRequests?.speak;
     $('allow-screen').checked = !!meta.allowRequests?.screen;
+    $('room-options').hidden = false;
+    $('open-screens-row').hidden = meta.type !== 'together';
+    $('open-screens').checked = !!meta.openScreens;
+    if (meta.maxParticipants) {
+      if (document.activeElement !== $('room-limit')) $('room-limit').value = String(meta.maxParticipants);
+      $('room-limit').max = String(meta.limitCap ?? 5000);
+      $('room-limit-hint').textContent = meta.customLimit
+        ? t('Limite próprio desta sala; vale para quem entra.')
+        : t('Limite do servidor (Administração › Geral); vale para quem entra.');
+      $('room-limit-reset').hidden = !meta.customLimit;
+    }
     const pending = meta.requests.length + (meta.lobby ?? []).length;
     $('requests-count').textContent = pending ? String(pending) : '';
     $('requests-count').hidden = !pending;
@@ -1486,6 +1497,20 @@ const setupHost = () => {
   $('invite-link').value = inviteLink();
   $('chat-tools').hidden = false;
   $('tab-log').hidden = false;
+  $('open-screens').addEventListener('change', async (e) => {
+    const data = await hostAction('/api/rooms/open-screens', { enabled: e.target.checked });
+    if (!data) return (e.target.checked = !e.target.checked);
+    addEvent(t(data.openScreens ? 'Agora qualquer um pode mostrar a tela.' : 'Agora só mostra a tela quem você liberar.'));
+  });
+  const saveLimit = async (max) => {
+    const data = await hostAction('/api/rooms/limit', { max });
+    if (data) toast(t('Limite da sala: {n} pessoas.', { n: data.maxParticipants }));
+  };
+  $('room-limit-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveLimit(Number($('room-limit').value));
+  });
+  $('room-limit-reset').addEventListener('click', () => saveLimit(null));
   for (const [id, kind] of [['allow-speak', 'speak'], ['allow-screen', 'screen']]) {
     $(id).addEventListener('change', async (e) => {
       const data = await hostAction('/api/rooms/allow-requests', { [kind]: e.target.checked });
@@ -1586,24 +1611,35 @@ const setupViewing = () => {
     const level = currentVolume();
     for (const track of audioTracks) track.setVolume(level);
     const silent = level === 0;
-    $('mute').setAttribute('aria-pressed', String(muted));
+    const percent = `${Math.round(level * 100)}%`;
+    $('volume-box').style.setProperty('--level', String(level));
+    $('volume-box').classList.toggle('silent', silent);
+    $('volume').setAttribute('aria-valuetext', percent);
+    $('volume-tip').textContent = percent;
+    $('mute').setAttribute('aria-pressed', String(silent));
     $('mute').classList.toggle('on', silent);
     $('mute').querySelector('use').setAttribute('href', silent ? '#i-volume-off' : '#i-volume');
-    const label = t(muted ? 'Voltar o som' : 'Silenciar');
+    const label = t(silent ? 'Voltar o som' : 'Silenciar');
     $('mute').title = label;
     $('mute').setAttribute('aria-label', label);
   };
+  // Ao arrastar, o número (0 a 100%) aparece sobre a barra e some logo depois de soltar
+  let tipTimer = null;
   $('volume').addEventListener('input', () => {
-    // Mexer no volume tira do mudo
-    muted = false;
     applyVolume();
+    $('volume-box').classList.add('adjusting');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => $('volume-box').classList.remove('adjusting'), 900);
   });
   $('mute').addEventListener('click', () => {
-    // Mudo com o volume já no zero: volta para o volume cheio
-    if (!muted && Number($('volume').value) === 0) $('volume').value = '1';
-    else muted = !muted;
+    const level = currentVolume();
+    if (level > 0) {
+      savedVolume = level;
+      $('volume').value = '0';
+    } else $('volume').value = String(savedVolume || 1);
     applyVolume();
   });
+  applyVolume();
 
   // Esconder o chat deixa o vídeo com a largura toda (útil no celular deitado)
   const room$ = $('room');
@@ -1879,7 +1915,7 @@ const setupNav = async () => {
   // Sair da sala por um link da gaveta: quem transmite ou é anfitrião confirma antes
   $('room-nav').addEventListener('click', (e) => {
     const link = e.target.closest('a[href]');
-    if (!link || !room || room.state !== 'connected') return;
+    if (!link || link.target === '_blank' || !room || room.state !== 'connected') return;
     const broadcasting = room.localParticipant.isScreenShareEnabled || room.localParticipant.isCameraEnabled || !!voiceTrack;
     if ((isHost || broadcasting) && !confirm(t('Sair desta sala? Sua transmissão para aqui.'))) e.preventDefault();
   });

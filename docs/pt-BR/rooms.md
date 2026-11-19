@@ -20,7 +20,7 @@ Os botões de convite ficam no alto da sala: **Copiar convite** (o link não apa
 A chave da sala é gerada no seu navegador e vai só no `#` do link: o servidor nunca a vê e repassa um vídeo que não consegue abrir. Por isso:
 
 - quem perde o link perde o acesso; não há como o servidor recuperar a chave;
-- a barra lateral da página inicial mostra **as salas deste navegador**; em outro aparelho a lista começa vazia;
+- a barra lateral da página inicial mostra **as salas deste navegador**, cada uma com o ícone do tipo (controle para Jogando juntos, antena para Live); em outro aparelho a lista começa vazia. Dois cliques no nome dão um apelido à sala (Enter ou clicar fora salva, Esc desiste, nome vazio volta ao original); o apelido fica neste navegador;
 - o chat passa pelo servidor com HTTPS, mas não tem criptografia de ponta a ponta.
 
 ## Sala privada
@@ -50,13 +50,18 @@ Na aba **Pessoas**, o anfitrião:
 - na Live, escolhe em **Pedidos do público** se quem assiste pode pedir a palavra e pedir para mostrar a tela (os dois começam desligados; desligar um descarta os pedidos daquele tipo que estavam na fila);
 - aprova pedidos de palavra e de tela, e libera ou tira a fala e a tela de cada pessoa;
 - remove alguém (a pessoa vê "A live foi encerrada" e o link usado por ela é trocado);
-- desliga o chat de quem assiste e gera um link novo para a sala.
+- desliga o chat de quem assiste e gera um link novo para a sala;
+- em **Ajustes da sala**, muda o **limite de pessoas** com a sala no ar (vale para quem entra depois; "Usar o do servidor" volta ao de Administração › Geral) e, no Jogando juntos, se **qualquer um pode mostrar a tela**, sem recriar a sala.
+
+Com a sala cheia, quem tenta entrar vê "A sala está cheia". O anfitrião entra sempre. A sala de um transmissor não passa do limite do servidor; a do admin vai até 5000. Mudar o limite do servidor vale na hora para as salas no ar.
+
+Na gaveta lateral da sala, **Administração** e **Minha conta** abrem em outra aba: a live continua, e o **Voltar** dessas páginas fecha a aba.
 
 ## Chat, Pessoas e Registro
 
 O painel lateral tem o **Chat** (para o anfitrião, só as conversas), **Pessoas** e, para o anfitrião, o **Registro**: quem entrou, quem saiu, pedidos de palavra, a sala de espera e os outros eventos da sala. Quem assiste não tem o Registro e continua vendo esses avisos no chat. O olho no alto mostra quantas pessoas estão na sala.
 
-No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel; os Ajustes abrem numa folha que sobe de baixo. O ícone do alto-falante silencia e devolve o som da sala.
+No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel; os Ajustes abrem numa folha que sobe de baixo. No computador, a barra de volume abre ao passar o mouse no alto-falante e mostra o nível (0 a 100%) enquanto você arrasta. O ícone do alto-falante silencia a sala: a barra vai a zero e fica vermelha, e clicar de novo devolve o volume que estava.
 
 ## Destacar uma pergunta (Live)
 

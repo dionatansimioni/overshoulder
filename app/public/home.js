@@ -204,6 +204,30 @@ if (location.hash === '#criar' && !$('signed-in').hidden) {
   openCreate();
 }
 
+// Menu Configurações (Minha conta e Administração): abre para cima, fecha com Esc ou clique fora
+const menu = $('settings-menu');
+const menuBtn = $('settings-menu-btn');
+const toggleMenu = (open) => {
+  menu.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+  if (open) menu.querySelector('a:not([hidden])')?.focus();
+};
+menuBtn.addEventListener('click', () => toggleMenu(menu.hidden));
+document.addEventListener('click', (e) => !menu.hidden && !menu.parentElement.contains(e.target) && toggleMenu(false));
+document.addEventListener('keydown', (e) => {
+  if (menu.hidden) return;
+  if (e.key === 'Escape') {
+    toggleMenu(false);
+    menuBtn.focus();
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const items = [...menu.querySelectorAll('a:not([hidden])')];
+    const i = items.indexOf(document.activeElement);
+    items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+  }
+});
+
 $('logout').addEventListener('click', async () => {
   if ($('forget-on-logout').checked) forgetAllRooms();
   await api('/api/logout', {}).catch(() => {});

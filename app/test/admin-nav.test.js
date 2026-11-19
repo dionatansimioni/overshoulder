@@ -140,4 +140,44 @@ describe('administração com menu lateral', () => {
     assert.ok((await page.evaluate(() => document.documentElement.scrollWidth)) <= 390, 'sem rolagem lateral');
     assert.deepEqual(errors, []);
   });
+
+  test('no topo: Voltar, Página inicial e Minha conta, um separador e as seções com ícones', async () => {
+    const s = await fresh(13208);
+    const { page, errors } = await newPage();
+    await loginInBrowser(page, s.url);
+    await page.goto(`${s.url}/admin`);
+    await page.waitForSelector('#geral:not([hidden])');
+    const order = await page.$$eval('.admin-side > *', (els) => els.map((e) => e.className.split(' ')[0]));
+    assert.deepEqual(order, ['brand', 'side-buttons', 'side-separator', 'admin-nav']);
+    assert.deepEqual(
+      await page.$$eval('.side-buttons.top > *', (els) => els.map((e) => e.textContent.trim())),
+      ['Voltar', 'Página inicial', 'Minha conta'],
+    );
+    const withoutIcon = await page.$$eval('.admin-nav button, .side-buttons.top > *', (els) => els.filter((e) => !e.querySelector('svg.icon')).map((e) => e.textContent.trim()));
+    assert.deepEqual(withoutIcon, [], 'todo item com ícone');
+
+    // Voltar: volta à seção anterior e, de lá, à página de antes
+    await page.goto(`${s.url}/`);
+    await page.goto(`${s.url}/admin`);
+    await page.click('.admin-nav button[data-page="uso"]');
+    await page.click('.admin-nav button[data-page="sobre"]');
+    await page.click('[data-back]');
+    await page.waitForSelector('#uso:not([hidden])');
+    await page.click('[data-back]');
+    await page.waitForSelector('#geral:not([hidden])');
+    await page.click('[data-back]');
+    await page.waitForURL(`${s.url}/`);
+    assert.deepEqual(errors, []);
+  });
+
+  test('Minha conta também tem Voltar', async () => {
+    const s = await fresh(13209);
+    const { page } = await newPage();
+    await loginInBrowser(page, s.url);
+    await page.goto(`${s.url}/admin#sobre`);
+    await page.goto(`${s.url}/account`);
+    await page.click('[data-back]');
+    await page.waitForURL(`${s.url}/admin#sobre`);
+    await page.waitForSelector('#sobre:not([hidden])');
+  });
 });

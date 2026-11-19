@@ -598,6 +598,9 @@ const updateSettings = async (req, res) => {
   if (QUALITIES.indexOf(merged.defaultQuality) > QUALITIES.indexOf(merged.maxQuality))
     return json(res, 400, { error: 'A qualidade padrão não pode passar da máxima.' });
   store.update((s) => Object.assign(s.settings, changes));
+  // O novo limite de pessoas vale na hora para as salas no ar: os anfitriões veem o valor novo
+  if (changes.maxParticipants !== undefined)
+    for (const room of liveRooms.values()) rooms.updateRoomMetadata(room.name, metadataOf(room)).catch(() => {});
   log.info('configuração alterada', { user: user.username, ...changes });
   json(res, 200, settingsView());
 };
@@ -1147,6 +1150,8 @@ const newRoomState = ({ name, owner, type, openScreens, requireSso, fixed = fals
   hostsGone: new Set(),
   invites: new Map(),
   waiting: false,
+  // Limite de pessoas próprio da sala (null: o do servidor), ajustável pelo anfitrião durante a live
+  maxParticipants: null,
   ...freshRoomState(),
 });
 
@@ -1161,6 +1166,7 @@ const persistRoom = (room) => {
     openScreens: room.openScreens,
     requireSso: room.requireSso,
     waiting: room.waiting,
+    maxParticipants: room.maxParticipants,
     createdAt: room.createdAt,
     invites: [...room.invites.values()],
     tickets: Object.fromEntries([...roomTickets].filter(([, t]) => t.name === room.name).map(([hash, t]) => [hash, t.inviteId])),
@@ -1175,6 +1181,7 @@ const loadFixedRooms = () => {
   for (const r of store.state.rooms ?? []) {
     const room = newRoomState({ ...r, fixed: true });
     room.waiting = !!r.waiting;
+    room.maxParticipants = validPeople(r.maxParticipants) ? r.maxParticipants : null;
     room.createdAt = r.createdAt;
     for (const invite of r.invites) {
       room.invites.set(invite.id, invite);
@@ -1191,7 +1198,9 @@ const createLiveKitRoom = (room) =>
     name: room.name,
     emptyTimeout: 300,
     departureTimeout: 60,
-    maxParticipants: settings().maxParticipants,
+    // O limite de cada sala é conferido na entrada (dá para mudar com a sala no ar); o LiveKit fica
+    // só com o teto
+    maxParticipants: MAX_PEOPLE,
     metadata: metadataOf(room),
   });
 
@@ -1326,9 +1335,18 @@ const viewerPermission = (room, identity) => {
   return { canSubscribe: true, canPublishData: room.chat, canPublish: sources.length > 0, canPublishSources: sources };
 };
 
+// Limite de pessoas da sala: o próprio ou o do servidor. Sala de transmissor (não admin) não passa
+// do limite do servidor; a do admin vai até o teto.
+const ownerIsAdmin = (room) => findUser((u) => u.id === room.owner)?.role === 'admin';
+const roomLimitCap = (room) => (ownerIsAdmin(room) ? MAX_PEOPLE : settings().maxParticipants);
+const roomLimit = (room) => Math.min(room.maxParticipants ?? settings().maxParticipants, roomLimitCap(room));
+
 const metadataOf = (room) =>
   JSON.stringify({
     type: room.type,
+    maxParticipants: roomLimit(room),
+    limitCap: roomLimitCap(room),
+    customLimit: room.maxParticipants !== null,
     private: room.private,
     openScreens: room.openScreens,
     chat: room.chat,
@@ -1505,6 +1523,9 @@ const issueToken = async (req, res) => {
       throw new HttpError(401, 'Esta sala exige o login da empresa para assistir.', 'sso_required');
     displayName = viewer ? viewer.name : account.username;
   }
+  // Sala cheia: o anfitrião entra sempre; quem assiste, só com lugar (antes de gastar o convite)
+  if (!isHost && (await rooms.listParticipants(found.name).catch(() => [])).length >= roomLimit(found.room))
+    throw new HttpError(403, 'A sala está cheia. Tente de novo daqui a pouco.', 'room_full');
   const admitted = isHost ? null : await admitViewer(req, res, found, body, displayName);
   if (!isHost && !admitted) return;
   if (admitted?.name) displayName = admitted.name;
@@ -1796,6 +1817,35 @@ const setAllowRequests = async (req, res) => {
   json(res, 200, { allowRequests: room.allowRequests });
 };
 
+// Jogando juntos: o anfitrião libera (ou não) que qualquer um mostre a tela, com a sala no ar
+const setOpenScreens = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  if (room.type !== 'together') return json(res, 400, { error: 'Só a sala Jogando juntos tem essa opção.' });
+  if (typeof body.enabled !== 'boolean') return json(res, 400, { error: 'enabled deve ser verdadeiro ou falso.' });
+  room.openScreens = body.enabled;
+  if (room.openScreens) for (const [key, r] of room.requests) if (r.kind === 'screen') room.requests.delete(key);
+  persistRoom(room);
+  await syncRoom(name, room);
+  log.info(room.openScreens ? 'telas liberadas para todos' : 'telas só com permissão');
+  json(res, 200, { openScreens: room.openScreens });
+};
+
+// Limite de pessoas da sala, mudado com ela no ar (null volta ao limite do servidor). Quem já está
+// na sala fica; o limite vale para quem entra.
+const setRoomLimit = async (req, res) => {
+  const body = await readJson(req);
+  const { name, room } = await hostRoom(body);
+  const cap = roomLimitCap(room);
+  if (body.max !== null && !(validPeople(body.max) && body.max <= cap))
+    return json(res, 400, { error: `Limite de pessoas da sala: de 2 a ${cap}.` });
+  room.maxParticipants = body.max;
+  persistRoom(room);
+  await rooms.updateRoomMetadata(name, metadataOf(room));
+  log.info('limite de pessoas da sala', { limite: roomLimit(room) });
+  json(res, 200, { maxParticipants: roomLimit(room), customLimit: room.maxParticipants !== null });
+};
+
 const PIP = { corner: ['tl', 'tr', 'bl', 'br'], size: ['s', 'm', 'l'], shape: ['rounded', 'circle'] };
 
 // Posição e estilo da câmera sobre a tela, escolhidos por quem transmite; vão para os atributos dela
@@ -1906,6 +1956,8 @@ const routes = {
   'POST /api/rooms/permissions': setPermissions,
   'POST /api/rooms/request': requestPermission,
   'POST /api/rooms/allow-requests': setAllowRequests,
+  'POST /api/rooms/open-screens': setOpenScreens,
+  'POST /api/rooms/limit': setRoomLimit,
   'POST /api/rooms/layout': setLayout,
   'POST /api/rooms/kick': kick,
   'GET /healthz': healthz,

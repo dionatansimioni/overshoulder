@@ -20,7 +20,7 @@ The invitation buttons sit at the top of the room: **Copy invite** (the link its
 The room key is created in your browser and travels only in the link's `#`: the server never sees it and relays a video it can't open. Because of that:
 
 - whoever loses the link loses access; the server has no way to recover the key;
-- the sidebar on the home page shows **the rooms from this browser**; on another device the list starts empty;
+- the sidebar on the home page shows **the rooms from this browser**, each with its type icon (controller for Playing together, antenna for Live); on another device the list starts empty. Double-click a room's name to give it a nickname (Enter or clicking elsewhere saves, Esc cancels, an empty name restores the original); the nickname stays in this browser;
 - the chat goes through the server over HTTPS, but isn't end-to-end encrypted.
 
 ## Private room
@@ -50,13 +50,18 @@ In the **People** tab, the host:
 - in a Live, chooses under **Audience requests** whether viewers can ask to speak and ask to share their screen (both start off; turning one off drops the pending requests of that kind);
 - approves requests to speak and to share the screen, and grants or removes each person's voice and screen;
 - removes someone (the person sees "The live has ended" and the link they used is replaced);
-- turns off the chat for viewers and creates a new link for the room.
+- turns off the chat for viewers and creates a new link for the room;
+- under **Room settings**, changes the room's **people limit** while it's on the air (it applies to whoever joins next; "Use the server limit" goes back to the one in Administration › General) and, in Playing together, whether **anyone can share their screen**, without creating a new room.
+
+When the room is full, whoever tries to join sees "The room is full". The host always gets in. A broadcaster's room can't go over the server limit; the admin's rooms go up to 5000. Changing the server limit applies right away to rooms on the air.
+
+In the room's side drawer, **Administration** and **My account** open in another tab: the live keeps going, and **Back** on those pages closes the tab.
 
 ## Chat, People and Log
 
 The side panel has the **Chat** (conversations only, for the host), **People** and, for the host, the **Log**: who joined, who left, requests to speak, the waiting room and the other room events. Viewers don't have the Log; they keep seeing these notices in the chat. The eye at the top shows how many people are in the room.
 
-On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button; Settings opens as a sheet from the bottom. The speaker icon mutes and unmutes the room.
+On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button; Settings opens as a sheet from the bottom. On a computer, the volume bar opens when you hover the speaker and shows the level (0 to 100%) while you drag it. The speaker icon mutes the room: the bar drops to zero and turns red, and clicking again brings back the volume you had.
 
 ## Featuring a question (Live)
 

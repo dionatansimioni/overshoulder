@@ -54,5 +54,9 @@ export const forgetAllRooms = () => save([]);
 export const renameRoom = (oldCode, newCode) =>
   save(recentRooms().map((r) => (r.code === oldCode ? { ...r, code: newCode } : r)));
 
+// Apelido que a pessoa dá à sala na lista (só neste navegador); vazio volta ao nome original
+export const setNickname = (code, nick) =>
+  save(recentRooms().map((r) => (r.code === code ? { ...r, nick: nick || undefined } : r)));
+
 export const roomLink = (r, { asHost = true } = {}) =>
   `/r/${r.code}#${new URLSearchParams({ k: r.k, ...(asHost && r.h && { h: r.h }) })}`;

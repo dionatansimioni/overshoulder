@@ -94,3 +94,13 @@ export const addPasswordToggles = (root = document) => {
   }
 };
 addPasswordToggles();
+
+// Botão Voltar ([data-back]): volta à página ou seção anterior. Aberta numa aba nova (a partir da
+// sala, para a live continuar), não há para onde voltar: a aba fecha e a sala reaparece; se o
+// navegador não deixar fechar, vai para a página inicial.
+const goBack = () => {
+  if (history.length > 1) return history.back();
+  window.close();
+  setTimeout(() => location.assign('/'), 150);
+};
+for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('click', goBack);

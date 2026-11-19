@@ -100,6 +100,28 @@ test('capturas', { timeout: 180_000 }, async () => {
 
     await p.click('#tab-log');
     await shot(p, '06b-room-host-log');
+    await p.click('#tab-people');
+    await p.waitForTimeout(300);
+    await shot(p, '06d-room-host-people');
+    await v.hover('#mute');
+    await v.$eval('#volume', (e) => {
+      e.value = '0.65';
+      e.dispatchEvent(new Event('input'));
+    });
+    await v.waitForTimeout(300);
+    await shot(v, '08c-room-viewer-volume');
+    await v.click('#mute');
+    await v.waitForTimeout(300);
+    await shot(v, '08d-room-viewer-muted');
+
+    // Página inicial com as salas (tipo e nome) e o menu Configurações aberto
+    const hp = await p.context().newPage();
+    await hp.setViewportSize(DESKTOP);
+    await hp.goto(s.url);
+    await hp.waitForSelector('#my-rooms li .room-type');
+    await hp.click('#settings-menu-btn');
+    await hp.waitForTimeout(300);
+    await shot(hp, '03b-home-rooms-menu');
 
     // Link de uma sala que não existe mais
     const g = await ctx();

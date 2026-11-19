@@ -200,6 +200,12 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ Aba "Registro" para o anfitrião (entrou, saiu, pedidos, sala de espera…); o chat fica só com conversas. Quem assiste não tem a aba.
 - ✅ Pessoas na sala: olho com o número (o texto completo fica no `title`).
 - ✅ (19/11) Na Live, o anfitrião destaca na tela a pergunta de alguém do chat (estrela na mensagem; cartão sobre o vídeo para todos, inclusive quem entra depois). Vai pelo LiveKit como o chat (tópico `highlight`), só vale vindo de identidade `h-`; o servidor não guarda.
+- ✅ (19/11) Volume: barra recolhida que abre ao passar o mouse, número de 0 a 100% ao arrastar, mudo leva a barra a zero (vermelha) e devolve o volume anterior.
+- ✅ (19/11) Botão Voltar em Administração e Minha conta (volta à seção ou página anterior; numa aba aberta pela sala, fecha a aba).
+- ✅ (19/11) Configurar sem sair da live: Administração e Minha conta da gaveta da sala abrem em outra aba. Limite de pessoas por sala ajustável com ela no ar (`POST /api/rooms/limit`, conferido na entrada pelo servidor; o LiveKit fica só com o teto de 5000) e o do servidor vale na hora para as salas no ar.
+- ✅ (19/11) Jogando juntos: "Qualquer um pode mostrar a tela" ligável com a sala no ar (`POST /api/rooms/open-screens`).
+- ✅ (19/11) Administração: Voltar, Página inicial e Minha conta no topo, separador e seções com ícones. Na página inicial, Minha conta e Administração num menu "Configurações".
+- ✅ (19/11) Suas salas: ícone do tipo (controle, antena) com o ponto de ao vivo; dois cliques no nome dão um apelido (só neste navegador).
 - ✅ (19/11) Link velho (sala encerrada ou link trocado): `POST /api/rooms/check` responde antes da tela de entrada e, se a sala não existe, aparece "Essa sala não existe mais" com o botão da página inicial, a dica de falar com o anfitrião e, para quem não tem sessão, o atalho para `/login`. A verificação não traz sala fixa de volta ao ar.
 
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)

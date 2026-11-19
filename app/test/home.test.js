@@ -183,20 +183,82 @@ describe('página inicial (navegador)', () => {
     assert.equal(new URL(page.url()).pathname, '/');
   });
 
-  test('abaixo de "Conectado como", conta, administração e sair são botões', async () => {
-    const { page } = await newPage();
+  test('Configurações reúne Minha conta e Administração num menu; Sair é um botão', async () => {
+    const { page, errors } = await newPage();
     await loginInBrowser(page, s.url);
-    const footer = page.locator('.side-footer');
-    for (const name of ['Minha conta', 'Administração']) {
-      const link = footer.getByRole('link', { name });
-      assert.ok(await link.isVisible(), `${name} visível`);
-      assert.match(await link.getAttribute('class'), /\bbutton\b/, `${name} com cara de botão`);
-    }
+    assert.ok(await page.isHidden('#settings-menu'));
+    assert.equal(await page.getAttribute('#settings-menu-btn', 'aria-expanded'), 'false');
+    await page.click('#settings-menu-btn');
+    assert.ok(await page.isVisible('#settings-menu'));
+    assert.equal(await page.getAttribute('#settings-menu-btn', 'aria-expanded'), 'true');
+    const items = await page.$$eval('#settings-menu [role="menuitem"]:not([hidden])', (els) => els.map((e) => [e.textContent.trim(), e.getAttribute('href')]));
+    assert.deepEqual(items, [['Minha conta', '/account'], ['Administração', '/admin']]);
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('href')), '/account', 'o foco vai ao primeiro item');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'admin-link');
+    await page.keyboard.press('Escape');
+    assert.ok(await page.isHidden('#settings-menu'));
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'settings-menu-btn');
+    // Clicar fora fecha
+    await page.click('#settings-menu-btn');
+    await page.click('.app-main', { position: { x: 5, y: 5 } });
+    assert.ok(await page.isHidden('#settings-menu'));
+    assert.equal(await page.locator('.side-footer a[href="/account"]:visible').count(), 0, 'conta e administração só no menu');
     assert.doesNotMatch((await page.getAttribute('#logout', 'class')) ?? '', /\blink\b/, 'Sair é um botão, não um link');
-    // Cada botão tem um ícone, para ler mais rápido
-    for (const sel of ['.side-footer a[href="/account"]', '#admin-link', '#logout', '#new-room-side']) {
-      assert.ok(await page.isVisible(`${sel} svg.icon`), `${sel} com ícone`);
-    }
+    for (const sel of ['#settings-menu-btn', '#logout', '#new-room-side']) assert.ok(await page.isVisible(`${sel} svg.icon`), `${sel} com ícone`);
+    await page.click('#settings-menu-btn');
+    await page.click('#admin-link');
+    await page.waitForURL(`${s.url}/admin`);
+    assert.deepEqual(errors, []);
+  });
+
+  test('suas salas: ícone do tipo e dois cliques para renomear (Enter ou clicar fora salva, Esc desiste)', async () => {
+    const { page, errors } = await newPage();
+    await loginInBrowser(page, s.url);
+    const rooms = await page.evaluate(async () => {
+      const make = (type) => fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type }) }).then((r) => r.json());
+      const [together, live] = [await make('together'), await make('live')];
+      const entry = (r, type, at) => ({ code: r.roomId, k: 'k'.repeat(43), h: r.hostKey, type, at });
+      localStorage.setItem('rooms', JSON.stringify([entry(together, 'together', 2), entry(live, 'live', 1)]));
+      return [together.roomId, live.roomId];
+    });
+    await page.reload();
+    await page.waitForSelector('#my-rooms li .room-type');
+    assert.deepEqual(await page.$$eval('#my-rooms .room-type', (els) => els.map((e) => e.className)), ['room-type type-together', 'room-type type-live']);
+    assert.equal(await page.locator('#my-rooms .room-type svg.icon').count(), 2);
+    const name = page.locator('#my-rooms li').first().locator('b');
+    assert.equal(await name.getAttribute('title'), 'Dê dois cliques para renomear');
+
+    await name.dblclick();
+    const input = page.locator('#my-rooms input.room-rename');
+    await input.waitFor();
+    assert.equal(new URL(page.url()).pathname, '/', 'dois cliques não abrem a sala');
+    await input.fill('Ranked com a galera');
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#my-rooms li b').textContent === 'Ranked com a galera');
+    // Fica guardado no navegador e sobrevive à atualização da lista
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#my-rooms li b')?.textContent === 'Ranked com a galera');
+
+    // Clicar fora também salva; Esc desiste
+    await page.locator('#my-rooms li').nth(1).locator('b').dblclick();
+    await page.locator('#my-rooms input.room-rename').fill('Live de sexta');
+    await page.click('.app-main', { position: { x: 5, y: 5 } });
+    await page.waitForFunction(() => document.querySelectorAll('#my-rooms li b')[1].textContent === 'Live de sexta');
+    await page.locator('#my-rooms li').nth(1).locator('b').dblclick();
+    await page.locator('#my-rooms input.room-rename').fill('outro');
+    await page.locator('#my-rooms input.room-rename').press('Escape');
+    assert.equal(await page.locator('#my-rooms li b').nth(1).textContent(), 'Live de sexta');
+    // Nome vazio volta ao nome original
+    await page.locator('#my-rooms li').first().locator('b').dblclick();
+    await page.locator('#my-rooms input.room-rename').fill('');
+    await page.locator('#my-rooms input.room-rename').press('Enter');
+    await page.waitForFunction(() => document.querySelector('#my-rooms li b').textContent === 'Sua sala');
+
+    // Um clique só abre a sala
+    await page.locator('#my-rooms li').first().locator('b').click();
+    await page.waitForURL(new RegExp(`/r/${rooms[0]}`));
+    assert.deepEqual(errors, []);
   });
 
   test('no celular nada some: criar sala e a lista de salas continuam à mão', async () => {

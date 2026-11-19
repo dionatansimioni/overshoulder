@@ -101,12 +101,15 @@ const EN = {
   'Essa senha aparece em listas de senhas vazadas. Escolha outra.': 'This password appears in leaked password lists. Choose another one.',
   'A senha repete poucos caracteres. Escolha outra.': 'The password uses too few different characters. Choose another one.',
   'A senha não pode conter o nome de usuário.': 'The password cannot contain the username.',
+  'A sala está cheia. Tente de novo daqui a pouco.': 'The room is full. Try again in a little while.',
+  'Só a sala Jogando juntos tem essa opção.': 'Only Playing together rooms have this option.',
 };
 
 // Mensagens com partes variáveis
 const PATTERNS = [
   [/^(\w+) deve ser verdadeiro ou falso\.$/, '$1 must be true or false.'],
   [/^(\w+) inválido\.$/, 'Invalid $1.'],
+  [/^Limite de pessoas da sala: de 2 a (\w+)\.$/, 'Room people limit: from 2 to $1.'],
   [/^Não foi possível falar com o provedor: (.*)\.$/, 'Could not reach the provider: $1.'],
 ];
 
