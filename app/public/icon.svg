@@ -1,18 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Overshoulder">
-  <!-- Overshoulder: alguém de costas, com headset, olhando por cima do ombro uma tela ao vivo -->
+  <!-- Overshoulder: alguém diante de uma tela ao vivo. A cabeça é o O e a linha dos ombros, um S deitado -->
   <defs>
-    <linearGradient id="g" x1="96" y1="400" x2="440" y2="80" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" y1="512" x2="512" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#7B2FF2"/><stop offset="1" stop-color="#1DD8FC"/>
     </linearGradient>
-    <clipPath id="t"><rect width="512" height="512" rx="120"/></clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
+    <clipPath id="tile"><rect width="512" height="512" rx="114"/></clipPath>
   </defs>
-  <rect width="512" height="512" rx="120" fill="#120A24"/>
-  <g clip-path="url(#t)">
-    <rect x="128" y="84" width="300" height="208" rx="36" fill="url(#g)"/>
-    <path d="M48 540c0-104 74-170 168-170s168 66 168 170Z" fill="#35226A" stroke="#120A24" stroke-width="28" paint-order="stroke"/>
-    <circle cx="216" cy="300" r="78" fill="#35226A" stroke="#120A24" stroke-width="28" paint-order="stroke"/>
-    <path d="M124 312a92 92 0 0 1 184 0" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
-    <rect x="106" y="296" width="36" height="62" rx="14" fill="#fff"/>
-    <rect x="290" y="296" width="36" height="62" rx="14" fill="#fff"/>
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <rect x="168" y="84" width="262" height="186" rx="38" fill="#fff" fill-opacity=".26"/>
+    <rect x="168.5" y="84.5" width="261" height="185" rx="37.5" fill="none" stroke="#fff" stroke-opacity=".45"/>
+    <g fill="none" stroke-width="32" stroke-linecap="round">
+      <g stroke="#2A0B6B" opacity=".35" filter="url(#shadow)" transform="translate(0 10)">
+        <circle cx="214" cy="266" r="52"/>
+        <path d="M100 540C100 432 146 378 204 378C262 378 276 434 332 434C372 434 394 408 402 388"/>
+      </g>
+      <g stroke="#fff">
+        <circle cx="214" cy="266" r="52"/>
+        <path d="M100 540C100 432 146 378 204 378C262 378 276 434 332 434C372 434 394 408 402 388"/>
+      </g>
+    </g>
   </g>
 </svg>

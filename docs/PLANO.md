@@ -206,6 +206,7 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - ✅ (19/11) Jogando juntos: "Qualquer um pode mostrar a tela" ligável com a sala no ar (`POST /api/rooms/open-screens`).
 - ✅ (19/11) Administração: Voltar, Página inicial e Minha conta no topo, separador e seções com ícones. Na página inicial, Minha conta e Administração num menu "Configurações".
 - ✅ (19/11) Suas salas: ícone do tipo (controle, antena) com o ponto de ao vivo; dois cliques no nome dão um apelido (só neste navegador).
+- ✅ (19/11) Logo novo (opção 4 "Cor" de quatro mostradas): fundo em gradiente da marca, tela translúcida e a pessoa em uma linha só, com a cabeça como O e os ombros como um S deitado. `icon.svg` gera os PNGs com `rsvg-convert`: 192 e 512 com cantos, 180 (iPhone) sem cantos e o maskable do Android com o desenho dentro do círculo seguro. O site usa os mesmos arquivos.
 - ✅ (19/11) Link velho (sala encerrada ou link trocado): `POST /api/rooms/check` responde antes da tela de entrada e, se a sala não existe, aparece "Essa sala não existe mais" com o botão da página inicial, a dica de falar com o anfitrião e, para quem não tem sessão, o atalho para `/login`. A verificação não traz sala fixa de volta ao ar.
 
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
