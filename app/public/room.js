@@ -22,9 +22,11 @@ import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { mountRoomList } from '/static/room-list.js';
 import { api } from '/static/ui.js';
+import { mountButtonFeedback } from '/static/button-fx.js';
 
 translatePage();
 mountLanguageSwitch();
+mountButtonFeedback();
 
 const $ = (id) => document.getElementById(id);
 
@@ -126,6 +128,8 @@ const addMessage = (text, author, highlightable = false) => {
   const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   list.append(li);
   if (atBottom) list.scrollTop = list.scrollHeight;
+  // Chat escondido: um ponto no botão avisa que chegou mensagem
+  if (author && $('room').classList.contains('chat-hidden')) $('chat-hide').classList.add('unread');
 };
 
 // Registro da sala (entrou, saiu, pediu a palavra…): para o anfitrião, fica numa aba própria e o chat
@@ -239,6 +243,22 @@ let republishing = false;
 // Quais fontes eu podia publicar, para avisar quando o anfitrião libera ou tira
 let allowed = { microphone: false, screen: false };
 const audioTracks = new Set();
+// De quem é cada faixa de áudio recebida e de que fonte (a voz tem volume e mudo próprios por pessoa)
+const audioInfo = new Map();
+// Volume e mudo de cada pessoa, só para mim: ninguém mais é afetado (some ao recarregar a página)
+const userAudio = new Map();
+const userGain = (identity) => {
+  const u = userAudio.get(identity);
+  return !u ? 1 : u.muted ? 0 : u.volume;
+};
+// Volume geral (barra do volume) vezes o da pessoa, quando a faixa é a voz dela
+const effectiveVolume = (track) => {
+  const info = audioInfo.get(track);
+  return currentVolume() * (info?.source === Track.Source.Microphone ? userGain(info.identity) : 1);
+};
+const applyUserVolume = (identity) => {
+  for (const [track, info] of audioInfo) if (info.identity === identity) track.setVolume(effectiveVolume(track));
+};
 // Elemento <audio> de cada faixa recebida, para sair da página quando a faixa sai
 const audioElements = new Map();
 
@@ -463,6 +483,52 @@ const checkNetwork = (summary) => {
   }
 };
 
+// Quem está na chamada de voz. Em "Jogando juntos" todos; na Live, só quem tem microfone (ligado ou mudo)
+const micOf = (p) => p.getTrackPublication(Track.Source.Microphone);
+const inCall = (p) => meta.type === 'together' || !!micOf(p);
+// O ícone de microfone mudo: em "Jogando juntos" vale para quem está sem microfone ligado; na Live, só quem o silenciou
+const showMuted = (p) => {
+  const mic = micOf(p);
+  return meta.type === 'together' ? !mic || mic.isMuted : !!mic && mic.isMuted;
+};
+
+// Círculo com a letra da pessoa. Falando: anel verde e ondas que saem do círculo. Mudo: microfone cortado
+const voiceAvatar = (p, size = 'sm') => {
+  const name = p.name || '?';
+  const wrap = el('span', `voice-avatar ${size}${p.isSpeaking ? ' speaking' : ''}${showMuted(p) ? ' muted' : ''}`);
+  const avatar = el('span', size === 'lg' ? 'avatar big-avatar' : 'avatar', [...name][0].toUpperCase());
+  avatar.style.background = avatarColor(name);
+  wrap.append(el('i', 'wave'), el('i', 'wave wave-2'), avatar);
+  if (showMuted(p)) {
+    const badge = el('span', 'mic-muted-badge');
+    badge.title = t('Microfone desligado');
+    badge.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-mic-off"/></svg>';
+    wrap.append(badge);
+  }
+  return wrap;
+};
+
+// Com vídeo no ar, quem está na chamada fica numa tira sobre o vídeo, com destaque em quem fala
+const renderVoiceStrip = () => {
+  const strip = $('voice-strip');
+  const members = room && $('voice-stage').hidden && !$('room').hidden ? everyone().filter(inCall) : [];
+  strip.hidden = members.length === 0;
+  if (!members.length) return strip.replaceChildren();
+  // Quem fala vem primeiro e a tira não cresce sem fim
+  const ordered = [...members].sort((a, b) => Number(b.isSpeaking) - Number(a.isSpeaking));
+  const shown = ordered.slice(0, STRIP_MAX);
+  strip.replaceChildren(
+    ...shown.map((p) => {
+      const li = el('li', `strip-person${p.isSpeaking ? ' speaking' : ''}`);
+      li.dataset.identity = p.identity;
+      li.append(voiceAvatar(p), el('span', 'strip-name', isMe(p) ? t('{name} (você)', { name: p.name }) : p.name || '?'));
+      return li;
+    }),
+    ...(ordered.length > shown.length ? [el('li', 'strip-more', `+${ordered.length - shown.length}`)] : []),
+  );
+};
+const STRIP_MAX = 8;
+
 // Sala só de voz: um cartão por pessoa, com destaque em quem está falando
 const renderVoiceStage = () => {
   if (!room || $('voice-stage').hidden) return;
@@ -470,10 +536,8 @@ const renderVoiceStage = () => {
     ...everyone().map((p) => {
       const name = p.name || '?';
       const li = el('li', `voice-person${p.isSpeaking ? ' speaking' : ''}`);
-      const avatar = el('span', 'avatar big-avatar', [...name][0].toUpperCase());
-      avatar.style.background = avatarColor(name);
       const muted = !p.getTrackPublication(Track.Source.Microphone) || p.getTrackPublication(Track.Source.Microphone).isMuted;
-      li.append(avatar, el('span', 'voice-name', isMe(p) ? t('{name} (você)', { name }) : name));
+      li.append(voiceAvatar(p, 'lg'), el('span', 'voice-name', isMe(p) ? t('{name} (você)', { name }) : name));
       if (muted) li.classList.add('muted-mic');
       li.dataset.identity = p.identity;
       return li;
@@ -559,14 +623,15 @@ const wireRoomEvents = () => {
   room
     .on(RoomEvent.TrackPublished, renderStage)
     .on(RoomEvent.TrackUnpublished, renderStage)
-    .on(RoomEvent.TrackSubscribed, (track) => {
+    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if (track.kind === Track.Kind.Audio) {
         audioTracks.add(track);
+        audioInfo.set(track, { identity: participant.identity, source: publication.source });
         addRoomAudio(track.mediaStreamTrack);
         const element = track.attach();
         audioElements.set(track, element);
         $('audio-sink').append(element);
-        track.setVolume(currentVolume());
+        track.setVolume(effectiveVolume(track));
       }
       renderStage();
     })
@@ -577,6 +642,7 @@ const wireRoomEvents = () => {
         audioElements.get(track)?.remove();
         audioElements.delete(track);
         audioTracks.delete(track);
+        audioInfo.delete(track);
         removeRoomAudio(track.mediaStreamTrack);
       }
       renderStage();
@@ -1013,19 +1079,71 @@ const renderRequests = () => {
   );
 };
 
+// Quem está arrastando o volume de alguém não pode perder o controle por um redesenho da lista
+let peopleRedrawPending = false;
+const draggingPersonVolume = () => document.activeElement?.matches?.('.person-audio input');
+
+// Volume e mudo de outra pessoa, só para mim ("Jogando juntos"): a voz dela muda aqui e em mais lugar nenhum
+const personAudioControls = (p) => {
+  const row = el('div', 'person-audio');
+  const gain = userAudio.get(p.identity) ?? { volume: 1, muted: false };
+  const mute = el('button', `round small person-mute${gain.muted ? ' on' : ''}`);
+  mute.type = 'button';
+  mute.dataset.action = 'user-mute';
+  const label = t(gain.muted ? 'Voltar o som de {name}' : 'Silenciar {name} (só para você)', { name: p.name || '?' });
+  mute.title = label;
+  mute.setAttribute('aria-label', label);
+  mute.setAttribute('aria-pressed', String(gain.muted));
+  mute.innerHTML = `<svg class="icon"><use href="#${gain.muted ? 'i-volume-off' : 'i-volume'}"/></svg>`;
+  const slider = el('input');
+  Object.assign(slider, { type: 'range', min: '0', max: '1', step: '0.01', value: String(gain.volume) });
+  slider.dataset.action = 'user-volume';
+  slider.setAttribute('aria-label', t('Volume de {name}', { name: p.name || '?' }));
+  slider.setAttribute('aria-valuetext', `${Math.round(gain.volume * 100)}%`);
+  slider.style.setProperty('--level', String(gain.volume));
+  const percent = el('output', 'person-percent', `${Math.round(gain.volume * 100)}%`);
+  const update = (patch) => {
+    userAudio.set(p.identity, { ...gain, ...patch });
+    applyUserVolume(p.identity);
+  };
+  slider.addEventListener('input', () => {
+    gain.volume = Number(slider.value);
+    update({ volume: gain.volume });
+    const text = `${Math.round(gain.volume * 100)}%`;
+    percent.textContent = text;
+    slider.setAttribute('aria-valuetext', text);
+    slider.style.setProperty('--level', String(gain.volume));
+  });
+  slider.addEventListener('blur', () => {
+    if (peopleRedrawPending) renderPeople();
+  });
+  mute.addEventListener('click', () => {
+    gain.muted = !gain.muted;
+    update({ muted: gain.muted });
+    renderPeople();
+  });
+  row.append(mute, slider, percent);
+  return row;
+};
+
 function renderPeople() {
   if (!room) return;
   // A tela de voz mostra as mesmas pessoas: entra, sai e quem fala atualizam as duas
   renderVoiceStage();
+  renderVoiceStrip();
   renderRequests();
-  const speaking = new Set(room.activeSpeakers.map((p) => p.identity));
+  if (draggingPersonVolume()) {
+    peopleRedrawPending = true;
+    return;
+  }
+  peopleRedrawPending = false;
+  const focused = document.activeElement?.closest?.('#people li[data-identity]');
+  const refocus = focused && { identity: focused.dataset.identity, action: document.activeElement.dataset.action };
   $('people').replaceChildren(
     ...everyone().map((p) => {
       const li = el('li', 'person');
       li.dataset.identity = p.identity;
-      const avatar = el('span', 'avatar', [...(p.name || '?')][0].toUpperCase());
-      avatar.style.background = avatarColor(p.name || '?');
-      avatar.classList.toggle('speaking', speaking.has(p.identity));
+      const avatar = voiceAvatar(p);
       const micOn = p.getTrackPublication(Track.Source.Microphone) && !p.getTrackPublication(Track.Source.Microphone).isMuted;
       const tags = [
         p.identity.startsWith('h-') ? t('anfitrião') : null,
@@ -1035,8 +1153,20 @@ function renderPeople() {
         micOn ? t('microfone') : null,
       ].filter(Boolean);
       const info = el('div', 'person-info');
-      info.append(el('span', 'author', p.name || '?'), el('span', 'muted small', tags.join(' · ')));
+      const nameLine = el('span', 'person-name');
+      nameLine.append(el('span', 'author', p.name || '?'));
+      // Microfone cortado ao lado do nome de quem está mudo ("Jogando juntos")
+      if (showMuted(p)) {
+        const icon = el('span', 'name-muted');
+        icon.title = t('Microfone desligado');
+        icon.setAttribute('role', 'img');
+        icon.setAttribute('aria-label', t('Microfone desligado'));
+        icon.innerHTML = '<svg class="icon"><use href="#i-mic-off"/></svg>';
+        nameLine.append(icon);
+      }
+      info.append(nameLine, el('span', 'muted small', tags.join(' · ')));
       li.append(avatar, info);
+      if (meta.type === 'together' && !isMe(p)) li.append(personAudioControls(p));
       if (isHost && p.identity.startsWith('v-')) {
         const actions = el('div', 'person-actions');
         // Na Live, o anfitrião libera a fala; a tela, sempre que ela não é livre na sala
@@ -1071,6 +1201,10 @@ function renderPeople() {
       return li;
     }),
   );
+  if (refocus) {
+    const target = [...$('people').querySelectorAll('li[data-identity]')].find((x) => x.dataset.identity === refocus.identity);
+    (target?.querySelector(`[data-action="${refocus.action}"]`) ?? null)?.focus();
+  }
 }
 
 const showTab = (tab) => {
@@ -1239,7 +1373,9 @@ const startShare = async () => {
   await room.localParticipant.setScreenShareEnabled(
     true,
     {
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      // restrictOwnAudio tira da captura o som que esta própria página toca (as vozes da chamada). Sem isso, o
+      // som do computador leva a voz de todo mundo de volta para a sala e vira eco
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, restrictOwnAudio: true },
       systemAudio: 'include',
       contentHint: 'motion',
       resolution: { width: p.width, height: p.height, frameRate: p.fps },
@@ -1622,39 +1758,71 @@ const stopRecording = async () => {
 
 // --- quem assiste: volume, tela cheia, câmera sobre a tela ------------------------
 
+// Telas pequenas: o volume vem dos botões do aparelho e o ícone só silencia
+const COMPACT_VOLUME = '(max-width: 800px) and (orientation: portrait), (max-width: 560px), (orientation: landscape) and (max-height: 500px)';
+const compactVolume = () => window.matchMedia(COMPACT_VOLUME).matches;
+
 const setupViewing = () => {
   $('viewer-controls').hidden = false;
 
   const applyVolume = () => {
     const level = currentVolume();
-    for (const track of audioTracks) track.setVolume(level);
+    for (const track of audioTracks) track.setVolume(effectiveVolume(track));
     const silent = level === 0;
     const percent = `${Math.round(level * 100)}%`;
     $('volume-box').style.setProperty('--level', String(level));
     $('volume-box').classList.toggle('silent', silent);
     $('volume').setAttribute('aria-valuetext', percent);
     $('volume-tip').textContent = percent;
-    $('mute').setAttribute('aria-pressed', String(silent));
+    const label = t(silent ? 'Voltar o som' : 'Silenciar');
+    // O ícone da barra mostra o estado; o botão de dentro do painel é quem silencia
     $('mute').classList.toggle('on', silent);
     $('mute').querySelector('use').setAttribute('href', silent ? '#i-volume-off' : '#i-volume');
-    const label = t(silent ? 'Voltar o som' : 'Silenciar');
-    $('mute').title = label;
-    $('mute').setAttribute('aria-label', label);
+    $('mute-toggle').setAttribute('aria-pressed', String(silent));
+    $('mute-toggle').classList.toggle('on', silent);
+    $('mute-toggle').querySelector('use').setAttribute('href', silent ? '#i-volume' : '#i-volume-off');
+    $('mute-toggle').querySelector('.label').textContent = label;
+    if (!compactVolume()) {
+      $('mute').title = t('Volume');
+      $('mute').setAttribute('aria-label', t('Volume'));
+      $('mute').removeAttribute('aria-pressed');
+    } else {
+      // No celular o ícone só silencia (o volume vem dos botões do aparelho)
+      $('mute').title = label;
+      $('mute').setAttribute('aria-label', label);
+      $('mute').setAttribute('aria-pressed', String(silent));
+    }
   };
-  // Ao arrastar, o número (0 a 100%) aparece sobre a barra e some logo depois de soltar
-  let tipTimer = null;
-  $('volume').addEventListener('input', () => {
-    applyVolume();
-    $('volume-box').classList.add('adjusting');
-    clearTimeout(tipTimer);
-    tipTimer = setTimeout(() => $('volume-box').classList.remove('adjusting'), 900);
-  });
-  $('mute').addEventListener('click', () => {
+  $('volume').addEventListener('input', applyVolume);
+  const toggleMute = () => {
     const level = currentVolume();
     if (level > 0) {
       savedVolume = level;
       $('volume').value = '0';
     } else $('volume').value = String(savedVolume || 1);
+    applyVolume();
+  };
+  // O painel só abre ao clicar no ícone e flutua sobre a página: passar o mouse não mexe em nada
+  const setVolumePanel = (open) => {
+    $('volume-panel').hidden = !open;
+    $('volume-box').classList.toggle('open', open);
+    $('mute').setAttribute('aria-expanded', String(open));
+  };
+  $('mute').addEventListener('click', () => {
+    if (compactVolume()) return toggleMute();
+    setVolumePanel($('volume-panel').hidden);
+  });
+  $('mute-toggle').addEventListener('click', toggleMute);
+  document.addEventListener('pointerdown', (e) => {
+    if (!$('volume-panel').hidden && !e.target.closest('#volume-box')) setVolumePanel(false);
+  });
+  $('volume-box').addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || $('volume-panel').hidden) return;
+    setVolumePanel(false);
+    $('mute').focus();
+  });
+  window.matchMedia(COMPACT_VOLUME).addEventListener('change', () => {
+    setVolumePanel(false);
     applyVolume();
   });
   applyVolume();
@@ -1664,6 +1832,7 @@ const setupViewing = () => {
   const setChatHidden = (hidden) => {
     room$.classList.toggle('chat-hidden', hidden);
     setToggle('chat-hide', hidden, ['Esconder o chat', 'Mostrar o chat']);
+    if (!hidden) $('chat-hide').classList.remove('unread');
     storage.set(localStorage, 'chat-hidden', hidden ? '1' : '0');
   };
   setChatHidden(storage.get(localStorage, 'chat-hidden') === '1');

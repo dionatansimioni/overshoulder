@@ -175,6 +175,31 @@ describe('avisos de rede para quem transmite', () => {
   });
 });
 
+describe('o que a captura de tela pede ao navegador', () => {
+  const spy = () => {
+    const original = MediaDevices.prototype.getDisplayMedia;
+    MediaDevices.prototype.getDisplayMedia = function (options) {
+      window.__displayConstraints = options;
+      return original.call(this, options);
+    };
+  };
+
+  test('cursor desenhado na captura (jogos escondem o do sistema) e a taxa continua sendo pedida', async () => {
+    const { host } = await sharing({ hostInit: spy });
+    const constraints = await host.page.evaluate(() => window.__displayConstraints);
+    assert.equal(constraints.video.cursor, 'always');
+    assert.ok(constraints.video.frameRate, 'a resolução e a taxa continuam sendo pedidas');
+  });
+
+  test('sem eco: o som que a própria página toca (as vozes da chamada) fica fora da captura', async () => {
+    const { host } = await sharing({ hostInit: spy });
+    const constraints = await host.page.evaluate(() => window.__displayConstraints);
+    assert.equal(constraints.audio.restrictOwnAudio, true);
+    assert.equal(constraints.systemAudio, 'include', 'o som do jogo continua indo junto');
+    assert.equal(constraints.audio.echoCancellation, false);
+  });
+});
+
 describe('áudio do jogo (Linux: "Monitor of …")', () => {
   // Como no Chrome do Linux: compartilhar a tela não traz o som do computador
   const linuxCapture = () => {

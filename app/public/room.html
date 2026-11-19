@@ -174,6 +174,8 @@
             <button id="show-self" type="button" class="secondary">Mostrar minha tela</button>
           </div>
         </div>
+        <!-- Com vídeo no ar: quem está na chamada de voz, com destaque para quem fala (como no Discord) -->
+        <ul id="voice-strip" class="voice-strip" aria-label="Na chamada de voz" hidden></ul>
         <div id="overlay" class="overlay">Aguardando a transmissão começar…</div>
         <div id="send-badge" class="badge send" role="status" hidden></div>
         <!-- Live: a pergunta do chat que o anfitrião destacou, sobre o vídeo para todos -->
@@ -223,13 +225,20 @@
 
         <div id="viewer-controls" class="controls" hidden>
           <div id="volume-box" class="volume">
-            <button id="mute" type="button" class="mute" title="Silenciar" aria-label="Silenciar" aria-pressed="false">
+            <button id="mute" type="button" class="mute" title="Volume" aria-label="Volume" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
               <svg class="icon"><use href="#i-volume"/></svg>
             </button>
-            <span class="volume-slider">
-              <input id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume" aria-valuetext="100%">
-              <output id="volume-tip" class="volume-tip" for="volume" aria-hidden="true">100%</output>
-            </span>
+            <!-- Abre só ao clicar no ícone e flutua sobre a página: nada na barra muda de lugar -->
+            <div id="volume-panel" class="volume-panel" role="group" aria-label="Volume" hidden>
+              <button id="mute-toggle" type="button" class="secondary mute-toggle" aria-pressed="false">
+                <svg class="icon"><use href="#i-volume-off"/></svg>
+                <span class="label">Silenciar</span>
+              </button>
+              <span class="volume-slider">
+                <input id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume" aria-valuetext="100%">
+                <output id="volume-tip" class="volume-tip" for="volume" aria-hidden="true">100%</output>
+              </span>
+            </div>
           </div>
           <button id="fullscreen" type="button" class="round" title="Tela cheia" aria-label="Tela cheia">
             <svg class="icon"><use href="#i-fullscreen"/></svg>
@@ -242,9 +251,6 @@
           </button>
           <button id="hide-self" type="button" class="round" title="Ocultar sua tela para você" aria-label="Ocultar sua tela para você" aria-pressed="false" hidden>
             <svg class="icon"><use href="#i-eye"/></svg>
-          </button>
-          <button id="chat-hide" type="button" class="round chat-hide" title="Esconder o chat" aria-label="Esconder o chat" aria-pressed="false">
-            <svg class="icon"><use href="#i-sidebar"/></svg>
           </button>
           <button id="record" type="button" class="round" title="Gravar a transmissão" aria-label="Gravar a transmissão" aria-pressed="false">
             <svg class="icon"><use href="#i-record"/></svg>
@@ -327,6 +333,13 @@
         </div>
       </div>
     </section>
+
+    <!-- Coluna estreita ao lado do chat: o botão fica sempre à vista, mesmo com o chat escondido -->
+    <div class="chat-rail">
+      <button id="chat-hide" type="button" class="round chat-hide" title="Esconder o chat" aria-label="Esconder o chat" aria-pressed="false">
+        <svg class="icon"><use href="#i-sidebar"/></svg>
+      </button>
+    </div>
 
     <aside class="chat">
       <header class="chat-header">

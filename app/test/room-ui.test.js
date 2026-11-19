@@ -94,7 +94,7 @@ describe('barra de controles', () => {
     const host = await hostRoom();
     assert.deepEqual(await visibleIds(host.page, '#host-controls'), ['mic', 'camera', 'share']);
     const right = await visibleIds(host.page, '#viewer-controls');
-    assert.deepEqual(right.filter((id) => id !== 'record'), ['volume-box', 'fullscreen', 'chat-hide', 'settings-btn', 'end']);
+    assert.deepEqual(right.filter((id) => id !== 'record'), ['volume-box', 'fullscreen', 'settings-btn', 'end']);
     if (right.includes('record')) assert.deepEqual(right.slice(-3), ['record', 'settings-btn', 'end']);
     const left = (await host.page.locator('#host-controls').boundingBox()).x;
     const rightX = (await host.page.locator('#viewer-controls').boundingBox()).x;
@@ -152,6 +152,15 @@ describe('microfone e sala só de voz', () => {
     await viewer.page.click('#mic');
     await host.page.waitForSelector('#voice-people li.speaking', { timeout: 20_000 });
     assert.match(await host.page.textContent('#voice-people li.speaking'), /Beto/);
+    // Anel verde e ondas que saem do círculo (animação rodando), não só uma borda
+    const wave = await host.page.$eval('#voice-people li.speaking .voice-avatar .wave', (e) => {
+      const style = getComputedStyle(e);
+      return { name: style.animationName, state: style.animationPlayState, scale: e.getAnimations().length };
+    });
+    assert.equal(wave.name, 'voice-wave-lg');
+    assert.equal(wave.state, 'running');
+    assert.ok(wave.scale >= 1);
+    assert.ok(await host.page.isVisible('#voice-people li:not(.speaking) .voice-avatar .mic-muted-badge'), 'quem está mudo ganha o microfone cortado');
 
     // Com a câmera ligada, a tela de voz dá lugar ao vídeo
     await host.page.click('#camera');
@@ -204,7 +213,7 @@ describe('interface da sala', () => {
     assert.deepEqual(host.errors, []);
   });
 
-  test('volume: o ícone silencia (a barra vai a zero e fica vermelha) e devolve o volume escolhido', async () => {
+  test('volume: o painel abre só ao clicar, sem mexer na barra, e o mudo fica dentro dele', async () => {
     const host = await hostRoom('live');
     await host.page.click('#mic');
     await host.page.waitForSelector('#mic.on');
@@ -212,16 +221,27 @@ describe('interface da sala', () => {
     // A voz da anfitriã chega como um <audio>; o mudo zera o volume dele
     await viewer.page.waitForSelector('#audio-sink audio', { state: 'attached' });
     const volumes = () => viewer.page.$$eval('#audio-sink audio', (els) => els.map((e) => e.volume));
-    const sliderWidth = () => viewer.page.$eval('.volume-slider', (e) => e.getBoundingClientRect().width);
+    const layout = () =>
+      viewer.page.$$eval('#viewer-controls > *', (els) => els.map((e) => `${e.id || e.className}:${Math.round(e.getBoundingClientRect().x)}:${Math.round(e.getBoundingClientRect().width)}`).join('|'));
 
-    // A barra fica recolhida e abre ao passar o mouse
-    await viewer.page.mouse.move(0, 0);
-    await viewer.page.waitForFunction(() => document.querySelector('.volume-slider').getBoundingClientRect().width === 0);
+    // Passar o mouse não abre nada nem muda a barra de lugar
+    assert.ok(await viewer.page.isHidden('#volume-panel'));
+    const before = await layout();
     await viewer.page.hover('#mute');
-    await viewer.page.waitForFunction(() => document.querySelector('.volume-slider').getBoundingClientRect().width > 100);
-    assert.ok((await sliderWidth()) > 100);
+    await viewer.page.waitForTimeout(400);
+    assert.ok(await viewer.page.isHidden('#volume-panel'), 'hover não abre');
+    assert.equal(await layout(), before);
 
-    // Ao mexer, o número de 0 a 100% aparece sobre a barra
+    // Clicar abre o painel, que flutua sobre a página: o resto da barra continua onde estava
+    await viewer.page.click('#mute');
+    await viewer.page.waitForSelector('#volume-panel:not([hidden])');
+    assert.equal(await viewer.page.getAttribute('#mute', 'aria-expanded'), 'true');
+    assert.equal(await layout(), before, 'abrir não desloca nada');
+    const panel = await viewer.page.locator('#volume-panel').boundingBox();
+    const bar = await viewer.page.locator('#volume-box').boundingBox();
+    assert.ok(panel.y + panel.height <= bar.y, 'o painel abre acima da barra');
+
+    // Ao mexer, o número de 0 a 100% acompanha a barra
     await viewer.page.$eval('#volume', (e) => {
       e.value = '0.5';
       e.dispatchEvent(new Event('input'));
@@ -229,21 +249,30 @@ describe('interface da sala', () => {
     assert.deepEqual(await volumes(), [0.5]);
     assert.equal(await viewer.page.textContent('#volume-tip'), '50%');
     assert.equal(await viewer.page.getAttribute('#volume', 'aria-valuetext'), '50%');
-    await viewer.page.waitForFunction(() => getComputedStyle(document.querySelector('#volume-tip')).opacity === '1');
 
-    await viewer.page.click('#mute');
-    assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'true');
+    // O mudo fica dentro do painel; o ícone da barra mostra o estado
+    await viewer.page.click('#mute-toggle');
+    assert.equal(await viewer.page.getAttribute('#mute-toggle', 'aria-pressed'), 'true');
     assert.equal(await viewer.page.getAttribute('#mute use', 'href'), '#i-volume-off');
     assert.deepEqual(await volumes(), [0]);
     assert.equal(await viewer.page.inputValue('#volume'), '0', 'a barra vai a zero');
     assert.equal(await viewer.page.textContent('#volume-tip'), '0%');
+    assert.match(await viewer.page.textContent('#mute-toggle'), /Voltar o som/);
     assert.ok(await viewer.page.$eval('#volume-box', (e) => e.classList.contains('silent')), 'a barra fica vermelha');
 
-    await viewer.page.click('#mute');
-    assert.equal(await viewer.page.getAttribute('#mute', 'aria-pressed'), 'false');
+    await viewer.page.click('#mute-toggle');
+    assert.equal(await viewer.page.getAttribute('#mute-toggle', 'aria-pressed'), 'false');
     assert.equal(await viewer.page.inputValue('#volume'), '0.5', 'volta ao volume escolhido');
     assert.deepEqual(await volumes(), [0.5]);
     assert.ok(!(await viewer.page.$eval('#volume-box', (e) => e.classList.contains('silent'))));
+
+    // Esc e clicar fora fecham
+    await viewer.page.keyboard.press('Escape');
+    await viewer.page.waitForSelector('#volume-panel', { state: 'hidden' });
+    await viewer.page.click('#mute');
+    await viewer.page.waitForSelector('#volume-panel:not([hidden])');
+    await viewer.page.click('#messages');
+    await viewer.page.waitForSelector('#volume-panel', { state: 'hidden' });
     assert.deepEqual(viewer.errors, []);
   });
 
@@ -288,15 +317,159 @@ describe('interface da sala', () => {
     assert.equal(await host.page.getAttribute('#count', 'aria-label'), '2 pessoas na sala');
   });
 
-  test('esconder o chat deixa o vídeo com a largura toda', async () => {
+  test('o botão do chat fica numa coluna ao lado dele, sempre à vista, para esconder e trazer o chat de volta', async () => {
     const host = await hostRoom('live');
     const before = (await host.page.locator('#player').boundingBox()).width;
+    const chat = await host.page.locator('.chat').boundingBox();
+    const rail = await host.page.locator('.chat-rail').boundingBox();
+    assert.ok(rail.x + rail.width <= chat.x + 1, 'a coluna do botão fica ao lado do chat, à esquerda dele');
+    assert.ok(await host.page.isVisible('#chat-hide'));
+
     await host.page.click('#chat-hide');
     assert.ok(await host.page.isHidden('.chat'));
     assert.equal(await host.page.getAttribute('#chat-hide', 'aria-pressed'), 'true');
+    assert.ok(await host.page.isVisible('#chat-hide'), 'o botão continua visível com o chat escondido');
+    const railHidden = await host.page.locator('.chat-rail').boundingBox();
+    assert.ok(railHidden.x + railHidden.width >= 1280 - 2, 'a coluna fica na borda direita');
     assert.ok((await host.page.locator('#player').boundingBox()).width > before + 200, 'o vídeo cresce');
+
+    // Chegou mensagem com o chat escondido: um ponto avisa no botão
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await viewer.page.fill('#chat-input', 'oi, Ana');
+    await viewer.page.keyboard.press('Enter');
+    await host.page.waitForSelector('#chat-hide.unread');
+
     await host.page.click('#chat-hide');
     assert.ok(await host.page.isVisible('.chat'));
+    assert.ok(!(await host.page.$eval('#chat-hide', (e) => e.classList.contains('unread'))), 'o ponto some ao mostrar o chat');
+    assert.deepEqual(host.errors, []);
+  });
+});
+
+describe('chamada de voz (como no Discord)', () => {
+  test('com vídeo no ar, uma tira mostra quem está na chamada e destaca quem fala', async () => {
+    const host = await hostRoom('together');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    assert.ok(await host.page.isHidden('#voice-strip'), 'sem vídeo, quem está na sala já aparece na tela de voz');
+
+    await viewer.page.click('#mic');
+    await host.page.click('#camera');
+    await host.page.waitForSelector('#voice-stage', { state: 'hidden' });
+    await host.page.waitForSelector('#voice-strip:not([hidden])');
+    assert.equal(await host.page.locator('#voice-strip li.strip-person').count(), 2);
+    assert.match(await host.page.textContent('#voice-strip'), /Ana \(você\).*Beto/s);
+    // Quem fala ganha o anel e as ondas, e o nome aparece
+    await host.page.waitForSelector('#voice-strip li.speaking', { timeout: 20_000 });
+    assert.match(await host.page.textContent('#voice-strip li.speaking'), /Beto/);
+    const wave = await host.page.$eval('#voice-strip li.speaking .wave', (e) => getComputedStyle(e).animationName);
+    assert.equal(wave, 'voice-wave');
+    assert.ok(await host.page.isVisible('#voice-strip li.speaking .strip-name'));
+    assert.ok(await host.page.isVisible('#voice-strip li:not(.speaking) .mic-muted-badge'), 'quem está mudo ganha o microfone cortado');
+    assert.deepEqual(host.errors, []);
+    assert.deepEqual(viewer.errors, []);
+  });
+
+  test('"Jogando juntos": o microfone cortado aparece ao lado do nome de quem está mudo, em Pessoas', async () => {
+    const host = await hostRoom('together');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await host.page.click('#tab-people');
+    const beto = host.page.locator('#people li', { hasText: 'Beto' });
+    await beto.waitFor();
+    assert.ok(await beto.locator('.name-muted').isVisible(), 'Beto ainda não ligou o microfone');
+    assert.equal(await beto.locator('.name-muted').getAttribute('aria-label'), 'Microfone desligado');
+
+    await viewer.page.click('#mic');
+    await host.page.waitForFunction(() => ![...document.querySelectorAll('#people li')].find((li) => li.textContent.includes('Beto')).querySelector('.name-muted'));
+    await viewer.page.click('#mic');
+    await host.page.waitForSelector('#people li:has-text("Beto") .name-muted');
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('"Jogando juntos": cada um muda o volume ou silencia os outros, só para si', async () => {
+    const host = await hostRoom('together');
+    const link = await host.page.inputValue('#invite-link');
+    const beto = await join(link);
+    const carla = await join(link, 'Carla');
+    await beto.page.click('#mic');
+    await beto.page.waitForSelector('#mic.on');
+    const volumes = (p) => p.page.$$eval('#audio-sink audio', (els) => els.map((e) => e.volume));
+    await host.page.waitForSelector('#audio-sink audio', { state: 'attached' });
+    await carla.page.waitForSelector('#audio-sink audio', { state: 'attached' });
+
+    await host.page.click('#tab-people');
+    const row = host.page.locator('#people li', { hasText: 'Beto' });
+    assert.equal(await host.page.locator('#people li', { hasText: 'Ana' }).locator('.person-audio').count(), 0, 'na própria linha não há controle');
+    await row.locator('.person-audio input').waitFor();
+    const set = (value) =>
+      row.locator('.person-audio input').evaluate((e, v) => {
+        e.value = v;
+        e.dispatchEvent(new Event('input'));
+      }, value);
+
+    await set('0.4');
+    assert.deepEqual(await volumes(host), [0.4]);
+    assert.equal(await row.locator('.person-percent').textContent(), '40%');
+    assert.deepEqual(await volumes(carla), [1], 'a Carla continua ouvindo o Beto igual');
+    assert.deepEqual(await volumes(beto), [], 'e o Beto não é afetado');
+
+    // O volume geral continua valendo, multiplicado pelo da pessoa
+    await host.page.click('#mute');
+    await host.page.$eval('#volume', (e) => {
+      e.value = '0.5';
+      e.dispatchEvent(new Event('input'));
+    });
+    assert.ok(Math.abs((await volumes(host))[0] - 0.2) < 0.001, `${await volumes(host)}`);
+
+    // Silenciar só o Beto, só para a Ana
+    await row.locator('.person-mute').click();
+    assert.deepEqual(await volumes(host), [0]);
+    assert.equal(await row.locator('.person-mute').getAttribute('aria-pressed'), 'true');
+    assert.deepEqual(await volumes(carla), [1]);
+    await row.locator('.person-mute').click();
+    assert.ok(Math.abs((await volumes(host))[0] - 0.2) < 0.001, 'volta ao volume escolhido');
+
+    // A escolha sobrevive ao redesenho da lista (quem fala atualiza a lista o tempo todo)
+    await beto.page.click('#mic');
+    await beto.page.click('#mic');
+    await host.page.waitForTimeout(500);
+    assert.equal(await row.locator('.person-audio input').inputValue(), '0.4');
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('na Live não há controle de volume por pessoa', async () => {
+    const host = await hostRoom('live');
+    await join(await host.page.inputValue('#invite-link'));
+    await host.page.click('#tab-people');
+    await host.page.locator('#people li', { hasText: 'Beto' }).waitFor();
+    assert.equal(await host.page.locator('.person-audio').count(), 0);
+  });
+});
+
+describe('retorno visual dos botões', () => {
+  test('ligar e desligar um botão toca uma animação, e o clique afunda o botão', async () => {
+    const host = await hostRoom('live');
+    await host.page.evaluate(() => {
+      window.__fx = [];
+      new MutationObserver((records) => {
+        for (const r of records) if (r.target.classList.contains('fx-on')) window.__fx.push(`${r.target.id}:on`);
+        for (const r of records) if (r.target.classList.contains('fx-off')) window.__fx.push(`${r.target.id}:off`);
+      }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    });
+    await host.page.click('#mic');
+    await host.page.waitForSelector('#mic.on');
+    await host.page.click('#mic');
+    await host.page.waitForSelector('#mic:not(.on)');
+    const seen = await host.page.evaluate(() => window.__fx);
+    assert.ok(seen.includes('mic:on'), `ao ligar: ${seen}`);
+    assert.ok(seen.includes('mic:off'), `ao desligar: ${seen}`);
+
+    // Pressionado, o botão encolhe
+    const box = await host.page.locator('#settings-btn').boundingBox();
+    await host.page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await host.page.mouse.down();
+    const scaled = await host.page.$eval('#settings-btn', (e) => getComputedStyle(e).transform);
+    await host.page.mouse.up();
+    assert.notEqual(scaled, 'none', 'o :active aplica uma escala');
     assert.deepEqual(host.errors, []);
   });
 });

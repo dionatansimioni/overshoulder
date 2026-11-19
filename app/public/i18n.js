@@ -358,6 +358,12 @@ const EN = {
   'Mostra o botão de gravar para os anfitriões. A gravação é feita no navegador de quem transmite e pode deixar o computador mais lento durante o jogo. Cada anfitrião pode ligar ou desligar nos ajustes da sala.':
     "Shows the record button to hosts. Recording happens in the broadcaster's browser and can slow the computer down during the game. Each host can turn it on or off in the room settings.",
   'Gravação': 'Recording',
+  'Microfone desligado': 'Microphone off',
+  Volume: 'Volume',
+  'Na chamada de voz': 'In the voice call',
+  'Silenciar {name} (só para você)': 'Mute {name} (only for you)',
+  'Voltar o som de {name}': 'Unmute {name}',
+  'Volume de {name}': '{name}’s volume',
   'Mostrar o botão de gravar': 'Show the record button',
   'Grava no seu computador enquanto você transmite, o que pode deixá-lo mais lento. Vale só neste navegador.':
     'Records on your computer while you broadcast, which can slow it down. Applies to this browser only.',
