@@ -198,7 +198,11 @@ test('lista de dispositivos preenche microfone e áudio do jogo', async () => {
   // como criar a fonte que o Chrome enxerga e mostra o comando para copiar
   await host.page.waitForSelector('#messages .linux-monitor-command');
   assert.match(await host.page.textContent('#messages'), /o Chrome no Linux esconde esses dispositivos/);
-  assert.match(await host.page.textContent('.linux-monitor-command'), /^pactl load-module module-remap-source master="\$\(pactl get-default-sink\)\.monitor" .*device\.description=Overshoulder-jogo$/);
+  const command = await host.page.textContent('.linux-monitor-command');
+  assert.match(command, /libpipewire-module-loopback/);
+  assert.match(command, /stream\.capture\.sink = true/);
+  assert.match(command, /media\.class = "Audio\/Source"/);
+  assert.match(command, /systemctl --user restart pipewire pipewire-pulse wireplumber$/);
 });
 
 test('fora do Linux, listar dispositivos não mostra o comando do PulseAudio', async () => {

@@ -116,7 +116,7 @@ To remove the warning for good on a device, install Caddy's CA on it:
 - **Linux:** the browser only captures *tab* audio. For game audio, open the broadcast settings in the room, click “List” and pick the computer's sound source under “Game audio”. It is sent in stereo, without voice filters.
   - **Firefox:** pick your sound output's **"Monitor of …"** device (PipeWire/PulseAudio).
   - **Chrome, Chromium, Edge, Brave:** they deliberately hide "Monitor of …" devices. Run this in a terminal, click “List” again and pick **"Overshoulder-jogo"** (the room chat shows the same command with a copy button):
-    `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`
+    `mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber`
   - To broadcast only the game, not Discord or other apps, see [docs/broadcasting.md](docs/broadcasting.md#game-audio).
 
 ## Quality tips

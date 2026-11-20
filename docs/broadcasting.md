@@ -58,10 +58,11 @@ In **Settings**: quality (up to the maximum the admin allows) and codec.
 - **Windows (Chrome/Edge):** when picking "Entire screen", check "Share system audio".
 - **Linux:** the browser doesn't send the computer's sound along with the screen. In **Settings › Game audio**, click "List" and pick the computer's sound source. It applies right away, even with the screen already shared, and the settings show where the audio is coming from.
   - **Firefox:** pick your sound output's **"Monitor of …"** device (PipeWire/PulseAudio).
-  - **Chrome, Chromium, Edge and Brave:** they hide "Monitor of …" devices on purpose. Run the command below in a terminal, click "List" again and pick **"Overshoulder-jogo"**. The room chat shows the same command, with a copy button. The source lasts until you restart the computer.
+  - **Chrome, Chromium, Edge and Brave:** they hide "Monitor of …" devices on purpose. Run the command below in a terminal (PipeWire, the default on current distros), click "List" again and pick **"Overshoulder-jogo"**. The room chat shows the same command, with a copy button. It creates a source that **follows the default sound output**: you can switch from speakers to headphones or Bluetooth without redoing anything, and it survives a reboot. The command restarts the sound server for a moment, so run it before you broadcast.
     ```bash
-    pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo
+    mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber
     ```
+    With plain PulseAudio, use `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`. That version stays tied to whichever output was the default when you ran it and lasts until reboot.
   - **Only the game's sound**, without Discord or other apps: create an output just for the game, send the game to it (in pavucontrol or the sound settings) and broadcast its monitor:
     ```bash
     pactl load-module module-null-sink sink_name=jogo

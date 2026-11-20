@@ -1403,11 +1403,13 @@ const startShare = async () => {
 };
 
 const IS_LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
-// O Chrome e o Chromium no Linux escondem de propósito as fontes "Monitor of …" (o Firefox mostra). Uma fonte
-// remapeada a partir do monitor da saída padrão aparece para eles como um microfone comum. Funciona com
-// PulseAudio e com PipeWire (pipewire-pulse) e vale até reiniciar o computador.
+// O Chrome e o Chromium no Linux escondem de propósito as fontes "Monitor of …". Esta fonte virtual do PipeWire
+// aparece para eles como um microfone comum e, sem destino fixo, o WirePlumber a liga sempre à saída padrão: ela
+// acompanha a troca de caixas para fones (ou Bluetooth, HDMI). O arquivo vale também depois de reiniciar o
+// computador. Precisa ser "Audio/Source": com "Audio/Source/Virtual" o PipeWire 1.0 cria as portas erradas e a
+// fonte não inicia. scripts/test-pipewire.sh roda exatamente este comando num PipeWire de verdade.
 const LINUX_MONITOR_COMMAND =
-  'pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo';
+  `mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber`;
 
 // Áudio do jogo por um dispositivo de entrada (no Linux, o "Monitor of …" da saída de som), enviado como
 // áudio da tela: sem filtros de voz e em estéreo
