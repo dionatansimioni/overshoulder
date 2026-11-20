@@ -23,6 +23,7 @@ import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { mountRoomList } from '/static/room-list.js';
 import { api } from '/static/ui.js';
 import { mountButtonFeedback } from '/static/button-fx.js';
+import { mountShortcuts } from '/static/shortcuts.js';
 
 translatePage();
 mountLanguageSwitch();
@@ -223,6 +224,9 @@ const recordingOn = () => {
 };
 // De quem é a tela (ou câmera) que estou assistindo
 let watching = null;
+// "Jogando juntos": só voz. Ouve e fala com os amigos sem receber a tela (a escolha fica neste navegador)
+let voiceOnly = storage.get(localStorage, 'voice-only') === '1';
+const voiceOnlyOn = () => voiceOnly && meta.type === 'together';
 let mainTrack = null;
 let pipTrack = null;
 let pipHidden = false;
@@ -319,7 +323,8 @@ const applySubscriptions = () => {
     for (const pub of p.trackPublications.values()) {
       const want =
         pub.source === Track.Source.Microphone ||
-        (p.identity === watching &&
+        (!voiceOnlyOn() &&
+          p.identity === watching &&
           [Track.Source.ScreenShare, Track.Source.ScreenShareAudio, Track.Source.Camera].includes(pub.source));
       if (pub.isSubscribed !== want) pub.setSubscribed(want);
     }
@@ -357,7 +362,7 @@ const renderStage = () => {
   applySubscriptions();
   refreshWatchQuality();
 
-  $('screens').hidden = list.length < 2;
+  $('screens').hidden = list.length < 2 || voiceOnlyOn();
   $('screens').replaceChildren(
     ...list.map((b) => {
       const label = isMe(b.p)
@@ -383,7 +388,7 @@ const renderStage = () => {
   // A própria transmissão escondida: nada é reproduzido aqui, quem assiste continua vendo
   const mine = !!current && isMe(current.p) && !!main;
   const hideMine = mine && selfHidden;
-  if (hideMine) main = pip = null;
+  if (hideMine || voiceOnlyOn()) main = pip = null;
   $('self-hidden').hidden = !hideMine;
   $('hide-self').hidden = !mine;
   setToggle('hide-self', selfHidden, ['Ocultar sua tela para você', 'Mostrar sua tela'], ['#i-eye', '#i-eye-off']);
@@ -395,12 +400,14 @@ const renderStage = () => {
   $('pip-hide').hidden = $('pip-swap').hidden = !(screen && camera);
 
   overlay.hidden = true;
+  $('voice-only').hidden = meta.type !== 'together';
+  setToggle('voice-only', voiceOnlyOn(), ['Só voz: não assistir à tela', 'Voltar a assistir à tela']);
   $('voice-stage').hidden = !!main || hideMine;
   if (!main && !hideMine) {
     const presenting = can('screen');
-    $('voice-hint').textContent = t(
-      presenting ? 'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.' : 'Ninguém está transmitindo agora.',
-    );
+    $('voice-hint').textContent = voiceOnlyOn() && list.length
+      ? t('Você está só na voz, sem assistir à tela. Use o botão de fones, embaixo, para voltar a assistir.')
+      : t(presenting ? 'Ninguém está transmitindo. Use o botão de tela, embaixo, para mostrar a sua.' : 'Ninguém está transmitindo agora.');
     renderVoiceStage();
   }
 
@@ -1758,6 +1765,35 @@ const stopRecording = async () => {
 
 // --- quem assiste: volume, tela cheia, câmera sobre a tela ------------------------
 
+// --- atalhos de teclado -----------------------------------------------------------
+// Cada atalho aciona o botão correspondente, se ele existir e estiver à mostra. Os atalhos são de cada
+// navegador (localStorage): ver public/shortcuts.js.
+const pressIfUsable = (id) => () => {
+  const b = $(id);
+  if (!b || b.disabled || b.closest('[hidden]') || b.offsetParent === null) return false;
+  b.click();
+  return true;
+};
+const setupShortcuts = () => {
+  mountShortcuts({
+    list: $('shortcut-list'),
+    resetButton: $('shortcuts-reset'),
+    notify: toast,
+    actions: [
+      { id: 'mic', label: t('Ligar ou desligar o microfone'), key: 'M', run: pressIfUsable('mic') },
+      { id: 'camera', label: t('Ligar ou desligar a câmera'), key: 'V', run: pressIfUsable('camera') },
+      { id: 'share', label: t('Compartilhar ou parar a tela'), key: 'S', run: pressIfUsable('share') },
+      // O mudo mora dentro do painel do volume, que fica fechado: o botão é acionado mesmo assim
+      { id: 'sound', label: t('Silenciar ou voltar o som'), key: 'D', run: () => !$('viewer-controls').hidden && ($('mute-toggle').click(), true) },
+      { id: 'fullscreen', label: t('Tela cheia'), key: 'F', run: pressIfUsable('fullscreen') },
+      { id: 'chat', label: t('Esconder ou mostrar o chat'), key: 'C', run: pressIfUsable('chat-hide') },
+      { id: 'voiceonly', label: t('Só ouvir e falar (sem assistir à tela)'), key: null, run: pressIfUsable('voice-only') },
+      { id: 'hand', label: t('Pedir a palavra'), key: null, run: pressIfUsable('raise-hand') },
+      { id: 'record', label: t('Gravar ou parar a gravação'), key: null, run: pressIfUsable('record') },
+    ],
+  });
+};
+
 // Telas pequenas: o volume vem dos botões do aparelho e o ícone só silencia
 const COMPACT_VOLUME = '(max-width: 800px) and (orientation: portrait), (max-width: 560px), (orientation: landscape) and (max-height: 500px)';
 const compactVolume = () => window.matchMedia(COMPACT_VOLUME).matches;
@@ -1794,6 +1830,11 @@ const setupViewing = () => {
     }
   };
   $('volume').addEventListener('input', applyVolume);
+  $('voice-only').addEventListener('click', () => {
+    voiceOnly = !voiceOnly;
+    storage.set(localStorage, 'voice-only', voiceOnly ? '1' : '0');
+    renderStage();
+  });
   const toggleMute = () => {
     const level = currentVolume();
     if (level > 0) {
@@ -2134,6 +2175,7 @@ $('join-form').addEventListener('submit', async (e) => {
   $('room').hidden = false;
   setupViewing();
   setupPublishControls();
+  setupShortcuts();
   if (isHost) setupHost();
   applyMetadata();
   updateCount();

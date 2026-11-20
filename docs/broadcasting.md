@@ -9,7 +9,33 @@ The room's entry screen has a preview: turn on the camera and microphone to test
 ## The control bar
 
 - **On the left, your inputs:** microphone, camera and screen (or window). An active microphone shows a ring that grows with your voice.
-- **On the right:** volume, fullscreen, hide your own screen, record, settings and end the room.
+- **On the right, below the video:** volume, fullscreen, hide your own screen, record, settings and end the room. Viewers get the same group, also on the right.
+- **Volume:** click the speaker to open the panel (it floats over the page, so nothing in the bar moves). It has the mute button and the slider (0 to 100%).
+- **The chat button** sits in its own narrow column beside the chat. With the chat hidden the column stays, so you can bring it back; a dot shows that a message arrived.
+- Buttons give feedback: they sink when pressed and a ring comes out when they turn on or off.
+
+## Keyboard shortcuts
+
+Everything below works while the focus isn't in a text field. In **Settings › Keyboard shortcuts**, click a shortcut and press the combination you want (for example `Ctrl+K`). **Esc** cancels, **Backspace** removes the shortcut and **Restore default shortcuts** brings the originals back. If a combination was already in use, the other action loses it.
+
+| Action | Default |
+|---|---|
+| Turn the microphone on or off | `M` |
+| Turn the camera on or off | `V` |
+| Share or stop the screen | `S` |
+| Mute or unmute the sound | `D` |
+| Full screen | `F` |
+| Hide or show the chat | `C` |
+| Ask to speak, record, voice only | no shortcut (you can assign one) |
+
+Your shortcuts are stored **only in your browser** (`localStorage`); they are never sent to the server. A shortcut only works when its button is available to you (for example, the microphone one does nothing if you may not speak).
+
+## Voice call (Playing together)
+
+- **Who is speaking:** a green ring and sound waves come out of the speaker's circle, on the voice screen, in the People list and in a strip over the video when someone is broadcasting. A crossed-out microphone marks who is muted.
+- **Volume per person:** in **People**, each person has a mute button and a volume slider, **only for you**: nobody else is affected and it resets when you reload. The master volume multiplies it.
+- **Voice only:** the headphones button lets you listen and talk with your friends without receiving the screen (so it doesn't use your bandwidth either). Click it again to watch. The choice stays in your browser.
+- **Echo:** the screen capture asks the browser to leave out the sound this page plays (the voices of the call), so it doesn't go back into the room inside the broadcast. This works in Chrome and Edge on Windows and macOS; other browsers may ignore it.
 
 ## Sharing the screen
 

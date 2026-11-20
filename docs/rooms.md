@@ -61,7 +61,7 @@ In the room's side drawer, **Administration** and **My account** open in another
 
 The side panel has the **Chat** (conversations only, for the host), **People** and, for the host, the **Log**: who joined, who left, requests to speak, the waiting room and the other room events. Viewers don't have the Log; they keep seeing these notices in the chat. The eye at the top shows how many people are in the room.
 
-On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button; Settings opens as a sheet from the bottom. On a computer, the volume bar opens when you hover the speaker and shows the level (0 to 100%) while you drag it. The speaker icon mutes the room: the bar drops to zero and turns red, and clicking again brings back the volume you had.
+On a phone held upright, the video sits at the top, the controls right below it and the chat takes the rest of the screen. Turned sideways, the chat stays beside the video and can be hidden with the panel button, which sits in a column of its own beside the chat; Settings opens as a sheet from the bottom. On a computer, the speaker icon opens a volume panel when clicked (not on hover). The panel has a mute button, which drops the bar to zero and turns it red, and clicking again brings back the volume you had.
 
 ## Featuring a question (Live)
 

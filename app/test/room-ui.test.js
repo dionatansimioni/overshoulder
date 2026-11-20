@@ -445,6 +445,155 @@ describe('chamada de voz (como no Discord)', () => {
   });
 });
 
+describe('"Jogando juntos": só voz', () => {
+  const receivingVideo = (page) => page.evaluate(() => document.querySelector('#video').videoWidth > 0);
+
+  test('dá para ouvir e falar com os amigos sem assistir à tela, e voltar a assistir', async () => {
+    const host = await hostRoom('together');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    await host.page.click('#mic');
+    await host.page.click('#camera');
+    await viewer.page.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
+    await viewer.page.waitForSelector('#audio-sink audio', { state: 'attached' });
+    assert.ok(await viewer.page.isVisible('#voice-only'));
+    assert.equal(await viewer.page.getAttribute('#voice-only', 'aria-pressed'), 'false');
+
+    await viewer.page.click('#voice-only');
+    assert.equal(await viewer.page.getAttribute('#voice-only', 'aria-pressed'), 'true');
+    await viewer.page.waitForSelector('#voice-stage:not([hidden])');
+    assert.match(await viewer.page.textContent('#voice-hint'), /só na voz/);
+    // O vídeo deixa de ser recebido; a voz continua
+    await viewer.page.waitForFunction(() => !document.querySelector('#video').srcObject?.getVideoTracks?.().length);
+    assert.equal(await receivingVideo(viewer.page), false);
+    assert.equal(await viewer.page.locator('#audio-sink audio').count(), 1, 'a voz de quem fala continua chegando');
+    assert.ok(await viewer.page.isHidden('#screens'), 'sem a escolha de telas');
+    assert.equal(await viewer.page.evaluate(() => localStorage.getItem('voice-only')), '1');
+
+
+    await viewer.page.click('#voice-only');
+    await viewer.page.waitForFunction(() => document.querySelector('#video').videoWidth > 0);
+    await viewer.page.waitForSelector('#voice-stage', { state: 'hidden' });
+    assert.equal(await viewer.page.getAttribute('#voice-only', 'aria-pressed'), 'false');
+    assert.deepEqual(viewer.errors, []);
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('a escolha fica no navegador e o botão não existe na Live', async () => {
+    const host = await hostRoom('together');
+    await host.page.click('#voice-only');
+    await host.page.reload();
+    await host.page.fill('#name', 'Ana');
+    await host.page.click('#join-form button[type="submit"]');
+    await host.page.waitForSelector('#room:not([hidden])');
+    assert.equal(await host.page.getAttribute('#voice-only', 'aria-pressed'), 'true', 'continua só na voz depois de recarregar');
+
+    const live = await hostRoom('live');
+    assert.ok(await live.page.isHidden('#voice-only'), 'na Live não há só voz');
+    assert.deepEqual(live.errors, []);
+  });
+});
+
+describe('atalhos de teclado', () => {
+  const press = (page, key) => page.keyboard.press(key);
+  const shortcutKey = (page, action) => page.locator(`#shortcut-list [data-action="${action}"]`);
+
+  test('atalhos padrão acionam os botões, e digitar no chat não aciona nada', async () => {
+    const host = await hostRoom('live');
+    await press(host.page, 'm');
+    await host.page.waitForSelector('#mic.on');
+    await press(host.page, 'M');
+    await host.page.waitForSelector('#mic:not(.on)');
+
+    // Silenciar o som: o painel do volume fica fechado, mas o atalho funciona
+    assert.ok(await host.page.isHidden('#volume-panel'));
+    await press(host.page, 'd');
+    await host.page.waitForFunction(() => document.querySelector('#mute-toggle').getAttribute('aria-pressed') === 'true');
+    assert.equal(await host.page.inputValue('#volume'), '0');
+    await press(host.page, 'd');
+    await host.page.waitForFunction(() => document.querySelector('#mute-toggle').getAttribute('aria-pressed') === 'false');
+
+    await press(host.page, 'c');
+    await host.page.waitForSelector('.chat', { state: 'hidden' });
+    await press(host.page, 'c');
+    await host.page.waitForSelector('.chat', { state: 'visible' });
+
+    // Escrevendo uma mensagem, a letra é só uma letra
+    await host.page.fill('#chat-input', '');
+    await host.page.click('#chat-input');
+    await host.page.keyboard.type('mdc');
+    assert.equal(await host.page.inputValue('#chat-input'), 'mdc');
+    assert.ok(await host.page.isHidden('#mic.on'), 'o microfone continua desligado');
+    assert.equal(await host.page.inputValue('#volume'), '1');
+    assert.deepEqual(host.errors, []);
+  });
+
+  test('cada pessoa troca o atalho, que fica só no navegador; conflito tira do outro; Backspace remove', async () => {
+    const host = await hostRoom('live');
+    const requests = [];
+    host.page.on('request', (r) => requests.push(`${r.url()} ${r.postData() ?? ''}`));
+    await host.page.click('#settings-btn');
+    assert.equal(await shortcutKey(host.page, 'mic').textContent(), 'M');
+
+    await shortcutKey(host.page, 'mic').click();
+    assert.match(await shortcutKey(host.page, 'mic').textContent(), /Pressione/);
+    await host.page.keyboard.press('Control+K');
+    assert.equal(await shortcutKey(host.page, 'mic').textContent(), 'Ctrl + K');
+    assert.equal(await host.page.evaluate(() => JSON.parse(localStorage.getItem('shortcuts')).mic), 'Ctrl+K');
+
+    await host.page.keyboard.press('Escape');
+    await host.page.click('#settings-btn', { force: true }).catch(() => {});
+    await host.page.keyboard.press('m');
+    assert.ok(await host.page.isHidden('#mic.on'), 'o M antigo não vale mais');
+    await host.page.keyboard.press('Control+K');
+    await host.page.waitForSelector('#mic.on');
+
+    // Vale depois de recarregar a página: está no navegador
+    await host.page.reload();
+    await host.page.fill('#name', 'Ana');
+    await host.page.click('#join-form button[type="submit"]');
+    await host.page.waitForSelector('#room:not([hidden])');
+    await host.page.click('#settings-btn');
+    assert.equal(await shortcutKey(host.page, 'mic').textContent(), 'Ctrl + K');
+
+    // Usar o atalho de outra ação tira dele
+    await shortcutKey(host.page, 'camera').click();
+    await host.page.keyboard.press('Control+K');
+    assert.equal(await shortcutKey(host.page, 'camera').textContent(), 'Ctrl + K');
+    assert.equal(await shortcutKey(host.page, 'mic').textContent(), 'Sem atalho');
+    assert.match(await host.page.textContent('#toast'), /já era usado/);
+
+    // Espaço sozinho é recusado; Backspace remove
+    await shortcutKey(host.page, 'share').click();
+    await host.page.keyboard.press('Space');
+    assert.match(await shortcutKey(host.page, 'share').textContent(), /Pressione/, 'continua esperando uma combinação válida');
+    await host.page.keyboard.press('Backspace');
+    assert.equal(await shortcutKey(host.page, 'share').textContent(), 'Sem atalho');
+
+    // Restaurar devolve os padrões e apaga o que estava guardado
+    await host.page.click('#shortcuts-reset');
+    assert.equal(await shortcutKey(host.page, 'mic').textContent(), 'M');
+    assert.equal(await shortcutKey(host.page, 'share').textContent(), 'S');
+    assert.equal(await host.page.evaluate(() => localStorage.getItem('shortcuts')), null);
+
+    assert.ok(!requests.some((r) => r.includes('Ctrl+K')), 'nenhuma requisição leva os atalhos: ficam só no navegador');
+    assert.deepEqual(host.errors, []);
+  });
+});
+
+describe('controles de quem assiste', () => {
+  test('ficam à direita, abaixo do vídeo', async () => {
+    const host = await hostRoom('live');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    const controls = await viewer.page.locator('#viewer-controls').boundingBox();
+    const player = await viewer.page.locator('#player').boundingBox();
+    assert.ok(await viewer.page.isHidden('#host-controls'), 'quem assiste não tem entradas à esquerda');
+    assert.ok(controls.y >= player.y + player.height, 'abaixo do vídeo');
+    assert.ok(controls.x + controls.width >= player.x + player.width - 4, `colados à direita (${controls.x + controls.width} de ${player.x + player.width})`);
+    assert.ok(controls.x > player.x + player.width / 2, 'e não no lado esquerdo');
+    assert.deepEqual(viewer.errors, []);
+  });
+});
+
 describe('retorno visual dos botões', () => {
   test('ligar e desligar um botão toca uma animação, e o clique afunda o botão', async () => {
     const host = await hostRoom('live');

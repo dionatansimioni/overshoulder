@@ -615,6 +615,8 @@ button.round.nav-toggle { width: 40px; height: 40px; }
 
 .dock { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .dock-group { display: flex; gap: 12px; }
+/* Os controles de quem assiste ficam à direita, abaixo do vídeo, mesmo quando não há controles à esquerda */
+#viewer-controls { margin-left: auto; }
 .dock-group:empty, .dock-group:not(:has(.controls:not([hidden]))) { display: none; }
 /* Barra de controles em vidro fosco */
 .controls {
@@ -1235,3 +1237,10 @@ button.round.fx-off .icon, button.mute-toggle.fx-off .icon { animation: fx-settl
 @media (prefers-reduced-motion: reduce) {
   .voice-avatar.speaking .wave, button.fx-on, button.fx-off, button.fx-on .icon, button.fx-off .icon { animation: none; }
 }
+
+/* --- atalhos de teclado (ajustes) ------------------------------------------------------------- */
+
+.shortcut-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+.shortcut-key { flex: none; min-width: 84px; padding: 4px 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.shortcut-key.capturing { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(34, 211, 238, .25); color: var(--accent-2); }

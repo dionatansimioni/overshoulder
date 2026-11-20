@@ -9,7 +9,33 @@ A tela de entrada da sala tem uma prévia: ligue a câmera e o microfone para te
 ## A barra de controles
 
 - **À esquerda, suas entradas:** microfone, câmera e tela (ou janela). O microfone ligado mostra um anel que cresce com a sua voz.
-- **À direita:** volume, tela cheia, ocultar a própria tela, gravar, ajustes e encerrar a sala.
+- **À direita, abaixo do vídeo:** volume, tela cheia, ocultar a própria tela, gravar, ajustes e encerrar a sala. Quem assiste tem o mesmo grupo, também à direita.
+- **Volume:** clique no alto-falante para abrir o painel (ele flutua sobre a página, então nada na barra se mexe). Nele estão o botão de silenciar e a barra (0 a 100%).
+- **O botão do chat** fica numa coluna estreita ao lado do chat. Com o chat escondido a coluna continua, para trazê-lo de volta; um ponto avisa que chegou mensagem.
+- Os botões dão retorno: afundam ao serem apertados e um anel sai deles ao ligar ou desligar.
+
+## Atalhos de teclado
+
+Tudo abaixo funciona quando o foco não está num campo de texto. Em **Ajustes › Atalhos de teclado**, clique num atalho e aperte a combinação que quiser (por exemplo `Ctrl+K`). **Esc** cancela, **Backspace** remove o atalho e **Restaurar atalhos padrão** devolve os originais. Se a combinação já era de outra ação, a outra a perde.
+
+| Ação | Padrão |
+|---|---|
+| Ligar ou desligar o microfone | `M` |
+| Ligar ou desligar a câmera | `V` |
+| Compartilhar ou parar a tela | `S` |
+| Silenciar ou voltar o som | `D` |
+| Tela cheia | `F` |
+| Esconder ou mostrar o chat | `C` |
+| Pedir a palavra, gravar, só voz | sem atalho (você pode definir) |
+
+Seus atalhos ficam guardados **só no seu navegador** (`localStorage`) e nunca vão para o servidor. Um atalho só funciona quando o botão dele está disponível para você (por exemplo, o do microfone não faz nada se você não pode falar).
+
+## Chamada de voz (Jogando juntos)
+
+- **Quem está falando:** anel verde e ondas de som saem do círculo de quem fala, na tela de voz, na lista de Pessoas e numa tira sobre o vídeo quando alguém transmite. Um microfone cortado marca quem está mudo.
+- **Volume por pessoa:** em **Pessoas**, cada um tem um botão de silenciar e uma barra de volume, **só para você**: ninguém mais é afetado e some ao recarregar. O volume geral multiplica o dela.
+- **Só voz:** o botão de fones permite ouvir e falar com os amigos sem receber a tela (e sem gastar a sua banda com ela). Clique de novo para voltar a assistir. A escolha fica no navegador.
+- **Eco:** a captura de tela pede ao navegador que deixe de fora o som que esta página toca (as vozes da chamada), para ele não voltar à sala dentro da transmissão. Funciona no Chrome e no Edge do Windows e do macOS; outros navegadores podem ignorar.
 
 ## Compartilhar a tela
 

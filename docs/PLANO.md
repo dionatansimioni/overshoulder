@@ -217,6 +217,16 @@ Empresas deixam de ser o foco (mercado concorrido), mas a segurança continua nu
 - **Não resolvido:** janela de jogo em tela cheia exclusiva grava um quadro só (o Chrome só entrega quadros quando a janela muda). Documentado; sem correção limpa no navegador. Uma gravação em taxa fixa por `canvas.captureStream` pesaria no PC de quem joga e não resolve se nenhum quadro chegar.
 - A suspeita de estalos no áudio (mistura do `AudioContext`) segue aberta.
 
+### Playtest de 19/11/2026 (v0.2.8): áudio no estilo Discord
+- ✅ Volume: o ícone abre um painel **só ao clicar** (mudo dentro), flutuando sobre a página. Antes, passar o mouse abria a barra e empurrava os outros botões. No celular o ícone continua só silenciando.
+- ✅ Quem fala: anel verde e ondas que saem do círculo (tela de voz, Pessoas e uma tira sobre o vídeo); microfone cortado em quem está mudo. Em "Jogando juntos" todos aparecem na tira; na Live, só quem tem microfone.
+- ✅ "Jogando juntos": volume e mudo por pessoa, só para quem ajusta (memória da página; volume geral × o da pessoa). Só para a voz (microfone), não para o áudio da tela.
+- ✅ Eco: `restrictOwnAudio: true` na captura (Chrome/Edge no Windows e no macOS). **Falta confirmar numa chamada real.** Se persistir, o caminho é tocar as vozes por um caminho que a captura não pegue.
+- ✅ Botão do chat numa coluna ao lado dele (sempre visível, com ponto de mensagem nova); botões redondos com retorno ao ligar, desligar e clicar (`public/button-fx.js`).
+- ✅ Atalhos de teclado personalizáveis (`public/shortcuts.js`), guardados só no `localStorage`: mic `M`, câmera `V`, tela `S`, som `D`, tela cheia `F`, chat `C`; pedir a palavra, gravar e só voz sem atalho. Ignorados ao digitar em campos; conflito tira da outra ação.
+- ✅ Controles de quem assiste agora ficam à direita, abaixo do vídeo.
+- ✅ "Jogando juntos": **só voz** (botão de fones) ouve e fala sem receber a tela nem gastar banda; fica no navegador. O vídeo deixa de ser assinado (`applySubscriptions`).
+
 ### Primeiro teste numa VPS real (17/11/2026, Hostinger, Ubuntu 26.04)
 - ✅ Instalador travava no `curl … | sudo bash` (teclado e CTRL+C não chegavam). Reproduzido no Ubuntu 25.10 (sudo-rs 0.2.8); no container do 26.04 não reproduziu. Comando documentado virou `sudo bash -c "$(curl …)"`, e o instalador para com explicação se não conseguir ler o terminal.
 - ✅ Instalador, comando `overshoulder` e `cli.js` em inglês e português (`LANG` ou `OVERSHOULDER_LANG`; inglês por padrão).

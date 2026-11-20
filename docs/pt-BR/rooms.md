@@ -61,7 +61,7 @@ Na gaveta lateral da sala, **Administração** e **Minha conta** abrem em outra 
 
 O painel lateral tem o **Chat** (para o anfitrião, só as conversas), **Pessoas** e, para o anfitrião, o **Registro**: quem entrou, quem saiu, pedidos de palavra, a sala de espera e os outros eventos da sala. Quem assiste não tem o Registro e continua vendo esses avisos no chat. O olho no alto mostra quantas pessoas estão na sala.
 
-No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel; os Ajustes abrem numa folha que sobe de baixo. No computador, a barra de volume abre ao passar o mouse no alto-falante e mostra o nível (0 a 100%) enquanto você arrasta. O ícone do alto-falante silencia a sala: a barra vai a zero e fica vermelha, e clicar de novo devolve o volume que estava.
+No celular em pé, o vídeo fica no topo, os controles logo abaixo e o chat ocupa o resto da tela. Deitado, o chat fica ao lado do vídeo e pode ser escondido pelo botão do painel, que fica numa coluna própria ao lado do chat; os Ajustes abrem numa folha que sobe de baixo. No computador, o ícone do alto-falante abre um painel de volume ao ser clicado (não ao passar o mouse). O painel tem um botão de silenciar, que leva a barra a zero e a deixa vermelha, e clicar de novo devolve o volume que estava.
 
 ## Destacar uma pergunta (Live)
 
