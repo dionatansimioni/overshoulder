@@ -362,6 +362,9 @@ const EN = {
   Volume: 'Volume',
   'Só voz: não assistir à tela': 'Voice only: don’t watch the screen',
   'Voltar a assistir à tela': 'Watch the screen again',
+  'Esconder quem está na voz': 'Hide who is in the call',
+  'Mostrar quem está na voz': 'Show who is in the call',
+  'Esconder ou mostrar quem está na voz': 'Hide or show who is in the call',
   'Você está só na voz, sem assistir à tela. Use o botão de fones, embaixo, para voltar a assistir.':
     'You are in voice only, not watching the screen. Use the headphones button below to watch again.',
   'Só ouvir e falar (sem assistir à tela)': 'Listen and talk only (don’t watch the screen)',

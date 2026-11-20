@@ -369,6 +369,35 @@ describe('chamada de voz (como no Discord)', () => {
     assert.deepEqual(viewer.errors, []);
   });
 
+  test('a tira fica semitransparente sobre a transmissão e dá para esconder e mostrar', async () => {
+    const host = await hostRoom('together');
+    const viewer = await join(await host.page.inputValue('#invite-link'));
+    assert.ok(await host.page.isHidden('#voice-strip-toggle'), 'sem vídeo no ar não há tira para esconder');
+
+    await viewer.page.click('#mic');
+    await host.page.click('#camera');
+    await host.page.waitForSelector('#voice-strip:not([hidden])');
+    assert.ok(await host.page.isVisible('#voice-strip-toggle'));
+    assert.equal(await host.page.getAttribute('#voice-strip-toggle', 'aria-pressed'), 'false');
+    // Quem não fala fica bem transparente; a tira inteira também, para não cobrir a live
+    const alpha = await host.page.$eval('#voice-strip li:not(.speaking) .voice-avatar', (e) => Number(getComputedStyle(e).opacity));
+    assert.ok(alpha <= 0.5, `avatar de quem não fala semitransparente (opacidade ${alpha})`);
+    const bg = await host.page.$eval('#voice-strip', (e) => getComputedStyle(e).backgroundColor);
+    assert.ok(Number(/,\s*([\d.]+)\)$/.exec(bg)?.[1]) <= 0.3, `fundo da tira transparente (${bg})`);
+
+    await host.page.click('#voice-strip-toggle');
+    await host.page.waitForSelector('#voice-strip', { state: 'hidden' });
+    assert.equal(await host.page.getAttribute('#voice-strip-toggle', 'aria-pressed'), 'true');
+    assert.ok(await host.page.isVisible('#voice-strip-toggle'), 'o botão continua lá para mostrar de novo');
+    assert.equal(await host.page.evaluate(() => localStorage.getItem('voice-strip-hidden')), '1');
+
+    await host.page.click('#voice-strip-toggle');
+    await host.page.waitForSelector('#voice-strip:not([hidden])');
+    assert.equal(await host.page.getAttribute('#voice-strip-toggle', 'aria-pressed'), 'false');
+    assert.deepEqual(host.errors, []);
+    assert.deepEqual(viewer.errors, []);
+  });
+
   test('"Jogando juntos": o microfone cortado aparece ao lado do nome de quem está mudo, em Pessoas', async () => {
     const host = await hostRoom('together');
     const viewer = await join(await host.page.inputValue('#invite-link'));

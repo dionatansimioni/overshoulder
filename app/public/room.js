@@ -226,6 +226,8 @@ const recordingOn = () => {
 let watching = null;
 // "Jogando juntos": só voz. Ouve e fala com os amigos sem receber a tela (a escolha fica neste navegador)
 let voiceOnly = storage.get(localStorage, 'voice-only') === '1';
+// A tira de quem está na voz fica sobre a transmissão: cada pessoa pode escondê-la (fica guardado no navegador)
+let voiceStripHidden = storage.get(localStorage, 'voice-strip-hidden') === '1';
 const voiceOnlyOn = () => voiceOnly && meta.type === 'together';
 let mainTrack = null;
 let pipTrack = null;
@@ -519,8 +521,11 @@ const voiceAvatar = (p, size = 'sm') => {
 const renderVoiceStrip = () => {
   const strip = $('voice-strip');
   const members = room && $('voice-stage').hidden && !$('room').hidden ? everyone().filter(inCall) : [];
-  strip.hidden = members.length === 0;
-  if (!members.length) return strip.replaceChildren();
+  // O botão só existe enquanto há tira para esconder (vídeo no ar e gente na chamada)
+  $('voice-strip-toggle').hidden = members.length === 0;
+  setToggle('voice-strip-toggle', voiceStripHidden, ['Esconder quem está na voz', 'Mostrar quem está na voz'], ['#i-user', '#i-eye-off']);
+  strip.hidden = members.length === 0 || voiceStripHidden;
+  if (strip.hidden) return strip.replaceChildren();
   // Quem fala vem primeiro e a tira não cresce sem fim
   const ordered = [...members].sort((a, b) => Number(b.isSpeaking) - Number(a.isSpeaking));
   const shown = ordered.slice(0, STRIP_MAX);
@@ -1790,6 +1795,7 @@ const setupShortcuts = () => {
       { id: 'fullscreen', label: t('Tela cheia'), key: 'F', run: pressIfUsable('fullscreen') },
       { id: 'chat', label: t('Esconder ou mostrar o chat'), key: 'C', run: pressIfUsable('chat-hide') },
       { id: 'voiceonly', label: t('Só ouvir e falar (sem assistir à tela)'), key: null, run: pressIfUsable('voice-only') },
+      { id: 'voicestrip', label: t('Esconder ou mostrar quem está na voz'), key: null, run: pressIfUsable('voice-strip-toggle') },
       { id: 'hand', label: t('Pedir a palavra'), key: null, run: pressIfUsable('raise-hand') },
       { id: 'record', label: t('Gravar ou parar a gravação'), key: null, run: pressIfUsable('record') },
     ],
@@ -1836,6 +1842,11 @@ const setupViewing = () => {
     voiceOnly = !voiceOnly;
     storage.set(localStorage, 'voice-only', voiceOnly ? '1' : '0');
     renderStage();
+  });
+  $('voice-strip-toggle').addEventListener('click', () => {
+    voiceStripHidden = !voiceStripHidden;
+    storage.set(localStorage, 'voice-strip-hidden', voiceStripHidden ? '1' : '0');
+    renderVoiceStrip();
   });
   const toggleMute = () => {
     const level = currentVolume();
