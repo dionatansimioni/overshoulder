@@ -125,8 +125,9 @@ const EN = {
   'Esconder senha': 'Hide password',
   'Mostrar senha': 'Show password',
   'Sair desta sala? Sua transmissão para aqui.': 'Leave this room? Your broadcast stops here.',
-  'No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar”: o chat mostra o que escolher.':
-    'On Linux, the browser does not send the computer sound with the screen. In Settings › Game audio, click “List”: the chat shows what to pick.',
+  'Para enviar o som do computador no Linux, feche todas as janelas do Chrome, abra-o de novo pelo terminal com o comando abaixo (no Chromium, troque o nome do programa), compartilhe a tela inteira e marque “Compartilhar áudio do sistema”:':
+    'To send the computer sound on Linux, close every Chrome window, open it again from a terminal with the command below (on Chromium, change the program name), share the entire screen and check “Share system audio”:',
+  'Não foi possível copiar: selecione e copie à mão': 'Could not copy: select it and copy by hand',
   'Enviando o áudio de: {device}': 'Sending audio from: {device}',
   'Não foi possível usar esse áudio: {error}': 'Could not use that audio: {error}',
   'Qualidade que você recebe': 'Quality you receive',
@@ -534,10 +535,10 @@ const EN = {
   'Clique em “Listar” para ver os microfones e dispositivos de áudio. No Linux, o navegador só captura áudio de abas: para o áudio do jogo, clique em “Listar” e o chat mostra o que escolher.':
     'Click “List” to see microphones and audio devices. On Linux, the browser only captures tab audio: for game audio, click “List” and the chat shows what to pick.',
   'Dispositivos carregados.': 'Devices loaded.',
-  'Nenhum “Monitor of …” na lista: o Chrome no Linux esconde esses dispositivos. Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha “Overshoulder-jogo” em Áudio do jogo:':
-    'No “Monitor of …” in the list: Chrome on Linux hides these devices. Run the command below in a terminal, click “List” again and pick “Overshoulder-jogo” under Game audio:',
-  'Dispositivos carregados. Em Áudio do jogo, escolha o “Monitor of …” da sua saída de som (ou o “Overshoulder-jogo”).':
-    'Devices loaded. In Game audio, pick the “Monitor of …” device of your sound output (or “Overshoulder-jogo”).',
+  'Nenhum “Monitor of …” na lista: o Chrome no Linux esconde esses dispositivos. Para enviar o som do computador, feche todas as janelas do Chrome, abra-o de novo pelo terminal com o comando abaixo (no Chromium, troque o nome do programa), compartilhe a tela inteira e marque “Compartilhar áudio do sistema”:':
+    'No “Monitor of …” in the list: Chrome on Linux hides these devices. To send the computer sound, close every Chrome window, open it again from a terminal with the command below (on Chromium, change the program name), share the entire screen and check “Share system audio”:',
+  'Dispositivos carregados. Em Áudio do jogo, escolha o “Monitor of …” da sua saída de som.':
+    'Devices loaded. In Game audio, pick the “Monitor of …” device of your sound output.',
   '{name} está apresentando': '{name} is presenting',
   'Este navegador não permite compartilhar a tela. Use Chrome, Edge ou Firefox no computador.':
     'This browser cannot share the screen. Use Chrome, Edge or Firefox on a computer.',

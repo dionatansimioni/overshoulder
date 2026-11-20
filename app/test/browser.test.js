@@ -195,17 +195,47 @@ test('lista de dispositivos preenche microfone e áudio do jogo', async () => {
   await host.page.waitForFunction(() => document.querySelector('#mic-device').options.length > 1);
   assert.ok((await host.page.locator('#audio-device option').count()) > 1);
   // O Chrome de teste roda no Linux e só tem dispositivos falsos, sem nenhum "Monitor of": o chat explica
-  // como criar a fonte que o Chrome enxerga e mostra o comando para copiar
-  await host.page.waitForSelector('#messages .linux-monitor-command');
+  // como abrir o Chrome com o som do computador ligado e mostra o comando para copiar
+  await host.page.waitForSelector('#messages .linux-chrome-command');
   assert.match(await host.page.textContent('#messages'), /o Chrome no Linux esconde esses dispositivos/);
-  const command = await host.page.textContent('.linux-monitor-command');
-  assert.match(command, /libpipewire-module-loopback/);
-  assert.match(command, /stream\.capture\.sink = true/);
-  assert.match(command, /media\.class = "Audio\/Source"/);
-  assert.match(command, /systemctl --user restart pipewire pipewire-pulse wireplumber$/);
+  const command = await host.page.textContent('.linux-chrome-command');
+  assert.equal(command, 'google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare');
+  assert.doesNotMatch(command, /systemctl|pipewire|pactl/, 'nada de mexer no servidor de som do usuário');
 });
 
-test('fora do Linux, listar dispositivos não mostra o comando do PulseAudio', async () => {
+test('botão Copiar do comando copia o comando mostrado, e avisa quando não consegue', async () => {
+  const context = await browser.newContext({ permissions: ['microphone'] });
+  const page = await context.newPage();
+  await createRoomAsHost(page);
+  await page.click('#settings-btn');
+  await page.click('#load-devices');
+  await page.waitForSelector('#messages .linux-chrome-command');
+  const shown = await page.textContent('.linux-chrome-command');
+  const button = '#messages .command-box button';
+  const label = () => page.textContent(button);
+
+  // Área de transferência que funciona: o que vai para ela é exatamente o comando mostrado
+  await page.evaluate(() => {
+    window.__copied = null;
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => (window.__copied = t) }, configurable: true });
+  });
+  await page.click(button);
+  await page.waitForFunction((sel) => /Copiado/.test(document.querySelector(sel).textContent), button);
+  assert.equal(await page.evaluate(() => window.__copied), shown);
+
+  // Promessa que nunca resolve (sem permissão ou foco) e sem o método antigo: o botão avisa, não finge que copiou
+  await page.waitForFunction((sel) => document.querySelector(sel).textContent === 'Copiar', button);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => new Promise(() => {}) }, configurable: true });
+    document.execCommand = () => false;
+  });
+  await page.click(button);
+  await page.waitForFunction((sel) => /Não foi possível copiar/.test(document.querySelector(sel).textContent), button);
+  assert.notEqual(await label(), 'Copiado!');
+  await context.close();
+});
+
+test('fora do Linux, listar dispositivos não mostra o comando do Chrome', async () => {
   const context = await browser.newContext({
     permissions: ['microphone'],
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -215,7 +245,7 @@ test('fora do Linux, listar dispositivos não mostra o comando do PulseAudio', a
   await page.click('#settings-btn');
   await page.click('#load-devices');
   await page.waitForFunction(() => /Dispositivos carregados\./.test(document.querySelector('#messages').textContent));
-  assert.equal(await page.locator('.linux-monitor-command').count(), 0);
+  assert.equal(await page.locator('.linux-chrome-command').count(), 0);
 });
 
 test('seletor de emojis insere no cursor, troca de categoria e guarda recentes', async () => {

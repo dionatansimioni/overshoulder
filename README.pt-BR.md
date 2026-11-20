@@ -113,10 +113,8 @@ Para remover o aviso de vez num aparelho, instale a CA do Caddy nele:
 ## Áudio do jogo
 
 - **Windows (Chrome/Edge):** ao escolher "Tela inteira", marque "Compartilhar áudio do sistema".
-- **Linux:** o navegador só captura áudio de *abas*. Para o áudio do jogo, abra os ajustes da transmissão na sala, clique em “Listar” e escolha em “Áudio do jogo” a fonte do som do computador. Ele é enviado em estéreo, sem filtros de voz.
-  - **Firefox:** escolha o **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio).
-  - **Chrome, Chromium, Edge e Brave:** eles escondem de propósito os "Monitor of …". Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha **"Overshoulder-jogo"** (o chat da sala mostra o mesmo comando, com botão de copiar):
-    `mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber`
+- **Linux:** o navegador só captura áudio de *abas*, a menos que seja aberto com a funcionalidade abaixo. No Chrome, Chromium, Edge ou Brave, feche todas as janelas, abra de novo com `google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare`, compartilhe a tela inteira e marque “Compartilhar áudio do sistema” (o chat da sala mostra o comando com botão de copiar). Vai o som do computador inteiro.
+  - **Firefox:** escolha o **"Monitor of …"** da sua saída de som em “Áudio do jogo” (abra os ajustes da transmissão e clique em “Listar”).
   - Para transmitir só o jogo, sem o Discord ou outros apps, veja [docs/pt-BR/broadcasting.md](docs/pt-BR/broadcasting.md#áudio-do-jogo).
 
 ## Dicas de qualidade

@@ -40,16 +40,41 @@ export const busy = async (form, fn) => {
   }
 };
 
-// Copia o texto e mostra "Copiado!" no botão; sem acesso à área de transferência, seleciona o campo
+// Copia o texto e mostra "Copiado!" no botão. A API moderna só existe em páginas seguras (HTTPS ou localhost) e
+// pode ser negada; aí tenta o método antigo e, se ainda assim falhar, seleciona o texto e avisa no botão, para o
+// usuário nunca achar que copiou quando a área de transferência ficou com outra coisa.
+const copyFallback = (text) => {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.append(area);
+  area.select();
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+};
+
 export const copyText = async (text, button, input) => {
   const label = button.textContent;
+  let ok = false;
   try {
-    await navigator.clipboard.writeText(text);
-    button.textContent = t('Copiado!');
-    setTimeout(() => (button.textContent = label), 1500);
+    // Sem permissão ou foco, o navegador pode deixar a promessa pendurada: sem limite, o botão parecia não fazer nada
+    await Promise.race([
+      navigator.clipboard.writeText(text),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+    ]);
+    ok = true;
   } catch {
-    input?.select();
+    ok = copyFallback(text);
   }
+  if (!ok) input?.select();
+  button.textContent = ok ? t('Copiado!') : t('Não foi possível copiar: selecione e copie à mão');
+  setTimeout(() => (button.textContent = label), ok ? 1500 : 3500);
 };
 
 // Mostrar a senha: um olho dentro de todo campo de senha da página. Clicar alterna entre ver e esconder;

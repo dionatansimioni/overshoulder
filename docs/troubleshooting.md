@@ -21,7 +21,7 @@ The link lost the part after the `#` (some apps cut it off). Ask for the link ag
 
 ## Viewers can't hear the game (Linux)
 
-Pick the computer's sound source under Settings › Game audio and check that the settings show "Sending audio from: …". In Chrome and browsers based on it, "Monitor of …" devices are hidden on purpose: run the command the room chat shows and pick "Overshoulder-jogo". In Firefox, if "Monitor of" doesn't show up, click "List" again after allowing the microphone. See [Broadcasting](broadcasting.md#game-audio).
+Check that the settings show "Sending audio from: …". In Chrome and browsers based on it, close every window and open it again with `google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare` (the room chat shows the command), then share the entire screen and check "Share system audio". In Firefox, pick the **"Monitor of …"** device under Settings › Game audio (click "List" again after allowing the microphone). See [Broadcasting](broadcasting.md#game-audio).
 
 ## My internet can't keep up
 

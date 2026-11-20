@@ -21,7 +21,7 @@ import { Recorder, recordingFormat, recordingWarning } from '/static/recorder.js
 import { finishPreview, setupPreview } from '/static/preview.js';
 import { rememberRoom, renameRoom } from '/static/rooms-local.js';
 import { mountRoomList } from '/static/room-list.js';
-import { api } from '/static/ui.js';
+import { api, copyText } from '/static/ui.js';
 import { mountButtonFeedback } from '/static/button-fx.js';
 import { mountShortcuts } from '/static/shortcuts.js';
 
@@ -1403,18 +1403,26 @@ const startShare = async () => {
   // No Linux o navegador não captura o som do computador junto com a tela: explica onde escolher
   const captured = room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
   if (!captured && IS_LINUX) {
-    addMessage(t('No Linux, o navegador não envia o som do computador junto com a tela. Em Ajustes › Áudio do jogo, clique em “Listar”: o chat mostra o que escolher.'));
+    addLinuxChromeHelp(t('Para enviar o som do computador no Linux, feche todas as janelas do Chrome, abra-o de novo pelo terminal com o comando abaixo (no Chromium, troque o nome do programa), compartilhe a tela inteira e marque “Compartilhar áudio do sistema”:'));
   }
 };
 
 const IS_LINUX = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
-// O Chrome e o Chromium no Linux escondem de propósito as fontes "Monitor of …". Esta fonte virtual do PipeWire
-// aparece para eles como um microfone comum e, sem destino fixo, o WirePlumber a liga sempre à saída padrão: ela
-// acompanha a troca de caixas para fones (ou Bluetooth, HDMI). O arquivo vale também depois de reiniciar o
-// computador. Precisa ser "Audio/Source": com "Audio/Source/Virtual" o PipeWire 1.0 cria as portas erradas e a
-// fonte não inicia. scripts/test-pipewire.sh roda exatamente este comando num PipeWire de verdade.
-const LINUX_MONITOR_COMMAND =
-  `mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber`;
+// No Linux o Chrome só captura o som do computador junto com a tela se for aberto com esta funcionalidade
+// ligada (vem desligada por padrão). Não mexe no PipeWire nem em arquivos: fechar o Chrome desfaz tudo.
+const LINUX_CHROME_COMMAND = 'google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare';
+
+// Mensagem no chat com o comando num bloco à parte e o botão de copiar
+const addLinuxChromeHelp = (text) => {
+  addMessage(text);
+  const box = el('div', 'command-box');
+  const code = el('code', 'linux-chrome-command', LINUX_CHROME_COMMAND);
+  const copy = el('button', 'secondary', t('Copiar'));
+  copy.type = 'button';
+  copy.addEventListener('click', () => copyText(LINUX_CHROME_COMMAND, copy));
+  box.append(code, copy);
+  $('messages').lastElementChild.append(box);
+};
 
 // Áudio do jogo por um dispositivo de entrada (no Linux, o "Monitor of …" da saída de som), enviado como
 // áudio da tela: sem filtros de voz e em estéreo
@@ -1594,19 +1602,9 @@ const setupPublishControls = () => {
       if (d.kind === 'videoinput') $('camera-device').add(new Option(d.label || d.deviceId, d.deviceId));
     }
     if (!IS_LINUX) addMessage(t('Dispositivos carregados.'));
-    else if (labels.some((l) => /monitor|overshoulder-jogo/i.test(l)))
-      addMessage(t('Dispositivos carregados. Em Áudio do jogo, escolha o “Monitor of …” da sua saída de som (ou o “Overshoulder-jogo”).'));
-    else {
-      addMessage(t('Nenhum “Monitor of …” na lista: o Chrome no Linux esconde esses dispositivos. Rode no terminal o comando abaixo, clique em “Listar” de novo e escolha “Overshoulder-jogo” em Áudio do jogo:'));
-      // O comando vai num bloco à parte, com botão de copiar: a mensagem do sistema é texto corrido
-      const box = el('div', 'command-box');
-      const code = el('code', 'linux-monitor-command', LINUX_MONITOR_COMMAND);
-      const copy = el('button', 'secondary', t('Copiar'));
-      copy.type = 'button';
-      copy.addEventListener('click', () => copyText(LINUX_MONITOR_COMMAND, copy));
-      box.append(code, copy);
-      $('messages').lastElementChild.append(box);
-    }
+    else if (labels.some((l) => /monitor/i.test(l)))
+      addMessage(t('Dispositivos carregados. Em Áudio do jogo, escolha o “Monitor of …” da sua saída de som.'));
+    else addLinuxChromeHelp(t('Nenhum “Monitor of …” na lista: o Chrome no Linux esconde esses dispositivos. Para enviar o som do computador, feche todas as janelas do Chrome, abra-o de novo pelo terminal com o comando abaixo (no Chromium, troque o nome do programa), compartilhe a tela inteira e marque “Compartilhar áudio do sistema”:'));
   });
 };
 

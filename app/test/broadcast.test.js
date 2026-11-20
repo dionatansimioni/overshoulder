@@ -209,9 +209,10 @@ describe('áudio do jogo (Linux: "Monitor of …")', () => {
     };
   };
 
-  test('sem som da captura no Linux, o chat explica onde escolher o áudio do jogo', async () => {
+  test('sem som da captura no Linux, o chat mostra como abrir o Chrome com o som do computador', async () => {
     const { host } = await sharing({ hostInit: linuxCapture });
-    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Áudio do jogo, clique em “Listar”: o chat mostra o que escolher'));
+    await host.page.waitForFunction(() => document.querySelector('#messages').textContent.includes('Para enviar o som do computador no Linux'));
+    assert.equal(await host.page.textContent('#messages .linux-chrome-command'), 'google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare');
   });
 
   test('escolher o áudio com a tela já compartilhada vale na hora, e desligar para de enviar', async () => {

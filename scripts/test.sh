@@ -43,7 +43,6 @@ docker run --rm --network host --ipc host --init \
 # Só na suíte completa (sem argumentos): rodar um arquivo de teste não precisa recompilar a imagem
 if [ $# -eq 0 ]; then
   docker rm -f overshoulder-test-livekit >/dev/null 2>&1 || true
-  ./scripts/test-pipewire.sh
   ./scripts/test-image.sh
   ./scripts/test-installer.sh
 fi

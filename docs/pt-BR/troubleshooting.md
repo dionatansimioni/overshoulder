@@ -21,7 +21,7 @@ O link perdeu a parte depois do `#` (alguns apps cortam). Peça o link de novo, 
 
 ## Quem assiste não ouve o jogo (Linux)
 
-Escolha a fonte do som do computador em Ajustes › Áudio do jogo e confira se os ajustes mostram "Enviando o áudio de: …". No Chrome e nos navegadores baseados nele, os "Monitor of …" não aparecem de propósito: rode o comando que o chat da sala mostra e escolha "Overshoulder-jogo". No Firefox, se o "Monitor of" não aparecer, clique em "Listar" de novo depois de permitir o microfone. Veja [Transmitir](broadcasting.md#áudio-do-jogo).
+Confira se os ajustes mostram "Enviando o áudio de: …". No Chrome e nos navegadores baseados nele, feche todas as janelas e abra de novo com `google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare` (o chat da sala mostra o comando), depois compartilhe a tela inteira e marque "Compartilhar áudio do sistema". No Firefox, escolha o **"Monitor of …"** em Ajustes › Áudio do jogo (clique em "Listar" de novo depois de permitir o microfone). Veja [Transmitir](broadcasting.md#áudio-do-jogo).
 
 ## A internet não dá conta
 

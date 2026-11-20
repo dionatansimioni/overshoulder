@@ -113,10 +113,8 @@ To remove the warning for good on a device, install Caddy's CA on it:
 ## Game audio
 
 - **Windows (Chrome/Edge):** when picking "Entire screen", check "Share system audio".
-- **Linux:** the browser only captures *tab* audio. For game audio, open the broadcast settings in the room, click “List” and pick the computer's sound source under “Game audio”. It is sent in stereo, without voice filters.
-  - **Firefox:** pick your sound output's **"Monitor of …"** device (PipeWire/PulseAudio).
-  - **Chrome, Chromium, Edge, Brave:** they deliberately hide "Monitor of …" devices. Run this in a terminal, click “List” again and pick **"Overshoulder-jogo"** (the room chat shows the same command with a copy button):
-    `mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber`
+- **Linux:** the browser only captures *tab* audio, unless it is opened with the feature below. In Chrome, Chromium, Edge or Brave, close every window, open it again with `google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare`, share the entire screen and check “Share system audio” (the room chat shows the command with a copy button). It sends the sound of the whole computer.
+  - **Firefox:** pick your sound output's **"Monitor of …"** device under “Game audio” (open the broadcast settings and click “List”).
   - To broadcast only the game, not Discord or other apps, see [docs/broadcasting.md](docs/broadcasting.md#game-audio).
 
 ## Quality tips

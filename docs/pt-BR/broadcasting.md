@@ -56,13 +56,11 @@ Em **Ajustes**: qualidade (até a máxima que o admin permite) e codec.
 ## Áudio do jogo
 
 - **Windows (Chrome/Edge):** ao escolher "Tela inteira", marque "Compartilhar áudio do sistema".
-- **Linux:** o navegador não envia o som do computador junto com a tela. Em **Ajustes › Áudio do jogo**, clique em "Listar" e escolha a fonte do som do computador. Vale na hora, mesmo com a tela já compartilhada, e os ajustes mostram de onde o áudio está saindo.
-  - **Firefox:** escolha o **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio).
-  - **Chrome, Chromium, Edge e Brave:** eles escondem de propósito os "Monitor of …". Rode no terminal o comando abaixo (PipeWire, o padrão nas distros atuais), clique em "Listar" de novo e escolha **"Overshoulder-jogo"**. O chat da sala mostra o mesmo comando, com botão de copiar. Ele cria uma fonte que **acompanha a saída de som padrão**: pode trocar de caixas para fones ou Bluetooth sem refazer nada, e ela continua valendo depois de reiniciar o computador. O comando reinicia o som por um instante, então rode antes de transmitir.
+- **Linux (Chrome, Chromium, Edge, Brave):** o navegador só envia o som do computador junto com a tela quando é aberto com uma funcionalidade ligada (ela vem desligada). Feche todas as janelas do navegador, abra-o de novo pelo terminal com o comando abaixo, compartilhe a **tela inteira** e marque **"Compartilhar áudio do sistema"**. Vai o som do computador inteiro, não de um app só. Nada é instalado nem alterado no sistema: fechar o navegador desfaz. No Chromium, Edge ou Brave, troque o nome do programa. O chat da sala mostra o mesmo comando, com botão de copiar, quando percebe que o som não foi junto.
     ```bash
-    mkdir -p ~/.config/pipewire/pipewire.conf.d && echo 'context.modules = [ { name = libpipewire-module-loopback args = { node.description = "Overshoulder-jogo" audio.position = [ FL FR ] capture.props = { node.name = "overshoulder_jogo_in" node.passive = true stream.capture.sink = true } playback.props = { node.name = "overshoulder_jogo" media.class = "Audio/Source" } } } ]' > ~/.config/pipewire/pipewire.conf.d/overshoulder.conf && systemctl --user restart pipewire pipewire-pulse wireplumber
+    google-chrome-stable --enable-features=PulseaudioLoopbackForScreenShare
     ```
-    Com PulseAudio puro, use `pactl load-module module-remap-source master="$(pactl get-default-sink).monitor" source_name=overshoulder_jogo source_properties=device.description=Overshoulder-jogo`. Essa versão fica presa à saída que era a padrão no momento do comando e vale só até reiniciar.
+  - **Firefox:** em **Ajustes › Áudio do jogo**, clique em "Listar" e escolha o **"Monitor of …"** da sua saída de som (PipeWire/PulseAudio).
   - **Só o som do jogo**, sem o do Discord ou de outros apps: crie uma saída só para o jogo, mande o jogo para ela (no pavucontrol ou nas configurações de som) e transmita o monitor dela:
     ```bash
     pactl load-module module-null-sink sink_name=jogo
